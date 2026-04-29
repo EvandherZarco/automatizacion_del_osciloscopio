@@ -1,0 +1,78 @@
+% ============================================================
+%  PORTADA — UNAM Facultad de Ingeniería
+% ============================================================
+
+\newgeometry{left=1.5cm, right=1.5cm, top=2cm, bottom=2cm}
+\begin{titlepage}
+\thispagestyle{empty}   %
+
+% ── Líneas verticales──
+\begin{tikzpicture}[remember picture, overlay]
+\draw[line width=3pt]
+    ([xshift=2cm, yshift=-6.25cm]current page.north west)
+    -- ([xshift=2cm, yshift=7.5cm]current page.south west);
+\draw[line width=1pt]
+    ([xshift=2.5cm, yshift=-5cm]current page.north west)
+    -- ([xshift=2.5cm, yshift=7.5cm]current page.south west);
+\end{tikzpicture}
+
+% ── Columna logos │ Columna texto ────────────────────────────
+%Columna izquierda
+\noindent
+\begin{minipage}[c][0.98\textheight][s]{5cm}
+  \centering
+  \includegraphics[width=4.8cm]{escudo_unam}
+  \vfill
+  \includegraphics[width=4cm]{escudo_fi}
+\end{minipage}%
+%espacio entre columnas
+\hspace{1cm}%
+%Columna derecha
+\begin{minipage}[c][0.98\textheight][s]{\dimexpr\textwidth -6 cm\relax}
+  \centering
+
+  {\normalsize\bfseries\underline{UNIVERSIDAD NACIONAL AUTÓNOMA DE MÉXICO}}
+
+  \vspace{0.5cm}
+
+  {\normalsize\bfseries FACULTAD DE INGENIERÍA}
+
+  \vspace{3cm}
+
+  {\large\bfseries
+    Automatización de un sistema fotoacústico\\[6pt]
+    para la caracterización de líquidos}
+
+  \vspace{3cm}
+
+  {\normalsize\bfseries T\,E\,S\,I\,S}\\[6pt]
+  {\small Que para obtener el título de}\\[6pt]
+  {\normalsize\bfseries Ingeniero Mecatrónico}   %
+
+  \vspace{2.5cm}
+
+  {\normalsize\bfseries
+    P\enspace R\enspace E\enspace S\enspace E\enspace N\enspace T\enspace A}
+
+  \vspace{0.5cm}
+
+  {\normalsize Zarco Hernandez Evandher Joel}             % 
+
+  \vspace{2.5cm}
+
+  {\normalsize\bfseries DIRECTOR(A) DE TESIS}
+
+  \vspace{0.4cm}
+
+  {\normalsize Dr. Ronquillo Arvizu Arturo}
+
+  \vfill
+
+  \begin{flushright}
+    {\small Ciudad Universitaria, Cd. Mx., 2026}
+  \end{flushright}
+
+\end{minipage}
+
+\end{titlepage}
+\restoregeometry

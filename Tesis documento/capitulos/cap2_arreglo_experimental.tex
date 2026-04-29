@@ -1,0 +1,104 @@
+% ============================================================
+%  CAPÍTULO 2: ARREGLO EXPERIMENTAL
+% ============================================================
+\chapter{Arreglo experimental}
+\label{cap:arreglo}
+
+En este capítulo se describe el arreglo experimental desarrollado
+para la medición fotoacústica de líquidos. Se presentan la celda
+fotoacústica, los equipos de medición involucrados, el sistema
+de medición de energía del láser y los sistemas de automatización
+implementados para el osciloscopio y el láser.
+
+% ============================================================
+\section{Descripción de la celda fotoacústica}
+\label{sec:celda}
+% ============================================================
+
+% GUÍA:
+% - Geometría de la celda (dimensiones, material, ventanas ópticas)
+% - Posición del hidrófono / fotodiodo dentro de la celda
+% - Fotografía o diagrama esquemático (figura obligatoria aquí)
+% - Cómo se introduce y extrae la muestra líquida
+
+% TODO: redactar contenido aquí
+
+% Ejemplo de cómo insertar figura cuando la tengas:
+% \begin{figure}[H]
+%   \centering
+%   \includegraphics[width=0.7\textwidth]{celda_fotoacustica}
+%   \caption{Diagrama de la celda fotoacústica utilizada.}
+%   \label{fig:celda}
+% \end{figure}
+
+
+% ============================================================
+\section{Equipos de medición: osciloscopio, hidrófono y fotodiodo}
+\label{sec:equipos}
+% ============================================================
+
+% GUÍA:
+% - Osciloscopio Tektronix TDS5000B: especificaciones relevantes
+%   (canales, ancho de banda, resolución vertical, interfaz VXI-11)
+% - Hidrófono: modelo, sensibilidad, rango de frecuencia
+% - Fotodiodo: modelo, respuesta espectral, función en el arreglo
+% - Tabla comparativa o tabla de especificaciones técnicas
+
+% TODO: redactar contenido aquí
+
+
+% ============================================================
+\section{Sistema de medición de energía del láser}
+\label{sec:energia_laser}
+% ============================================================
+
+% GUÍA:
+% - Modelo del láser (Nd:YAG, longitud de onda, energía por pulso, tasa de repetición)
+% - Sensor de energía (joulmeter / power meter): modelo y rango
+% - Cómo se mide la energía antes y/o durante el experimento
+% - Esquema del arreglo óptico completo (figura)
+
+% TODO: redactar contenido aquí
+
+
+% ============================================================
+\section{Automatización del osciloscopio}
+\label{sec:auto_osci}
+% ============================================================
+
+% GUÍA:
+% - Protocolo VXI-11 sobre Ethernet
+% - PyVISA como capa de abstracción: instalación, ResourceManager, open_resource
+% - Comandos SCPI principales utilizados (adquisición de forma de onda,
+%   configuración de escala, trigger)
+% - Diagrama de flujo del proceso de adquisición
+% - Fragmento de código representativo (usa el entorno lstlisting)
+
+% TODO: redactar contenido aquí
+
+% Ejemplo bloque de código:
+% \begin{lstlisting}[caption={Adquisición de forma de onda con PyVISA},
+%                    label={lst:pyvisa_waveform}]
+% import pyvisa
+% rm = pyvisa.ResourceManager()
+% osci = rm.open_resource("TCPIP::192.168.1.100::INSTR")
+% osci.write("DATA:SOURCE CH1")
+% raw = osci.query_binary_values("CURVE?", datatype='B')
+% \end{lstlisting}
+
+
+% ============================================================
+\section{Automatización del láser}
+\label{sec:auto_laser}
+% ============================================================
+
+% GUÍA:
+% - DLL del fabricante: nombre, versión, arquitectura (32-bit)
+% - Uso de ctypes para cargar la DLL desde Python
+% - Funciones principales expuestas por la DLL (inicialización,
+%   disparo, lectura de parámetros)
+% - Consideraciones de compatibilidad 32-bit (proceso separado /
+%   subproceso, bridge con multiprocessing o subprocess + pickle)
+% - Fragmento de código representativo
+
+% TODO: redactar contenido aquí

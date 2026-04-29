@@ -1,0 +1,21 @@
+\babel@toc {spanish}{}\relax 
+\contentsline {chapter}{Agradecimientos}{\es@scroman {ii}}{chapter*.2}%
+\contentsline {chapter}{Resumen}{\es@scroman {vi}}{chapter*.6}%
+\contentsline {chapter}{\numberline {1}Fundamentos teóricos}{1}{chapter.1}%
+\contentsline {section}{\numberline {1.1}El efecto fotoacústico}{1}{section.1.1}%
+\contentsline {section}{\numberline {1.2}El efecto fotoacústico en líquidos de baja absorción}{1}{section.1.2}%
+\contentsline {section}{\numberline {1.3}Necesidad de caracterizar líquidos}{1}{section.1.3}%
+\contentsline {section}{\numberline {1.4}Técnicas actuales de caracterización de líquidos}{1}{section.1.4}%
+\contentsline {chapter}{\numberline {2}Arreglo experimental}{2}{chapter.2}%
+\contentsline {section}{\numberline {2.1}Descripción de la celda fotoacústica}{2}{section.2.1}%
+\contentsline {section}{\numberline {2.2}Equipos de medición: osciloscopio, hidrófono y fotodiodo}{2}{section.2.2}%
+\contentsline {section}{\numberline {2.3}Sistema de medición de energía del láser}{2}{section.2.3}%
+\contentsline {section}{\numberline {2.4}Automatización del osciloscopio}{2}{section.2.4}%
+\contentsline {section}{\numberline {2.5}Automatización del láser}{2}{section.2.5}%
+\contentsline {chapter}{\numberline {3}Resultados de la automatización}{3}{chapter.3}%
+\contentsline {section}{\numberline {3.1}Descripción del software de automatización}{3}{section.3.1}%
+\contentsline {section}{\numberline {3.2}Comandos y lógica de control}{3}{section.3.2}%
+\contentsline {section}{\numberline {3.3}Sistema fotoacústico automatizado final}{3}{section.3.3}%
+\contentsline {chapter}{\numberline {4}Conclusiones}{4}{chapter.4}%
+\contentsline {section}{\numberline {4.1}Conclusiones generales}{4}{section.4.1}%
+\contentsline {section}{\numberline {4.2}Trabajo a futuro}{4}{section.4.2}%

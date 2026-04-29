@@ -1,0 +1,19 @@
+Device: UCP         Date: 2014.02.14
+Name;ID;Reg ID;Menu;Type;User rights;Nonvolatile;Min value;Max value;Short name;Print format;Name;Value
+NL30x   ;$8;$10;$0;u8;AUS;NV;0;2;State;[SLEEP,STOP,RUN,FAULT];State;RUN
+NL30x   ;$8;$11;$1;u8;AUS;;0;2;Energy;[OFF,Adjustment,Max];Output level;Adjustment
+NL30x   ;$8;$18;$2;u8;AS;;0;2;BatchM;[Continuous,Burst,Trigger];Continuous / Burst mode / Trigger burst;Continuous
+NL30x   ;$8;$19;$2;u16;AS;;1;30000;Pack;%u;Burst length, pulses;1
+NL30x   ;$8;$13;$11;u8;AUS;NV;0;1;SyncM;[INTERNAL,EXTERNAL];Sync mode;INTERNAL
+NL30x   ;$8;$16;$11;s32;AUS;NV;-64000;64000;SyncOut;%d;SyncOut delay;0
+NL30x   ;$8;$1A;$11;u8;AUS;NV;1;99;FDivider;%u;Divider, every Nth pulse;1
+NL30x   ;$8;$22;$22;u16;ArUrSr;;0;1000;Pump;%.1f%;Pump voltage;80.5
+NL30x   ;$8;$23;$22;u16;ArUrSr;;0;500;Temp;%.1fC;Read cooling temperature;28.9
+NL30x   ;$8;$20;$22;u16;AS;NV;100;500;CoolT;%.1fC;Set cooling temperature;30.0
+NL30x   ;$8;$21;$22;u32;AUrS;NV;0;4294967295;PulseCNT;%u;Lamp pulse counter;166670
+NL30x   ;$8;$15;$32;u8;AS;NV;1;50;RepRate;%uHz;Repetition Rate;10
+HV40W   ;$28;$12;$3;u16;ArUrSr;;0;4000;HV;%uV;HV voltage;3297
+UCP     ;$4;$9;$F;u32;ArUrSr;;0;4294967295;Version;%06u;Firmware UCPv3;110120
+NL30x   ;$8;$1B;$32;u16;AS;NV;800;8000;EO1;%u;Best EO delay;1700
+NL30x   ;$8;$1C;$32;u16;AS;NV;800;8000;EO2;%u;Adjustment EO delay;3800
+__license:64e7cc37b165a402906e004b81297f4f

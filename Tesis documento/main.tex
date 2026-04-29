@@ -1,0 +1,149 @@
+% ============================================================
+%  TESIS: Automatización de un sistema fotoacústico
+%         para la caracterización de líquidos
+%  Autor  : [Tu nombre completo]
+%  Asesor : Dr. Arturo [Apellidos]
+%  UNAM - Facultad de Ingeniería / ICAT
+% ============================================================
+
+\documentclass[12pt, letterpaper, oneside]{report}
+
+% ── Codificación y lenguaje ──────────────────────────────────
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[spanish, mexico]{babel}
+
+% ── Tipografía ───────────────────────────────────────────────
+\usepackage{lmodern}           % fuente Latin Modern (profesional, escalable)
+\usepackage{microtype}         % mejora tipografía, reduce overfull hbox
+
+% ── Márgenes (norma UNAM FI: izq 3cm, resto 2.5cm) ──────────
+\usepackage[
+  left   = 3cm,
+  right  = 2.5cm,
+  top    = 2.5cm,
+  bottom = 2.5cm
+]{geometry}
+
+% ── Interlineado ─────────────────────────────────────────────
+\usepackage{setspace}
+\onehalfspacing                % 1.5 interlineado estándar
+
+% ── Gráficas e imágenes ──────────────────────────────────────
+\usepackage{graphicx}
+\usepackage{float}
+\graphicspath{{./figuras/}}    % carpeta de imágenes
+
+% ── Matemáticas ──────────────────────────────────────────────
+\usepackage{amsmath, amssymb, amsfonts}
+\usepackage{siunitx}           % unidades SI: \SI{10}{\kilo\hertz}
+
+% ── Código fuente ────────────────────────────────────────────
+\usepackage{listings}
+\usepackage{xcolor}
+
+\lstdefinestyle{pythonstyle}{
+  language     = Python,
+  basicstyle   = \ttfamily\small,
+  keywordstyle = \color{blue}\bfseries,
+  commentstyle = \color{gray},
+  stringstyle  = \color{orange!80!black},
+  numbers      = left,
+  numberstyle  = \tiny\color{gray},
+  frame        = single,
+  breaklines   = true,
+  captionpos   = b
+}
+\lstset{style=pythonstyle}
+
+% ── Tablas ───────────────────────────────────────────────────
+\usepackage{booktabs}          % líneas profesionales
+\usepackage{multirow}
+\usepackage{array}
+
+% ── Hipervínculos y referencias ──────────────────────────────
+\usepackage[
+  colorlinks = true,
+  linkcolor  = black,
+  citecolor  = blue,
+  urlcolor   = blue
+]{hyperref}
+\usepackage[spanish]{cleveref} % \cref{fig:x} → "figura 1"
+
+% ── Bibliografía ─────────────────────────────────────────────
+\usepackage{csquotes}          % requerido por biblatex con babel
+\usepackage[
+  backend  = biber,
+  style    = ieee,
+  sorting  = none
+]{biblatex}
+\addbibresource{referencias.bib}
+
+% ── Encabezados y pies de página ─────────────────────────────
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\leftmark}
+\fancyhead[R]{\small\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+
+% ── TikZ (para las líneas decorativas de la portada) ─────────
+\usepackage{tikz}
+\usepackage{eso-pic}           % para elementos en posición absoluta
+
+% ── Otros útiles ─────────────────────────────────────────────
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{enumitem}
+\usepackage{pdfpages}          % para incluir PDFs externos si es necesario
+
+% ============================================================
+%  DOCUMENTO
+% ============================================================
+\begin{document}
+
+% ── Numeración romana para las páginas preliminares ──────────
+\pagenumbering{roman}
+\pagestyle{empty}
+
+% ── PORTADA ──────────────────────────────────────────────────
+\input{capitulos/portada}
+
+% ── PÁGINAS PRELIMINARES ─────────────────────────────────────
+\newpage
+\input{capitulos/dedicatoria}   % opcional, comenta si no quieres
+
+\newpage
+\input{capitulos/agradecimientos}
+
+\newpage
+\tableofcontents
+\newpage
+\listoffigures
+\newpage
+\listoftables
+
+% ── RESUMEN ──────────────────────────────────────────────────
+\newpage
+\input{capitulos/resumen}
+
+% ── Numeración arábiga para el cuerpo ────────────────────────
+\newpage
+\pagenumbering{arabic}
+\pagestyle{fancy}
+
+% ── CAPÍTULOS ────────────────────────────────────────────────
+\input{capitulos/cap1_fundamentos}
+\input{capitulos/cap2_arreglo_experimental}
+\input{capitulos/cap3_resultados}
+\input{capitulos/cap4_conclusiones}
+
+% ── REFERENCIAS ──────────────────────────────────────────────
+\newpage
+\printbibliography[heading=bibintoc, title={Referencias}]
+
+% ── APÉNDICES (si aplica) ────────────────────────────────────
+% \appendix
+% \input{capitulos/apendice_a}
+
+\end{document}
