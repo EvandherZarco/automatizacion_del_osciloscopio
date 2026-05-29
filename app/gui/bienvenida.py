@@ -101,7 +101,7 @@ class BienvenidaWindow(QMainWindow):
         root.addStretch(2)
         root.addWidget(self._pie())
 
-    # ── Escudos ───────────────────────────────────────────────────────────────
+    # ── Escudos ────────────────────────────────────────────────────────────
 
     def _fila_escudos(self) -> QHBoxLayout:
         fila = QHBoxLayout()
@@ -130,7 +130,7 @@ class BienvenidaWindow(QMainWindow):
             )
         return lbl
 
-    # ── Título ────────────────────────────────────────────────────────────────
+    # ── Título ─────────────────────────────────────────────────────────────
 
     def _bloque_titulo(self) -> QWidget:
         w = QWidget()
@@ -147,7 +147,8 @@ class BienvenidaWindow(QMainWindow):
 
         sub = QLabel(
             "Universidad Nacional Autónoma de México  ·  ICAT\n"
-            "Asesor: Dr. Arturo Ronquillo Arvizu"
+            "Asesor: Dr. Arturo Ronquillo Arvizu\n"
+            "Autor: Zarco Hernández Evandher Joel · ZarcoMecatronics"
         )
         sub.setAlignment(Qt.AlignCenter)
         sub.setStyleSheet("color: #666; font-size: 12px; background: transparent;")
@@ -162,7 +163,7 @@ class BienvenidaWindow(QMainWindow):
         lay.addWidget(sep)
         return w
 
-    # ── Botones de modo ───────────────────────────────────────────────────────
+    # ── Botones de modo ────────────────────────────────────────────────────
 
     def _fila_botones(self) -> QHBoxLayout:
         fila = QHBoxLayout()
@@ -195,7 +196,7 @@ class BienvenidaWindow(QMainWindow):
         fila.addWidget(self._btn_ambos)
         return fila
 
-    # ── Pie ───────────────────────────────────────────────────────────────────
+    # ── Pie ────────────────────────────────────────────────────────────────
 
     def _pie(self) -> QLabel:
         lbl = QLabel("Automatización de un sistema fotoacústico para la caracterización de líquidos")
@@ -203,7 +204,7 @@ class BienvenidaWindow(QMainWindow):
         lbl.setStyleSheet("color: #3a3a3a; font-size: 11px; background: transparent;")
         return lbl
 
-    # ── Apertura de ventanas hijas ────────────────────────────────────────────
+    # ── Apertura de ventanas hijas ─────────────────────────────────────────
 
     @Slot()
     def _abrir_laser(self):
