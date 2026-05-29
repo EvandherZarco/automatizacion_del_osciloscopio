@@ -1,59 +1,246 @@
-% ============================================================
-%  CAPÍTULO 3: RESULTADOS DE LA AUTOMATIZACIÓN
-% ============================================================
+% =========================================================
+%   CAPÍTULO 3: RESULTADOS DE LA AUTOMATIZACIÓN
+% =========================================================
 \chapter{Resultados de la automatización}
 \label{cap:resultados}
-
-% ── NOTA ─────────────────────────────────────────────────────
-% Este capítulo requiere que el sistema esté funcionando.
-% Se estructura ahora para tener claridad de qué hay que mostrar.
-% Redactar cuando el láser esté resuelto.
-% ─────────────────────────────────────────────────────────────
 
 En este capítulo se presentan los resultados obtenidos del sistema
 de automatización desarrollado, incluyendo la descripción del software,
 la lógica de control implementada y el comportamiento del sistema
 fotoacústico automatizado en condiciones de operación.
 
-% ============================================================
+% =========================================================
 \section{Descripción del software de automatización}
 \label{sec:software}
-% ============================================================
+% =========================================================
 
-% GUÍA:
-% - Arquitectura general: módulos, clases, flujo de datos
-% - Interfaz gráfica (PySide6): ventanas, controles, visualización en tiempo real
-% - Diagrama de arquitectura del software (figura)
-% - Decisiones de diseño relevantes (por qué PySide6, por qué ctypes, etc.)
+El software de automatización se desarrolló como una aplicación de
+escritorio en Python~3.11 con interfaz gráfica basada en
+\texttt{PySide6}~6.11, el enlace oficial de Qt~6 para Python.
+La arquitectura sigue un patrón modular en el que cada subsistema
+de hardware corresponde a un paquete independiente, y la interfaz
+gráfica actúa como coordinador de alto nivel.
 
-% TODO: redactar cuando el sistema esté completo
+\subsection*{Arquitectura modular}
 
+El proyecto se organiza en torno a un paquete principal \texttt{app/}
+que agrupa los siguientes módulos:
 
-% ============================================================
-\section{Comandos y lógica de control}
+\begin{itemize}
+    \item \texttt{app/laser/control\_laser.py} — gestión de la conexión
+    con el láser mediante la biblioteca de enlace dinámico
+    \texttt{REMOTECONTROL64.dll}; expone métodos de alto nivel para
+    iniciar, detener y configurar los parámetros de disparo.
+
+    \item \texttt{app/osciloscopio/control\_osciloscopio.py} — comunicación
+    VXI-11 con el osciloscopio Tektronix TDS5052B; implementa la
+    configuración de adquisición, la transferencia binaria de forma de
+    onda y la conversión a unidades físicas.
+
+    \item \texttt{app/temperatura/temperatura.py} — hilo de lectura
+    continua de los cuatro sensores DS18B20 conectados al módulo ESP32-C3;
+    mantiene la última lectura en memoria y emite señales Qt cuando
+    el valor se actualiza.
+
+    \item \texttt{app/medicion/medicion.py} — orquestador de la secuencia
+    de medición automática; coordina el láser, el osciloscopio y el
+    módulo de temperatura según el modo de operación seleccionado.
+
+    \item \texttt{app/medicion/trigger.py} — lógica de disparo; evalúa
+    la condición de inicio y fin de adquisición en función de la
+    temperatura o del tiempo según el modo activo.
+
+    \item \texttt{app/almacenamiento/almacenamiento.py} — persistencia
+    de datos; guarda los datos crudos en archivos \texttt{.npy} y
+    los metadatos de cada medición en un registro \texttt{.csv} de sesión.
+
+    \item \texttt{app/conexion/monitoreo.py} — hilo de monitoreo de
+    conexión; verifica periódicamente la disponibilidad de cada
+    dispositivo y actualiza el indicador de estado en la interfaz.
+
+    \item \texttt{app/modo\_seguro/modo\_seguro.py} — procedimiento de
+    seguridad; desactiva el láser de forma controlada ante una parada
+    de emergencia, fallo de comunicación o conclusión de secuencia.
+
+    \item \texttt{app/gui/} — conjunto de ventanas y componentes gráficos
+    descritos en la \cref{sec:gui}.
+\end{itemize}
+
+El punto de entrada de la aplicación es \texttt{main.py}, ubicado en
+la raíz del proyecto, que instancia la ventana de bienvenida y entrega
+el control al ciclo de eventos de Qt.
+
+\subsection*{Decisiones de diseño relevantes}
+
+La elección de \texttt{PySide6} frente a otras bibliotecas gráficas
+responde a tres criterios: compatibilidad nativa con Qt~6, soporte
+activo de largo plazo por parte de The Qt Company, y disponibilidad
+del módulo \texttt{pyqtgraph} para visualización en tiempo real sin
+pérdida de rendimiento.
+
+Todas las operaciones de hardware se ejecutan en hilos secundarios
+(\texttt{QThread}) independientes del hilo principal de la interfaz.
+Esta separación es obligatoria en aplicaciones Qt: bloquear el hilo
+principal durante una transferencia de forma de onda o una espera de
+conexión provoca que la ventana quede sin respuesta. Cada hilo
+comunica su resultado al hilo principal mediante señales Qt
+(\texttt{pyqtSignal}), que Qt entrega de forma segura entre hilos.
+
+El control del láser mediante \texttt{ctypes} directo, en lugar de
+un subproceso separado o una capa intermedia, obedece a la
+restricción de arquitectura de la \texttt{DLL}: la biblioteca
+\texttt{REMOTECONTROL64.dll} es exclusivamente de 64~bits y debe
+cargarse en el mismo espacio de proceso que el intérprete de Python.
+El uso de \texttt{ctypes.WinDLL} desde Python~3.11 de 64~bits
+satisface esta condición sin dependencias adicionales.
+
+% =========================================================
+\section{Interfaz gráfica de usuario}
+\label{sec:gui}
+% =========================================================
+
+La interfaz gráfica ofrece tres modos de operación seleccionables
+desde una ventana de bienvenida: control exclusivo del láser,
+control exclusivo del osciloscopio, y modo combinado que habilita
+la secuencia de medición automática. Cada modo abre una ventana
+independiente; al cerrarla, la aplicación regresa a la bienvenida
+sin necesidad de reiniciar el proceso.
+
+\subsection*{Ventana de bienvenida}
+
+La ventana de bienvenida muestra los escudos institucionales de la
+UNAM e ICAT, el título del sistema y los datos del responsable.
+Los tres botones de modo utilizan un esquema de color diferenciado:
+naranja para el láser, azul para el osciloscopio, y azul con borde
+iluminado para el modo combinado, lo que permite identificar el modo
+activo de un vistazo.
+
+\subsection*{Ventana de modo combinado}
+
+La ventana principal del modo combinado (\texttt{ventana\_ambos.py})
+se organiza en tres pestañas:
+
+\begin{itemize}
+    \item \textbf{Parámetros} — permite configurar los parámetros del
+    láser (nivel de energía, modo de disparo, longitud de ráfaga,
+    \textit{EO delay}, temperatura de enfriamiento) y del osciloscopio
+    (canal, escala vertical, escala horizontal, acoplamiento, nivel de
+    \textit{trigger}, modo de adquisición y número de promedios)
+    antes de iniciar una secuencia.
+
+    \item \textbf{Medición} — expone los controles de la secuencia
+    automática (temperatura objetivo, duración en modo tiempo,
+    botones de inicio y parada de emergencia) y muestra el estado
+    en tiempo real de cada dispositivo mediante indicadores de color.
+
+    \item \textbf{Visualizar datos} — presenta la forma de onda
+    adquirida en un gráfico interactivo de \texttt{pyqtgraph} con
+    ejes calibrados en tiempo (\si{\micro\second}) y voltaje
+    (\si{\milli\volt}), lo que permite inspeccionar la señal
+    fotoacústica sin abandonar la aplicación.
+\end{itemize}
+
+La barra superior muestra el estado de conexión de cada dispositivo
+(láser, osciloscopio, ESP32) mediante indicadores de color: verde
+para conexión activa, rojo para desconectado, y un botón de
+reconexión disponible en todo momento. Las lecturas de los cuatro
+sensores de temperatura se actualizan cada segundo en la barra
+superior derecha.
+
+% =========================================================
+\section{Lógica de control y secuencia de medición}
 \label{sec:logica_control}
-% ============================================================
+% =========================================================
 
-% GUÍA:
-% - Secuencia de operación completa (diagrama de flujo o de estados)
-% - Comandos SCPI enviados al osciloscopio y respuesta esperada
-% - Comandos/funciones DLL para el láser
-% - Manejo de errores y excepciones
-% - Tiempos de respuesta / latencia medidos
+\subsection*{Modos de operación automática}
 
-% TODO: redactar cuando el sistema esté completo
+El sistema implementa dos modos de medición automática, seleccionables
+antes de iniciar la secuencia:
 
+\begin{itemize}
+    \item \textbf{Modo tiempo} — el osciloscopio adquiere durante un
+    intervalo de tiempo fijo especificado por el operador. El láser
+    dispara continuamente desde el inicio hasta que transcurre el
+    tiempo configurado, momento en que el osciloscopio detiene la
+    adquisición y el modo seguro se activa.
 
-% ============================================================
+    \item \textbf{Modo temperatura} — el osciloscopio inicia la
+    adquisición (\texttt{ACQ:STATE RUN}) cuando la temperatura de la
+    muestra supera el umbral objetivo en \SI{0.1}{\celsius}, y la
+    detiene (\texttt{ACQ:STATE STOP}) cuando la temperatura cae
+    \SI{0.1}{\celsius} por debajo del objetivo durante el enfriamiento.
+    El número estimado de pulsos integrados se calcula como:
+    \begin{equation}
+        n_\text{pulsos} = (t_\text{fin} - t_\text{inicio}) \times
+        \SI{10}{\hertz}
+        \label{eq:pulsos_estimados}
+    \end{equation}
+    y se almacena junto con los datos de la medición.
+\end{itemize}
+
+En ambos modos, el láser opera de forma continua durante toda la
+secuencia; su activación y desactivación forman parte del flujo
+de inicio y del procedimiento de modo seguro, respectivamente.
+
+\subsection*{Secuencia de operación}
+
+La secuencia de medición automática en modo temperatura sigue los
+pasos descritos a continuación:
+
+\begin{enumerate}
+    \item El operador configura los parámetros en la pestaña
+    \textbf{Parámetros} y presiona \textit{Iniciar} en la pestaña
+    \textbf{Medición}.
+    \item El módulo \texttt{medicion.py} envía los parámetros al
+    láser mediante \texttt{rcSetRegFromString} y aplica la
+    configuración del osciloscopio mediante los comandos SCPI
+    de la \cref{lst:config_base}.
+    \item El láser inicia el disparo (\texttt{Laser State = START}).
+    \item El hilo \texttt{TriggerWorker} supervisa la temperatura
+    reportada por \texttt{TempWorker}; cuando $T \geq T_\text{obj}
+    + \SI{0.1}{\celsius}$, envía \texttt{ACQ:STATE RUN} al
+    osciloscopio y registra $t_\text{inicio}$.
+    \item Cuando $T \leq T_\text{obj} - \SI{0.1}{\celsius}$,
+    envía \texttt{ACQ:STATE STOP} y registra $t_\text{fin}$.
+    \item \texttt{medicion.py} transfiere la forma de onda
+    mediante \texttt{CURVE?}, aplica la conversión de la
+    \cref{eq:conv_voltaje,eq:conv_tiempo} y entrega los datos
+    al módulo de almacenamiento.
+    \item El procedimiento de modo seguro desactiva el láser.
+    \item La interfaz muestra la señal adquirida en la pestaña
+    \textbf{Visualizar datos} y habilita el botón de nueva medición.
+\end{enumerate}
+
+\subsection*{Manejo de errores y modo seguro}
+
+El sistema distingue cuatro condiciones que activan el modo seguro:
+conclusión exitosa de la secuencia, parada de emergencia iniciada
+por el operador, fallo de comunicación con el láser tras tres
+reintentos, e inactividad prolongada en modo manual. En todos los
+casos se ejecutan, en orden, los cuatro comandos de la
+\cref{sec:auto_laser}: detener disparo, reducir energía,
+desactivar el conmutador electro-óptico y establecer modo continuo.
+Cada comando se intenta hasta tres veces; el procedimiento continúa
+independientemente del resultado de cada paso para maximizar el
+número de comandos de seguridad ejecutados.
+
+Si algún sensor de temperatura reporta un valor fuera del rango
+operativo (\SIrange{10}{50}{\celsius}) o se pierde la comunicación
+con el ESP32, la interfaz muestra un indicador de advertencia
+(\textcolor{yellow}{$\blacktriangle$}) y establece el campo
+\texttt{error\_flag = 1} en el registro CSV de la medición
+afectada, sin interrumpir la secuencia activa.
+
+% =========================================================
 \section{Sistema fotoacústico automatizado final}
 \label{sec:sistema_final}
-% ============================================================
+% =========================================================
 
 % GUÍA:
-% - Demostración del sistema funcionando (capturas de pantalla de la GUI)
+% - Capturas de pantalla de la GUI con el sistema funcionando
 % - Señales fotoacústicas adquiridas (formas de onda del osciloscopio)
 % - Repetibilidad de las mediciones
 % - Comparación manual vs automatizado (si aplica)
 % - Limitaciones encontradas y cómo se resolvieron
 
-% TODO: redactar cuando el sistema esté completo
+% TODO: redactar cuando el sistema esté completo con datos reales

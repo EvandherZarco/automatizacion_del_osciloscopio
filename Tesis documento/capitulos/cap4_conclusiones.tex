@@ -1,36 +1,89 @@
-% ============================================================
-%  CAPÍTULO 4: CONCLUSIONES
-% ============================================================
+% =========================================================
+%   CAPÍTULO 4: CONCLUSIONES
+% =========================================================
 \chapter{Conclusiones}
 \label{cap:conclusiones}
 
-% ── NOTA ─────────────────────────────────────────────────────
-% Escribir al final, cuando tengas todos los resultados.
-% ─────────────────────────────────────────────────────────────
-
-% ============================================================
+% =========================================================
 \section{Conclusiones generales}
 \label{sec:conclusiones_generales}
-% ============================================================
+% =========================================================
 
+% TODO: redactar al final, cuando tengas todos los resultados.
 % GUÍA:
 % - ¿Se cumplieron los objetivos planteados?
 % - ¿Qué se logró con el sistema automatizado?
 % - Aportación concreta del trabajo
 % - Desempeño del sistema vs expectativas
 
-% TODO: redactar al final
-
-
-% ============================================================
+% =========================================================
 \section{Trabajo a futuro}
 \label{sec:trabajo_futuro}
-% ============================================================
+% =========================================================
 
-% GUÍA:
-% - Mejoras al hardware (celda, sensores)
-% - Mejoras al software (análisis en tiempo real, base de datos de líquidos)
-% - Extensión a otros líquidos / concentraciones
-% - Posibles publicaciones o continuación en posgrado
+El sistema desarrollado en este trabajo constituye una base funcional
+que puede extenderse en varias direcciones. A continuación se describen
+las líneas de trabajo identificadas durante el desarrollo.
 
-% TODO: redactar al final
+\subsection*{Mejoras al hardware}
+
+El módulo de temperatura actual emplea cuatro sensores DS18B20
+conectados mediante un bus 1-Wire a un microcontrolador ESP32-C3.
+Una mejora natural sería sustituir la comunicación USB-serial por
+una conexión inalámbrica (Wi-Fi o Bluetooth) que elimine el cable
+entre el módulo y la computadora de control, simplificando el
+arreglo experimental. Adicionalmente, el diseño de la PCB podría
+incorporar un regulador de voltaje integrado que permita alimentar
+el módulo directamente desde el puerto USB del osciloscopio,
+reduciendo el número de fuentes de alimentación independientes.
+
+En cuanto a la celda fotoacústica, trabajos futuros podrían explorar
+geometrías optimizadas para minimizar reflexiones acústicas internas
+y mejorar la relación señal a ruido de la señal detectada por el
+hidrófono.
+
+\subsection*{Mejoras al software}
+
+El módulo de visualización actual muestra la forma de onda adquirida
+tras concluir cada medición. Una extensión relevante sería implementar
+un modo de previsualización en tiempo real durante la adquisición,
+que permita al operador verificar la calidad de la señal antes de
+confirmar el almacenamiento.
+
+El módulo de almacenamiento guarda los datos crudos en archivos
+\texttt{.npy} y los metadatos en un registro \texttt{.csv}.
+Incorporar una base de datos ligera (por ejemplo, \texttt{SQLite})
+facilitaría la búsqueda y comparación de mediciones por líquido,
+concentración, temperatura o fecha sin necesidad de procesar los
+archivos manualmente.
+
+Finalmente, el pipeline de procesamiento podría integrarse
+directamente en la aplicación: cálculo del coeficiente de absorción
+óptica a partir de la amplitud de la señal fotoacústica, corrección
+por la energía del pulso láser y generación automática de reportes
+en formato PDF al concluir una sesión de medición.
+
+\subsection*{Extensión a otros líquidos y concentraciones}
+
+El sistema fue diseñado y validado con agua como líquido de
+referencia. Una extensión directa consiste en caracterizar
+soluciones acuosas de distintas concentraciones de absorbentes
+de interés biológico o industrial, lo que permitiría construir
+una base de datos de coeficientes de absorción en función de la
+concentración y la temperatura.
+
+La automatización del control de temperatura abre la posibilidad
+de realizar barridos térmicos programados, obteniendo la dependencia
+del coeficiente de absorción con la temperatura de forma sistemática
+y reproducible, sin intervención manual entre puntos de medición.
+
+\subsection*{Continuación académica}
+
+Los resultados obtenidos en este trabajo sientan las bases para
+una investigación de posgrado orientada a la caracterización
+fotoacústica de mezclas de líquidos y al desarrollo de sensores
+de concentración basados en el efecto fotoacústico pulsado.
+La plataforma de automatización desarrollada puede reutilizarse
+o adaptarse para otros experimentos del laboratorio que requieran
+sincronización entre un láser pulsado y un sistema de adquisición
+de señales.
