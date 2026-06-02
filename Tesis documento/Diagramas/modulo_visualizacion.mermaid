@@ -1,0 +1,75 @@
+flowchart TD
+
+    %% ─────────────────────────────
+    %% SUB-FLUJO 1: CARGAR DATOS
+    %% (al entrar al tab o al reimportar)
+    %% ─────────────────────────────
+    INIT([📊 Visualización: Cargar datos])
+    INIT --> SOURCE{Origen de los datos?}
+
+    SOURCE --> |Sesión activa| LOADACTIVE["Usa CSV de la sesión actual
+    ya abierta en Almacenamiento"]
+    SOURCE --> |Reimportar archivo| FILESEL[/Usuario selecciona archivo CSV/]
+    FILESEL --> VALIDATE{CSV tiene formato
+    correcto?}
+    VALIDATE --> |No| FMTERR[/"⚠️ Formato incompatible
+    Este CSV no es de una sesión del sistema"/]
+    FMTERR --> INIT
+    VALIDATE --> |Sí| LOADACTIVE
+
+    LOADACTIVE --> PARSECSV["Lee todas las filas del CSV
+    construye lista de mediciones"]
+    PARSECSV --> FILLEMPTY{El CSV tiene
+    mediciones?}
+    FILLEMPTY --> |No| EMPTY[/"Sin mediciones registradas
+    en esta sesión"/]
+    FILLEMPTY --> |Sí| FILLTABLE
+
+    %% ─────────────────────────────
+    %% SUB-FLUJO 2: MOSTRAR LISTA
+    %% ─────────────────────────────
+    FILLTABLE["Llena tabla con columnas:
+    medicion_id · timestamp · temperatura
+    modo · error_flag"]
+    FILLTABLE --> FLAGFILTER["Resalta filas con
+    error_flag = 1 en amarillo"]
+    FLAGFILTER --> READY(["✅ Lista lista para interacción"])
+
+    %% ─────────────────────────────
+    %% SUB-FLUJO 3: GRAFICAR SEÑAL
+    %% (usuario selecciona una fila)
+    %% ─────────────────────────────
+    SELECT([📊 Visualización: Graficar señal
+    usuario selecciona medición de la lista])
+    SELECT --> LOADNPY["Carga archivo .npy
+    referenciado en la fila del CSV"]
+    LOADNPY --> NPYOK{Archivo .npy
+    encontrado?}
+    NPYOK --> |No| NPYERR[/"⚠️ Archivo .npy no encontrado
+    La señal no puede graficarse
+    Los metadatos del CSV siguen disponibles"/]
+    NPYOK --> |Sí| CONVERT["Convierte raw_data a valores físicos
+    usando parámetros WFMPRE del CSV:
+    voltaje = raw menos YOFF por YMULT más YZERO
+    tiempo = XZERO más i menos PT_OFF por XINCR"]
+    CONVERT --> PLOT["Grafica señal con pyqtgraph:
+    eje X: tiempo en microsegundos
+    eje Y: voltaje en milivoltios"]
+    PLOT --> PLOTMETA["Muestra metadatos junto a la gráfica:
+    temperatura · modo · error_flag · timestamp"]
+    PLOTMETA --> PLOTREADY(["✅ Señal graficada"])
+
+    %% ─────────────────────────────
+    %% SUB-FLUJO 4: EXPORTAR
+    %% ─────────────────────────────
+    EXPORT([📊 Visualización: Exportar
+    usuario presiona Exportar])
+    EXPORT --> EXPSEL[/Usuario elige destino y nombre del archivo/]
+    EXPSEL --> COPYNPY{Copiar también
+    archivos .npy?}
+    COPYNPY --> |Sí| COPYALL["Copia CSV + carpeta .npy completa
+    al destino seleccionado"]
+    COPYNPY --> |No — solo metadatos| COPYCSV["Copia únicamente el CSV
+    al destino seleccionado"]
+    COPYALL --> EXPORTOK[/"✅ Sesión exportada correctamente"/]
+    COPYCSV --> EXPORTOK

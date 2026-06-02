@@ -17,12 +17,11 @@ from __future__ import annotations
 import time
 import numpy as np
 import vxi11
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from PySide6.QtCore import QObject, Signal, QMutex, QMutexLocker
 
 from app.config import OSCIL_HOST
 
-N_PUNTOS = 5001
 TIMEOUT_S = 30.0
 MAX_REINTENTOS = 3
 POLL_INTERVAL_S = 0.5
@@ -46,11 +45,11 @@ class CapturaOscil:
 
 class OsciloscopioController(QObject):
 
-    led_verde    = Signal()
-    led_rojo     = Signal()
+    led_verde = Signal()
+    led_rojo = Signal()
     led_amarillo = Signal()
-    error        = Signal(str)
-    cmd_ok       = Signal(str)
+    error = Signal(str)
+    cmd_ok = Signal(str)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -59,6 +58,7 @@ class OsciloscopioController(QObject):
         self._connected = False
         self._modelo: str = ""
         self._canal: str = _CANAL_DEFAULT
+        self._nr_pt: int = 0
 
     @property
     def conectado(self) -> bool:
@@ -76,12 +76,12 @@ class OsciloscopioController(QObject):
                 inst = vxi11.Instrument(OSCIL_HOST)
                 inst.timeout = TIMEOUT_S
             except Exception as exc:
-                self._emit_error(f"No se pudo crear instrumento VXI-11: {exc}")
+                self._emit_conn_error(f"No se pudo crear instrumento VXI-11: {exc}")
                 return False
 
             idn = self._ping(inst)
             if idn is None:
-                self._emit_error(
+                self._emit_conn_error(
                     "Osciloscopio no responde a *IDN?. "
                     f"Verificar: app Windows XP corriendo, cable Ethernet, IP {OSCIL_HOST}."
                 )
@@ -90,22 +90,29 @@ class OsciloscopioController(QObject):
             try:
                 modelo = idn.split(",")[1].strip()
             except IndexError:
-                self._emit_error(f"IDN con formato inesperado: {idn.strip()}")
+                self._emit_conn_error(f"IDN con formato inesperado: {idn.strip()}")
                 return False
 
             if not modelo.startswith("TDS"):
-                self._emit_error(f"Instrumento desconocido: {idn.strip()}")
+                self._emit_conn_error(f"Instrumento desconocido: {idn.strip()}")
                 return False
 
-            if not self._configurar_base(inst):
-                self._emit_error("Error en la configuración base del osciloscopio.")
+            nr_pt = self._configurar_base(inst)
+            if nr_pt is None:
+                self._emit_conn_error(
+                    "Error en la configuración base del osciloscopio."
+                )
                 return False
 
             self._inst = inst
             self._modelo = modelo
+            self._nr_pt = nr_pt
             self._connected = True
             self.led_verde.emit()
-            self.cmd_ok.emit(f"Osciloscopio conectado — {modelo} ({OSCIL_HOST}).")
+            self.cmd_ok.emit(
+                f"Osciloscopio conectado — {modelo} ({OSCIL_HOST}). "
+                f"Puntos de waveform: {nr_pt}."
+            )
             return True
 
     def desconectar(self) -> None:
@@ -125,20 +132,48 @@ class OsciloscopioController(QObject):
                 return False
             return self._ping(self._inst) is not None
 
+    def leer_escala_actual(self) -> dict | None:
+        """
+        Lee del hardware los parámetros de escala actuales.
+        Retorna dict con claves: vdiv_v, tdiv_s, coupling, trigger_v, acq_mode, numavg.
+        Retorna None si el osciloscopio no responde.
+        """
+        with QMutexLocker(self._mutex):
+            if not self._inst:
+                return None
+            try:
+                vdiv = float(self._inst.ask(f"{self._canal}:SCALE?").strip())
+                tdiv = float(self._inst.ask("HORizontal:SCAle?").strip())
+                coup = self._inst.ask(f"{self._canal}:COUPling?").strip().upper()
+                trig = float(self._inst.ask("TRIGger:MAIn:LEVel?").strip())
+                mode = self._inst.ask("ACQ:MODE?").strip().upper()
+                numavg = int(self._inst.ask("ACQ:NUMAVG?").strip())
+                return {
+                    "vdiv_v": vdiv,
+                    "tdiv_s": tdiv,
+                    "coupling": coup,
+                    "trigger_v": trig,
+                    "acq_mode": mode,
+                    "numavg": numavg,
+                }
+            except Exception as exc:
+                self.error.emit(f"Error al leer escala actual: {exc}")
+                return None
+
     # ── Escala vertical (V/div) ───────────────────────────────────────────────
 
     # Mapa legible → valor en voltios para el comando SCPI CHx:SCALE
     VDIV_OPCIONES: dict[str, float] = {
-        "1 mV/div":   0.001,
-        "2 mV/div":   0.002,
-        "5 mV/div":   0.005,
-        "10 mV/div":  0.010,
-        "20 mV/div":  0.020,
-        "50 mV/div":  0.050,
+        "1 mV/div": 0.001,
+        "2 mV/div": 0.002,
+        "5 mV/div": 0.005,
+        "10 mV/div": 0.010,
+        "20 mV/div": 0.020,
+        "50 mV/div": 0.050,
         "100 mV/div": 0.100,
         "200 mV/div": 0.200,
         "500 mV/div": 0.500,
-        "1 V/div":    1.000,
+        "1 V/div": 1.000,
     }
 
     # Mapa legible → valor en segundos para el comando SCPI HORizontal:SCAle
@@ -146,13 +181,20 @@ class OsciloscopioController(QObject):
         "100 ns/div": 100e-9,
         "200 ns/div": 200e-9,
         "500 ns/div": 500e-9,
-        "1 µs/div":   1e-6,
-        "2 µs/div":   2e-6,
-        "5 µs/div":   5e-6,
-        "10 µs/div":  10e-6,
-        "20 µs/div":  20e-6,
-        "50 µs/div":  50e-6,
+        "1 µs/div": 1e-6,
+        "2 µs/div": 2e-6,
+        "5 µs/div": 5e-6,
+        "10 µs/div": 10e-6,
+        "20 µs/div": 20e-6,
+        "50 µs/div": 50e-6,
         "100 µs/div": 100e-6,
+        "200 µs/div": 200e-6,
+        "500 µs/div": 500e-6,
+        "1 ms/div": 1e-3,
+        "2 ms/div": 2e-3,
+        "4 ms/div": 4e-3,
+        "5 ms/div": 5e-3,
+        "10 ms/div": 10e-3,
     }
 
     def set_vdiv(self, opcion: str) -> bool:
@@ -284,7 +326,7 @@ class OsciloscopioController(QObject):
     def set_canal(self, canal: str) -> bool:
         """
         Cambia el canal activo (CH1 o CH2) y lo aplica al osciloscopio.
-        Puede llamarse en cualquier momento mientras el instrumento esté conectado.
+        Solo tiene efecto cuando no hay una adquisición en curso.
         """
         canal = canal.upper()
         if canal not in _CANALES_VALIDOS:
@@ -334,7 +376,7 @@ class OsciloscopioController(QObject):
             try:
                 self._inst.write("ACQ:STATE RUN")
             except Exception as exc:
-                self._emit_error(f"Error al iniciar adquisición manual: {exc}")
+                self._emit_conn_error(f"Error al iniciar adquisición manual: {exc}")
                 return None
 
             if not self._esperar_fin(self._inst):
@@ -352,14 +394,26 @@ class OsciloscopioController(QObject):
     # ── Captura modo tiempo ───────────────────────────────────────────────────
 
     def capturar_modo_tiempo(self) -> CapturaOscil | None:
+        """
+        Captura con promediado para modo tiempo. Requiere que NUMAVG < NUMAVG_TEMPERATURA;
+        si el scope está configurado para modo temperatura este método no debe llamarse.
+        """
         with QMutexLocker(self._mutex):
             if not self._inst:
+                return None
+
+            numavg_actual = self._leer_numavg_actual(self._inst)
+            if numavg_actual is not None and numavg_actual >= NUMAVG_TEMPERATURA:
+                self.error.emit(
+                    f"capturar_modo_tiempo llamado con NUMAVG={numavg_actual}. "
+                    "Usa acq_run / acq_stop_and_capture para modo temperatura."
+                )
                 return None
 
             try:
                 self._inst.write("ACQ:STATE RUN")
             except Exception as exc:
-                self._emit_error(f"Error al iniciar adquisición: {exc}")
+                self._emit_conn_error(f"Error al iniciar adquisición: {exc}")
                 return None
 
             if not self._esperar_fin(self._inst):
@@ -384,7 +438,7 @@ class OsciloscopioController(QObject):
                 self._inst.write("ACQ:STATE RUN")
                 return True
             except Exception as exc:
-                self._emit_error(f"Error al iniciar ACQ:STATE RUN: {exc}")
+                self._emit_conn_error(f"Error al iniciar ACQ:STATE RUN: {exc}")
                 return False
 
     def acq_stop_and_capture(self) -> CapturaOscil | None:
@@ -395,7 +449,7 @@ class OsciloscopioController(QObject):
                 self._inst.write("ACQ:STATE STOP")
                 self._inst.ask("*OPC?")
             except Exception as exc:
-                self._emit_error(f"Error al detener adquisición: {exc}")
+                self._emit_conn_error(f"Error al detener adquisición: {exc}")
                 return None
             return self._leer_waveform(self._inst)
 
@@ -407,31 +461,45 @@ class OsciloscopioController(QObject):
         except Exception:
             return None
 
-    def _configurar_base(self, inst: vxi11.Instrument) -> bool:
-        cmds = [
+    def _configurar_base(self, inst: vxi11.Instrument) -> int | None:
+        """
+        Envía configuración base de transferencia de datos.
+        Abre la ventana DATA:STOP al máximo posible, luego lee NR_PT para saber
+        cuántos puntos entregará realmente el scope con su configuración actual.
+        Retorna el número de puntos (NR_PT) si tuvo éxito, None si falló.
+        """
+        cmds_pre = [
             f"DATA:SOURCE {self._canal}",
             "DATA:ENCDG RIBINARY",
             "DATA:WIDTH 1",
             "DATA:START 1",
-            f"DATA:STOP {N_PUNTOS}",
+            "DATA:STOP 15000",
             "ACQ:MODE AVERAGE",
             "ACQ:STOPAFTER SEQUENCE",
         ]
         try:
-            for cmd in cmds:
+            for cmd in cmds_pre:
                 inst.write(cmd)
-            return True
+            nr_pt = int(inst.ask("WFMPRE:NR_PT?").strip())
+            inst.write(f"DATA:STOP {nr_pt}")
+            return nr_pt
         except Exception as exc:
-            self._emit_error(f"Error en configuración base: {exc}")
-            return False
+            self._emit_conn_error(f"Error en configuración base: {exc}")
+            return None
 
     def _set_numavg(self, inst: vxi11.Instrument, n: int) -> bool:
         try:
             inst.write(f"ACQ:NUMAVG {n}")
             return True
         except Exception as exc:
-            self._emit_error(f"Error al configurar ACQ:NUMAVG {n}: {exc}")
+            self._emit_conn_error(f"Error al configurar ACQ:NUMAVG {n}: {exc}")
             return False
+
+    def _leer_numavg_actual(self, inst: vxi11.Instrument) -> int | None:
+        try:
+            return int(inst.ask("ACQ:NUMAVG?").strip())
+        except Exception:
+            return None
 
     def _esperar_fin(self, inst: vxi11.Instrument) -> bool:
         deadline = time.monotonic() + POLL_TIMEOUT_S
@@ -441,7 +509,7 @@ class OsciloscopioController(QObject):
                 if state == "0":
                     return True
             except Exception as exc:
-                self._emit_error(f"Error al consultar ACQ:STATE?: {exc}")
+                self._emit_conn_error(f"Error al consultar ACQ:STATE?: {exc}")
                 return False
             time.sleep(POLL_INTERVAL_S)
         return False
@@ -458,17 +526,18 @@ class OsciloscopioController(QObject):
 
     def _leer_wfmpre(self, inst: vxi11.Instrument) -> dict | None:
         params = ["XINCR", "XZERO", "PT_OFF", "YMULT", "YOFF", "YZERO", "NR_PT"]
-        wfmpre = {}
         for intento in range(MAX_REINTENTOS):
             try:
+                wfmpre = {}
                 for p in params:
                     raw = inst.ask(f"WFMPRE:{p}?").strip()
                     wfmpre[p] = int(raw) if p in ("PT_OFF", "NR_PT") else float(raw)
                 return wfmpre
             except Exception as exc:
                 if intento == MAX_REINTENTOS - 1:
-                    self._emit_error(f"No se pudieron leer parámetros WFMPRE: {exc}")
-                    self.led_amarillo.emit()
+                    self._emit_capture_warning(
+                        f"No se pudieron leer parámetros WFMPRE: {exc}"
+                    )
         return None
 
     def _leer_curve(self, inst: vxi11.Instrument) -> np.ndarray | None:
@@ -481,13 +550,12 @@ class OsciloscopioController(QObject):
                     return resultado
             except Exception as exc:
                 if intento == MAX_REINTENTOS - 1:
-                    self._emit_error(f"Error al leer CURVE: {exc}")
-                    self.led_amarillo.emit()
+                    self._emit_capture_warning(f"Error al leer CURVE: {exc}")
         return None
 
     def _parsear_curve(self, raw_bytes: bytes) -> np.ndarray | None:
         if len(raw_bytes) < 2 or chr(raw_bytes[0]) != "#":
-            self._emit_error("Respuesta CURVE con formato inesperado.")
+            self._emit_capture_warning("Respuesta CURVE con formato inesperado.")
             return None
 
         n_digits = int(chr(raw_bytes[1]))
@@ -499,20 +567,30 @@ class OsciloscopioController(QObject):
 
         arr = np.frombuffer(data, dtype=np.int8).copy()
 
-        if len(arr) != N_PUNTOS:
-            self._emit_error(
-                f"Número de puntos inesperado: {len(arr)} (se esperaban {N_PUNTOS})."
-            )
+        if len(arr) == 0:
+            self._emit_capture_warning("CURVE devolvió un array vacío.")
             return None
 
         return arr
 
-    def _convertir(self, raw: np.ndarray, wfmpre: dict) -> tuple[np.ndarray, np.ndarray]:
-        voltaje = (raw.astype(np.float64) - wfmpre["YOFF"]) * wfmpre["YMULT"] + wfmpre["YZERO"]
-        tiempo  = (np.arange(wfmpre["NR_PT"]) - wfmpre["PT_OFF"]) * wfmpre["XINCR"] + wfmpre["XZERO"]
+    def _convertir(
+        self, raw: np.ndarray, wfmpre: dict
+    ) -> tuple[np.ndarray, np.ndarray]:
+        voltaje = (raw.astype(np.float64) - wfmpre["YOFF"]) * wfmpre["YMULT"] + wfmpre[
+            "YZERO"
+        ]
+        tiempo = (np.arange(wfmpre["NR_PT"]) - wfmpre["PT_OFF"]) * wfmpre[
+            "XINCR"
+        ] + wfmpre["XZERO"]
         return voltaje, tiempo
 
-    def _emit_error(self, msg: str) -> None:
+    def _emit_conn_error(self, msg: str) -> None:
+        """Error de conexión o comunicación — desconecta el instrumento lógicamente."""
         self._connected = False
         self.led_rojo.emit()
+        self.error.emit(msg)
+
+    def _emit_capture_warning(self, msg: str) -> None:
+        """Error de captura de waveform — la conexión VXI-11 sigue viva."""
+        self.led_amarillo.emit()
         self.error.emit(msg)

@@ -8,6 +8,7 @@ from __future__ import annotations
 from datetime import datetime
 from pathlib import Path
 
+import numpy as np
 import pyqtgraph as pg
 
 from PySide6.QtCore import Qt, Signal, Slot, QThread, QObject
@@ -37,6 +38,18 @@ class _CapturaWorker(QObject):
     @Slot()
     def ejecutar(self):
         self.terminado.emit(self._oscil.capturar())
+
+
+class _EscalaWorker(QObject):
+    terminado = Signal(object)
+
+    def __init__(self, oscil: OsciloscopioController):
+        super().__init__()
+        self._oscil = oscil
+
+    @Slot()
+    def ejecutar(self):
+        self.terminado.emit(self._oscil.leer_escala_actual())
 
 
 class VentanaOsciloscopio(QMainWindow):
@@ -137,9 +150,9 @@ class VentanaOsciloscopio(QMainWindow):
 
         self._plot = pg.PlotWidget(background="#0d1117")
         self._plot.showGrid(x=True, y=True, alpha=0.15)
-        self._plot.setLabel("bottom", "Tiempo", units="µs",
+        self._plot.setLabel("bottom", "Tiempo", units="s",
                             **{"color": "#3a3a3a", "font-size": "10px"})
-        self._plot.setLabel("left", "Voltaje", units="mV",
+        self._plot.setLabel("left", "Voltaje", units="V",
                             **{"color": "#3a3a3a", "font-size": "10px"})
         self._curva = self._plot.plot(pen=pg.mkPen("#00bfff", width=1.5))
 
@@ -339,6 +352,47 @@ class VentanaOsciloscopio(QMainWindow):
         )
         self._btn_aplicar.setEnabled(True)
         self._btn_capturar.setEnabled(self._canal_sel is not None)
+        self._lanzar_sincronizar_escala()
+
+    def _lanzar_sincronizar_escala(self):
+        worker = _EscalaWorker(self._oscil)
+        thread = QThread(self)
+        worker.moveToThread(thread)
+        thread.started.connect(worker.ejecutar)
+        worker.terminado.connect(self._on_escala_leida)
+        worker.terminado.connect(thread.quit)
+        thread.finished.connect(thread.deleteLater)
+        thread.finished.connect(worker.deleteLater)
+        thread.start()
+
+    @Slot(object)
+    def _on_escala_leida(self, escala):
+        if escala is None:
+            return
+
+        mejor_vdiv = min(
+            OsciloscopioController.VDIV_OPCIONES.items(),
+            key=lambda kv: abs(kv[1] - escala["vdiv_v"])
+        )[0]
+        self._combo_vdiv.setCurrentText(mejor_vdiv)
+
+        mejor_tdiv = min(
+            OsciloscopioController.TDIV_OPCIONES.items(),
+            key=lambda kv: abs(kv[1] - escala["tdiv_s"])
+        )[0]
+        self._combo_tdiv.setCurrentText(mejor_tdiv)
+
+        coup = escala["coupling"]
+        if coup in ("DC", "AC"):
+            self._sel_acoplamiento(coup)
+
+        self._spin_trigger.setValue(escala["trigger_v"])
+
+        if "AVERAGE" in escala["acq_mode"]:
+            self._sel_adquisicion("Average")
+            self._spin_numavg.setValue(escala["numavg"])
+        else:
+            self._sel_adquisicion("Sample")
 
     @Slot()
     def _on_oscil_desconectado(self):
@@ -429,7 +483,11 @@ class VentanaOsciloscopio(QMainWindow):
 
         self._ultima_captura = captura
         self._btn_guardar.setEnabled(True)
-        self._curva.setData(captura.tiempo * 1e6, captura.voltaje * 1e3)
+        t_us = captura.tiempo
+        v_mv = captura.voltaje
+        mask = np.isfinite(t_us) & np.isfinite(v_mv)
+        self._curva.setData(t_us[mask], v_mv[mask])
+        self._plot.autoRange()
         self._refrescar_labels_plot()
 
     @Slot()

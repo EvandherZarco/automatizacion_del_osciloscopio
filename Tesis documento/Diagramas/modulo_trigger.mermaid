@@ -1,0 +1,76 @@
+flowchart TD
+
+    %% ─────────────────────────────
+    %% INICIALIZACIÓN
+    %% ─────────────────────────────
+    INIT([🎯 Trigger: Inicialización])
+    INIT --> RECVPARAMS["Recibe parámetros de GUI:
+    modo · intervalo o temp. objetivo · temp. final · paso"]
+    RECVPARAMS --> MODESEL{Modo seleccionado?}
+    MODESEL --> |Por tiempo| TIMELOOP
+    MODESEL --> |Por temperatura| TEMPLOOP
+
+    %% ─────────────────────────────
+    %% SUB-FLUJO A: MODO POR TIEMPO
+    %% ─────────────────────────────
+    TIMELOOP(["⏱️ Modo por tiempo — esperando"])
+    TIMELOOP --> WAITTIMER["Espera N segundos
+    definidos por el usuario"]
+    WAITTIMER --> TIMERDONE["Timer cumplido
+    Temperatura actual: se lee y registra
+    pero NO afecta el disparo"]
+    TIMERDONE --> FIRE3T["Señaliza a Medición:
+    tomar 3 mini-mediciones en ráfaga"]
+    FIRE3T --> MORETIMET{Continúa
+    la secuencia?}
+    MORETIMET --> |Sí| TIMELOOP
+    MORETIMET --> |No — usuario detiene o fin| ENDT([Secuencia terminada])
+
+    %% ─────────────────────────────
+    %% SUB-FLUJO B: MODO POR TEMPERATURA
+    %% ─────────────────────────────
+    TEMPLOOP(["🌡️ Modo por temperatura
+    Objetivo actual: T objetivo"])
+    TEMPLOOP --> BUILDSEQ["Construye secuencia de objetivos:
+    T inicial · T final · paso"]
+    BUILDSEQ --> NEXTTAR["Toma siguiente temperatura objetivo
+    de la secuencia"]
+    NEXTTAR --> MORETEMP{Quedan objetivos
+    en la secuencia?}
+    MORETEMP --> |No — secuencia completa| ENDTEMP([Secuencia terminada])
+    MORETEMP --> |Sí| PHASE1
+
+    %% FASE 1: espera T - 0.1
+    PHASE1["Estado: esperando T objetivo menos 0.1 °C"]
+    PHASE1 --> READ1["Lee temperatura actual
+    desde módulo Temperatura"]
+    READ1 --> CHECK1{Temp actual
+    mayor o igual a
+    T objetivo menos 0.1?}
+    CHECK1 --> |No| READ1
+    CHECK1 --> |Sí| MINI1["Señaliza a Medición:
+    mini-medición 1 de 3"]
+    MINI1 --> PHASE2
+
+    %% FASE 2: espera T
+    PHASE2["Estado: esperando T objetivo"]
+    PHASE2 --> READ2["Lee temperatura actual"]
+    READ2 --> CHECK2{Temp actual
+    mayor o igual a
+    T objetivo?}
+    CHECK2 --> |No| READ2
+    CHECK2 --> |Sí| MINI2["Señaliza a Medición:
+    mini-medición 2 de 3"]
+    MINI2 --> PHASE3
+
+    %% FASE 3: espera T + 0.1
+    PHASE3["Estado: esperando T objetivo más 0.1 °C"]
+    PHASE3 --> READ3["Lee temperatura actual"]
+    READ3 --> CHECK3{Temp actual
+    mayor o igual a
+    T objetivo más 0.1?}
+    CHECK3 --> |No| READ3
+    CHECK3 --> |Sí| MINI3["Señaliza a Medición:
+    mini-medición 3 de 3
+    Medición completa en este objetivo"]
+    MINI3 --> NEXTTAR

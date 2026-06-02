@@ -1,0 +1,169 @@
+flowchart TD
+    START([🔬 Inicio]) --> MAIN
+
+    %% ─────────────────────────────
+    %% PANTALLA PRINCIPAL
+    %% ─────────────────────────────
+    MAIN["Pantalla Principal
+    ──────────────────────────────
+    🔴🟡🟢 Láser · Osciloscopio · ESP32
+    🔴🟡🟢 Sensor 1 · 2 · 3 · 4 (DS18B20)
+    ──────────────────────────────
+    Columna 1 — Manual
+    Columna 2 — Automático"]
+
+    MAIN --> |Modo Manual| MCONFIG
+    MAIN --> |Automático por Tiempo| TCONFIG
+    MAIN --> |Automático por Temperatura| TEMPCHECK
+
+    %% ─────────────────────────────
+    %% MODO MANUAL
+    %% ─────────────────────────────
+    MCONFIG["Configurar
+    Osciloscopio y Láser"]
+
+    MCONFIG --> MCONCHECK{¿Láser y osciloscopio
+    conectados?}
+    MCONCHECK --> |No| MCONWARN[/⚠️ Dispositivos desconectados
+    Verifique conexiones/]
+    MCONWARN --> MAIN
+    MCONCHECK --> |Sí| MSTART([Botón: Iniciar])
+    MSTART --> MACTIVE[Medición Manual Activa]
+
+    MACTIVE --> MIDLE{¿1 min sin
+    actividad?}
+    MIDLE --> |No| MSAVEBTN{¿Botón
+    Guardar?}
+    MSAVEBTN --> |No| MACTIVE
+    MSAVEBTN --> |Sí| MSAVE[Guarda datos actuales]
+    MSAVE --> MVISUALIZE{¿Desea
+    visualizar?}
+    MVISUALIZE --> |No| MACTIVE
+    MVISUALIZE --> |Sí| VIZ
+
+    MIDLE --> |Sí| MWARN[/⚠️ Popup: ¿Sigues usando el láser?
+    Tienes 1 minuto para responder/]
+    MWARN --> MRESP{¿Usuario
+    responde?}
+    MRESP --> |Sí| MACTIVE
+    MRESP --> |No — Timeout| SAFE
+
+    %% ─────────────────────────────
+    %% AUTOMÁTICO — POR TIEMPO
+    %% ─────────────────────────────
+    TCONFIG["Configurar
+    Intervalo · Duración total"]
+
+    TCONFIG --> TCONCHECK{¿Láser y osciloscopio
+    conectados?}
+    TCONCHECK --> |No| TCONWARN[/⚠️ Dispositivos desconectados
+    Verifique conexiones/]
+    TCONWARN --> MAIN
+    TCONCHECK --> |Sí| TASTART
+
+    %% ─────────────────────────────
+    %% AUTOMÁTICO — POR TEMPERATURA
+    %% ─────────────────────────────
+    TEMPCHECK{¿Láser, osciloscopio
+    y ESP32 conectados?}
+    TEMPCHECK --> |No| TEMPWARN[/⚠️ Dispositivos desconectados
+    Verifique conexiones/]
+    TEMPWARN --> MAIN
+    TEMPCHECK --> |Sí| SENSORCHECK{¿Todos los sensores
+    DS18B20 en línea?}
+    SENSORCHECK --> |Sí| TEMPCONFIG
+    SENSORCHECK --> |No| SENSORWARN[/"⚠️ Hay X sensores desconectados
+    ¿Desea continuar de todas formas?
+    Los datos faltantes quedarán
+    registrados en el CSV"/]
+    SENSORWARN --> SENSORCONF{¿Confirmar?}
+    SENSORCONF --> |No| MAIN
+    SENSORCONF --> |Sí| TEMPCONFIG
+
+    TEMPCONFIG["Configurar
+    Diferencial °C · Rango inicial → final"]
+    TEMPCONFIG --> TASTART
+
+    %% ─────────────────────────────
+    %% INICIO AUTOMÁTICO COMPARTIDO
+    %% ─────────────────────────────
+    TASTART([Botón: Iniciar])
+    TASTART --> AWARN[/"⚠️ Está a punto de iniciar el láser.
+    Verifique que tenga las protecciones necesarias
+    y esté correctamente configurado.
+    Una vez iniciado, deberá detenerlo
+    completamente para cambiar parámetros."/]
+    AWARN --> ACONFIRM{¿Confirmar?}
+    ACONFIRM --> |Cancelar| MAIN
+    ACONFIRM --> |Confirmar| ARUN[Inicia secuencia automática]
+
+    %% LOOP DE MEDICIÓN
+    ARUN --> TRIGGER{¿Condición de
+    disparo alcanzada?}
+    TRIGGER --> |No| STOPBTN{¿Botón
+    Detener?}
+    STOPBTN --> |No| TRIGGER
+    STOPBTN --> |Sí — Paro de emergencia| SAFE
+
+    TRIGGER --> |Sí| MEASURE[Toma medición]
+    MEASURE --> CONERR{¿Error de
+    conexión?}
+
+    CONERR --> |No| FINALCHECK
+    CONERR --> |Sí| RETRY["🟡 LED parpadeando
+    Reintenta conexión ×3
+    Medición continúa
+    error_flag = 1 en CSV"]
+    RETRY --> RETRYOK{¿Reconectó?}
+    RETRYOK --> |Sí| FINALCHECK
+    RETRYOK --> |No — 3 fallos| SAFE
+
+    FINALCHECK{¿Condición final
+    alcanzada?}
+    FINALCHECK --> |No| TRIGGER
+    FINALCHECK --> |Sí — Última medición| DONE
+
+    DONE["Secuencia completada
+    Guarda todos los datos"]
+    DONE --> ERRCOUNT[/"✅ Medición completada.
+    ⚠️ Errores detectados: N
+    Revise muestras marcadas en CSV"/]
+    ERRCOUNT --> VIZPOPUP
+
+    %% ─────────────────────────────
+    %% POPUP VISUALIZAR
+    %% ─────────────────────────────
+    VIZPOPUP[/¿Desea visualizar los resultados?/]
+    VIZPOPUP --> VIZCHOICE{¿Visualizar?}
+    VIZCHOICE --> |No| SAFE
+    VIZCHOICE --> |Sí| VIZ
+
+    %% ─────────────────────────────
+    %% PESTAÑA VISUALIZAR DATOS
+    %% ─────────────────────────────
+    VIZ["📊 Pestaña: Visualizar Datos"]
+    VIZ --> VLIST["Lista de mediciones
+    por diferencial tiempo · temperatura"]
+    VLIST --> VSELECT[Usuario selecciona medición]
+    VSELECT --> VSIGNAL[Muestra señal del osciloscopio]
+    VSIGNAL --> VBACK{¿Ver otra
+    medición?}
+    VBACK --> |Sí| VLIST
+    VBACK --> |No| VEXPORT{¿Exportar
+    o reimportar CSV?}
+    VEXPORT --> |Sí| VEXPACTION["Exportar datos
+    o cargar CSV anterior"]
+    VEXPACTION --> VBACK
+    VEXPORT --> |No| SAFE
+
+    %% ─────────────────────────────
+    %% MODO SEGURO — NODO CENTRAL
+    %% ─────────────────────────────
+    SAFE["🔒 Parámetros Seguros
+    ──────────────────────
+    Láser → STOP
+    E Adjust = 3800
+    EO → OFF
+    Burst → mínimo
+    Osciloscopio → sin cambios"]
+    SAFE --> MAIN

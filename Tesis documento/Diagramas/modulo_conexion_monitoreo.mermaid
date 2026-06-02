@@ -1,0 +1,102 @@
+flowchart TD
+
+    %% ─────────────────────────────
+    %% SUB-FLUJO 1: INICIALIZACIÓN
+    %% ─────────────────────────────
+    INIT([🔌 Conexión y monitoreo: Inicialización])
+    INIT --> PINGALL["Ping a los 3 dispositivos:
+    Láser · Osciloscopio · ESP32"]
+    PINGALL --> SETLEDS["Actualiza LEDs iniciales en GUI
+    según respuesta de cada dispositivo"]
+    SETLEDS --> LOOPSTART(["✅ Inicia loop de monitoreo
+    Estado: REPOSO"])
+
+    %% ─────────────────────────────
+    %% SUB-FLUJO 2: LOOP DE MONITOREO
+    %% ─────────────────────────────
+    LOOPSTART --> CHECKSTATE{Estado actual?}
+
+    CHECKSTATE --> |REPOSO| WAIT5["Espera 5 segundos"]
+    WAIT5 --> PINGREPOSO["Ping a los 3 dispositivos"]
+    PINGREPOSO --> EVALREPOSO{Todos responden?}
+    EVALREPOSO --> |Sí| CHECKSTATE
+    EVALREPOSO --> |No| HANDLE
+
+    CHECKSTATE --> |ENTRE MEDICIONES| WAIT1["Espera 1 segundo"]
+    WAIT1 --> PINGENTREMEDICIONES["Ping a los 3 dispositivos"]
+    PINGENTREMEDICIONES --> EVALENTRE{Todos responden?}
+    EVALENTRE --> |Sí| CHECKSTATE
+    EVALENTRE --> |No| HANDLE
+
+    CHECKSTATE --> |CAPTURANDO| PAUSADO["Pings pausados
+    Escucha notificaciones pasivas
+    de módulos de hardware"]
+    PAUSADO --> CHECKSTATE
+
+    %% ─────────────────────────────
+    %% SUB-FLUJO 3: MANEJAR DESCONEXIÓN
+    %% (por ping fallido o notificación pasiva)
+    %% ─────────────────────────────
+    HANDLE([🔌 Conexión y monitoreo: Desconexión detectada])
+    HANDLE --> WHICHDEV{Dispositivo
+    desconectado?}
+
+    WHICHDEV --> |ESP32 — Temperatura| HANDLEESP["🟡 LED amarillo ESP32
+    error_flag = 1 para mediciones
+    en este estado"]
+    HANDLEESP --> RETRYESP["Intenta reconectar
+    hasta 3 veces"]
+    RETRYESP --> ESPOK{Reconectado?}
+    ESPOK --> |Sí| RESTOREESP["🟢 LED verde restaurado
+    error_flag = 0"]
+    RESTOREESP --> CHECKSTATE
+    ESPOK --> |No — 3 fallos| ESPREDFAIL["🔴 LED rojo ESP32
+    Medición continúa con error_flag = 1
+    Popup al final con conteo de flags"]
+    ESPREDFAIL --> CHECKSTATE
+
+    WHICHDEV --> |Láser u Osciloscopio| HANDLECRIT["🟡 LED amarillo del dispositivo
+    error_flag = 1"]
+    HANDLECRIT --> RETRYCRIT["Intenta reconectar
+    hasta 3 veces"]
+    RETRYCRIT --> CRITOK{Reconectado?}
+    CRITOK --> |Sí| RESTORECRIT["🟢 LED verde restaurado
+    error_flag = 0"]
+    RESTORECRIT --> CHECKSTATE
+    CRITOK --> |No — 3 fallos| CRITFAIL["🔴 LED rojo del dispositivo
+    Sin láser u osciloscopio
+    no es posible medir"]
+    CRITFAIL --> SAFETRIG["Activa Modo seguro
+    Detiene secuencia de medición"]
+    SAFETRIG --> CHECKSTATE
+
+    %% ─────────────────────────────
+    %% SUB-FLUJO 4: PRE-CHEQUEO
+    %% (solicitado por Medición antes de disparar)
+    %% ─────────────────────────────
+    PRECHECK([🔌 Conexión y monitoreo: Pre-chequeo
+    solicitado por Medición])
+    PRECHECK --> PINGPRE["Ping inmediato a los 3 dispositivos"]
+    PINGPRE --> PREOK{Todos responden?}
+    PREOK --> |Sí| PREOKRET[/"✅ Todo OK — autoriza disparo"/]
+    PREOK --> |No| PRENOK[/"⚠️ Dispositivo no responde
+    No autoriza disparo
+    Inicia manejo de desconexión"/]
+    PREOKRET --> PRECALLER([Regresa resultado a Medición])
+    PRENOK --> PRECALLER
+
+    %% ─────────────────────────────
+    %% SUB-FLUJO 5: PAUSA Y REANUDACIÓN
+    %% (señales de Medición)
+    %% ─────────────────────────────
+    PAUSAR([🔌 Señal: PAUSAR pings
+    enviada por Medición al iniciar captura])
+    PAUSAR --> SETCAP["Cambia estado a CAPTURANDO
+    Pings suspendidos"]
+    SETCAP --> LOOPBACK([Regresa al loop])
+
+    REANUDAR([🔌 Señal: REANUDAR pings
+    enviada por Medición al terminar captura])
+    REANUDAR --> SETENTRE["Cambia estado a ENTRE MEDICIONES
+    Pings activos cada 1 segundo"]
+    SETENTRE --> LOOPBACK

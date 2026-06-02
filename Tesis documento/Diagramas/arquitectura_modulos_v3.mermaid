@@ -1,0 +1,72 @@
+flowchart TD
+
+    %% ─────────────────────────────
+    %% CAPA DE PRESENTACIÓN
+    %% ─────────────────────────────
+    GUI["🖥️ GUI / Interfaz\nPySide6 · eventos · pantalla"]
+
+    %% ─────────────────────────────
+    %% CAPA DE COORDINACIÓN
+    %% ─────────────────────────────
+    CONN["🔌 Conexión y monitoreo\nLEDs · estado · reintentos"]
+    MED["⚙️ Medición\n×3 capturas promediadas"]
+
+    %% ─────────────────────────────
+    %% CAPA DE LÓGICA
+    %% ─────────────────────────────
+    TRIG["🎯 Trigger\ntiempo o temperatura"]
+
+    %% ─────────────────────────────
+    %% CAPA DE HARDWARE
+    %% ─────────────────────────────
+    LASER["🔴 Control del láser\nSCPI · RS-232"]
+    OSCIL["📡 Control del osciloscopio\nSCPI · VXI-11 · captura"]
+    TEMP["🌡️ Temperatura\nESP32 · DS18B20 ×4"]
+
+    %% ─────────────────────────────
+    %% CAPA DE DATOS
+    %% ─────────────────────────────
+    STORE["💾 Almacenamiento\nCSV · sesiones · error_flag"]
+    VIZ["📊 Visualización\nlista · señal · exportar"]
+
+    %% ─────────────────────────────
+    %% SEGURIDAD
+    %% ─────────────────────────────
+    SAFE["🔒 Modo seguro\nláser → mínimo · osciloscopio intacto"]
+
+    %% ─────────────────────────────
+    %% CONEXIONES — GUI
+    %% ─────────────────────────────
+    GUI --> CONN
+    GUI --> |Modo automático| MED
+    GUI -.-> |Modo manual directo| LASER
+    GUI -.-> |Modo manual directo| OSCIL
+    GUI --> |Navegar| VIZ
+
+    %% ─────────────────────────────
+    %% CONEXIONES — MEDICIÓN (orquestador)
+    %% ─────────────────────────────
+    MED --> TRIG
+    MED --> LASER
+    MED --> OSCIL
+    MED --> TEMP
+    MED --> STORE
+    MED --> |error o fin| SAFE
+    MED --> |señal: terminó| GUI
+
+    %% ─────────────────────────────
+    %% CONEXIONES — TRIGGER
+    %% ─────────────────────────────
+    TRIG --> |lee directamente| TEMP
+
+    %% ─────────────────────────────
+    %% CONEXIONES — MONITOREO (pasivo)
+    %% ─────────────────────────────
+    CONN -.-> |vigila| LASER
+    CONN -.-> |vigila| OSCIL
+    CONN -.-> |vigila| TEMP
+
+    %% ─────────────────────────────
+    %% CONEXIONES — MODO SEGURO
+    %% ─────────────────────────────
+    SAFE --> |solo afecta| LASER

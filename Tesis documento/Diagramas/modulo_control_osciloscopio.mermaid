@@ -1,0 +1,79 @@
+flowchart TD
+
+    %% ─────────────────────────────
+    %% NOTA DE ARQUITECTURA
+    %% ─────────────────────────────
+    NOTE["Protocolo confirmado en hardware
+    Librería: python-vxi11 — PyVISA no funciona con este equipo
+    IP: 192.168.1.100 · VXI-11 sobre Ethernet
+    Prerequisito: app interna del osciloscopio
+    debe estar corriendo en Windows XP"]
+
+    NOTE --> INIT
+
+    %% ─────────────────────────────
+    %% SUB-FLUJO 1: CONEXION INICIAL
+    %% ─────────────────────────────
+    INIT([📡 Control del osciloscopio: Conexión inicial])
+    INIT --> OPEN["vxi11.Instrument — IP: 192.168.1.100"]
+    OPEN --> PING["Envía ping: IDN"]
+    PING --> PINGOK{Respuesta contiene TDS5052B?}
+
+    PINGOK --> |No — timeout| RETRYPING{Intentos menor a 3?}
+    RETRYPING --> |Sí| PING
+    RETRYPING --> |No| PINGERR[/"⚠️ Osciloscopio no responde
+    Verificar: app WinXP corriendo
+    cable Ethernet e IP 192.168.1.100"/]
+    PINGERR --> RLED["🔴 LED rojo en GUI — Osciloscopio desconectado"]
+    RLED --> CONNFAIL([Reporta error a Conexión y monitoreo])
+
+    PINGOK --> |Sí| CONFIG["Configura adquisición:
+    DATA:SOURCE CH2
+    DATA:ENC RIBINARY · DATA:WIDTH 1
+    DATA:START 1 · DATA:STOP 5001
+    ACQ:MODE AVERAGE · ACQ:NUMAVG 100"]
+    CONFIG --> CFGOK{Configuración aceptada?}
+    CFGOK --> |No| CFGERR[/"⚠️ Error al configurar el osciloscopio"/]
+    CFGERR --> RLED
+
+    CFGOK --> |Sí| GLED["🟢 LED verde en GUI — Osciloscopio listo"]
+    GLED --> READY(["✅ Osciloscopio listo — CH2 · 5001 pts · promedio 100 disparos"])
+
+    %% ─────────────────────────────
+    %% SUB-FLUJO 2: CAPTURAR SEÑAL
+    %% (llamado por Medición o GUI)
+    %% ─────────────────────────────
+    CAPTURE([📡 Control del osciloscopio: Capturar señal
+    llamado por Medición o GUI])
+
+    CAPTURE --> READWFMPRE["Lee parámetros WFMPRE:
+    XINCR · XZERO · PT_OFF
+    YMULT · YOFF · YZERO · NR_PT"]
+    READWFMPRE --> WFMOK{Parámetros recibidos?}
+    WFMOK --> |No — timeout| RETRYWFM{Intentos menor a 3?}
+    RETRYWFM --> |Sí| READWFMPRE
+    RETRYWFM --> |No| WFMERR[/"⚠️ No se pudieron leer parámetros WFMPRE
+    error_flag = 1"/]
+    WFMERR --> YLED["🟡 LED amarillo en GUI"]
+    YLED --> NOTIFYCONN["Notifica a Conexión y monitoreo"]
+    NOTIFYCONN --> CAPCALLER([Regresa ERROR al módulo que llamó])
+
+    WFMOK --> |Sí| CURVE["Envía CURVE via ask_raw como bytes
+    Osciloscopio promedia 100 disparos
+    internamente antes de responder"]
+    CURVE --> CURVEOK{Datos recibidos — 5001 puntos?}
+    CURVEOK --> |No — timeout| RETRYCURVE{Intentos menor a 3?}
+    RETRYCURVE --> |Sí| CURVE
+    RETRYCURVE --> |No| CURVEERR[/"⚠️ Sin datos de la curva — error_flag = 1"/]
+    CURVEERR --> YLED
+
+    CURVEOK --> |Sí| PARSE["Parsea respuesta binaria:
+    descarta header N-dígitos
+    extrae 5001 valores int8"]
+    PARSE --> CONVERT["Convierte a valores físicos:
+    voltaje = raw menos YOFF por YMULT más YZERO
+    tiempo = XZERO más i menos PT_OFF por XINCR"]
+    CONVERT --> RETURNDATA[/"✅ Devuelve paquete:
+    raw_data · WFMPRE params
+    arrays voltaje y tiempo"/]
+    RETURNDATA --> CAPCALLER

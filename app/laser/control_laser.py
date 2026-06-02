@@ -79,16 +79,22 @@ class LaserController(QObject):
 
     def conectar(self) -> bool:
         with QMutexLocker(self._mutex):
+            dll_dir = str(self._dll_path.parent)
+            prev_dir = os.getcwd()
             try:
-                os.add_dll_directory(str(self._dll_path.parent))
+                os.add_dll_directory(dll_dir)
+                os.chdir(dll_dir)
                 self._dll = ctypes.WinDLL(str(self._dll_path))
                 self._configurar_argtypes()
+                com_num = self._com_a_num(LASER_COM_PORT)
+                err = self._dll.rcConnect(_CONNECT_RS232, com_num)
             except Exception as exc:
+                os.chdir(prev_dir)
                 self._emit_fatal(f"No se pudo cargar {_DLL_NAME}: {exc}")
                 return False
+            finally:
+                os.chdir(prev_dir)
 
-            com_num = self._com_a_num(LASER_COM_PORT)
-            err = self._dll.rcConnect(_CONNECT_RS232, com_num)
             if err != 0:
                 self._emit_fatal(
                     f"rcConnect falló (err={err}: {_ERR_CODES.get(err, '?')}). "

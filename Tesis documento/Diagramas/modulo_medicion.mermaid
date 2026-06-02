@@ -1,0 +1,128 @@
+flowchart TD
+
+    %% ─────────────────────────────
+    %% INICIO DE SECUENCIA
+    %% ─────────────────────────────
+    INIT([⚙️ Medición: Secuencia iniciada por GUI])
+    INIT --> SETUPSEQ["Inicializa contadores:
+    mini_count = 0
+    mini_datos = lista vacía
+    mediciones_con_flag = 0"]
+    SETUPSEQ --> WAITRIG["Espera señal de Trigger
+    mini-medición N de 3"]
+
+    %% ─────────────────────────────
+    %% RECEPCIÓN DE SEÑAL DEL TRIGGER
+    %% ─────────────────────────────
+    WAITRIG --> TRIGSIG{Señal recibida
+    de Trigger?}
+    TRIGSIG --> |No — sigue esperando| WAITRIG
+    TRIGSIG --> |Sí — mini N de 3| PRECHECK
+
+    %% ─────────────────────────────
+    %% PRE-CHEQUEO ANTES DE DISPARAR
+    %% ─────────────────────────────
+    PRECHECK["Solicita pre-chequeo a
+    Conexión y monitoreo"]
+    PRECHECK --> PRECHECKRES{Todos los
+    dispositivos OK?}
+    PRECHECKRES --> |No| PRECHECKFAIL["Dispositivo crítico no responde
+    Conexión y monitoreo maneja reintentos"]
+    PRECHECKFAIL --> CRITICALDEV{Dispositivo
+    crítico recuperado?}
+    CRITICALDEV --> |No — 3 fallos| ABORT["Activa Modo seguro
+    Aborta secuencia"]
+    ABORT --> ENDFAIL([Secuencia abortada
+    Notifica a GUI])
+    CRITICALDEV --> |Sí| PRECHECK
+
+    PRECHECKRES --> |Sí| PAUSEPING
+
+    %% ─────────────────────────────
+    %% CAPTURA — VENTANA PROTEGIDA
+    %% ─────────────────────────────
+    PAUSEPING["Señal a Conexión y monitoreo:
+    PAUSAR pings"]
+    PAUSEPING --> LASERSTART["Control del láser:
+    Envía START"]
+    LASERSTART --> LASERSTARTERR{Confirmado?}
+    LASERSTARTERR --> |No| SETFLAG1["error_flag = 1
+    mediciones_con_flag += 1"]
+    SETFLAG1 --> OSCAPTURE
+
+    LASERSTARTERR --> |Sí| OSCAPTURE
+    OSCAPTURE["Control del osciloscopio:
+    Captura señal
+    Osciloscopio promedia 100 disparos"]
+    OSCAPTURE --> OSCERR{Captura
+    recibida?}
+    OSCERR --> |No| SETFLAG2["error_flag = 1
+    mediciones_con_flag += 1"]
+    SETFLAG2 --> LASERSTOP
+
+    OSCERR --> |Sí| LASERSTOP
+    LASERSTOP["Control del láser:
+    Envía STOP"]
+    LASERSTOP --> RESUMEPING["Señal a Conexión y monitoreo:
+    REANUDAR pings"]
+
+    %% ─────────────────────────────
+    %% POST-CAPTURA
+    %% ─────────────────────────────
+    RESUMEPING --> READTEMP["Lee temperatura actual
+    desde módulo Temperatura"]
+    READTEMP --> STOREMINI["Almacena mini-medición:
+    raw_data · WFMPRE params
+    temperatura · error_flag"]
+    STOREMINI --> INCREMENT["mini_count += 1"]
+    INCREMENT --> THREEDONE{mini_count
+    igual a 3?}
+
+    %% ─────────────────────────────
+    %% ESPERA SIGUIENTE MINI-MEDICIÓN
+    %% ─────────────────────────────
+    THREEDONE --> |No — faltan mini-mediciones| WAITRIG
+
+    %% ─────────────────────────────
+    %% PROMEDIAR Y GUARDAR
+    %% ─────────────────────────────
+    THREEDONE --> |Sí — medición completa| AVERAGE["Promedia las 3 mini-mediciones:
+    raw_data promedio · WFMPRE params
+    temperatura promedio · error_flag final"]
+    AVERAGE --> SAVE["Almacenamiento:
+    Guarda fila en CSV
+    Guarda archivo .npy"]
+    SAVE --> SAVEOK{Guardado OK?}
+    SAVEOK --> |No| SAVEERR["⚠️ Error al guardar
+    Registra en log"]
+    SAVEERR --> RESET
+
+    SAVEOK --> |Sí| GUISIG["Señal a GUI:
+    medición guardada
+    actualiza contador en pantalla"]
+    GUISIG --> RESET
+
+    %% ─────────────────────────────
+    %% RESET PARA SIGUIENTE MEDICIÓN
+    %% ─────────────────────────────
+    RESET["Reinicia contadores:
+    mini_count = 0
+    mini_datos = lista vacía
+    error_flag = 0"]
+    RESET --> SEQDONE{Secuencia
+    completa?}
+    SEQDONE --> |No — siguiente objetivo| WAITRIG
+    SEQDONE --> |Sí| SAFEMODE
+
+    %% ─────────────────────────────
+    %% FIN DE SECUENCIA
+    %% ─────────────────────────────
+    SAFEMODE["Activa Modo seguro
+    Parámetros del láser a mínimo"]
+    SAFEMODE --> FINALPOPUP[/"Popup final a GUI:
+    Secuencia completada
+    Mediciones con error_flag: N"/]
+    FINALPOPUP --> GUIVIZ["Señal a GUI:
+    secuencia terminada
+    ofrecer ir a Visualización"]
+    GUIVIZ --> ENDOK([Secuencia completada exitosamente])

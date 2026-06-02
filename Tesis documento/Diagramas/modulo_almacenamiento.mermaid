@@ -1,0 +1,50 @@
+flowchart TD
+
+    %% ─────────────────────────────
+    %% SUB-FLUJO 1: INICIALIZACIÓN
+    %% ─────────────────────────────
+    INIT([💾 Almacenamiento: Inicialización\nal arrancar la app])
+    INIT --> ASKUSER[/Popup: ¿Abrir sesión existente\no crear sesión nueva?/]
+
+    ASKUSER --> |Crear nueva| NEW[Genera session_id único\nCrea carpeta sesión\nCrea CSV con encabezados]
+    NEW --> READY
+
+    ASKUSER --> |Abrir existente| FILESEL[Usuario selecciona archivo CSV]
+    FILESEL --> VALIDATE{¿El CSV tiene el\nformato correcto?}
+    VALIDATE --> |Sí| LOAD[Carga sesión existente\nVerifica carpeta .npy asociada]
+    LOAD --> READY
+    VALIDATE --> |No| FMTERR[/⚠️ Formato incompatible.\nEste CSV no corresponde\na una sesión del sistema/]
+    FMTERR --> ASKUSER
+
+    READY(["✅ Módulo listo\nSesión activa: session_id"])
+
+    %% ─────────────────────────────
+    %% SUB-FLUJO 2: GUARDAR MEDICIÓN
+    %% ─────────────────────────────
+    SAVE([💾 Almacenamiento: Guardar medición\nllamado por Medición o GUI])
+    SAVE --> RECVDATA["Recibe paquete de datos:
+    ─────────────────────────────
+    timestamp · temperatura · modo
+    XINCR · XZERO · PT_OFF
+    YMULT · YOFF · YZERO · NR_PT
+    raw_data [ ] · error_flag"]
+
+    RECVDATA --> SAVENPY["Guarda raw_data como\narcivo .npy\nnombre: session_id_medicion_id.npy"]
+    SAVENPY --> NPYOK{¿Guardado OK?}
+    NPYOK --> |No| NPYERR[/⚠️ Error al guardar .npy\nRegistra error en log/]
+    NPYERR --> CSVROW
+
+    NPYOK --> |Sí| CSVROW["Agrega fila al CSV:
+    ─────────────────────────────
+    timestamp · session_id · medicion_id
+    temperatura · modo · error_flag
+    XINCR · XZERO · PT_OFF
+    YMULT · YOFF · YZERO · NR_PT
+    archivo_npy"]
+
+    CSVROW --> CSVOK{¿Escritura CSV OK?}
+    CSVOK --> |No| CSVERR[/⚠️ Error al escribir CSV\nRegistra error en log/]
+    CSVERR --> CONFIRM
+
+    CSVOK --> |Sí| CONFIRM[/"✅ Medición guardada\nsession_id · medicion_id"/]
+    CONFIRM --> CALLER([Regresa confirmación\na quien llamó])
