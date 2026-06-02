@@ -59,11 +59,22 @@ class TriggerWorker(QObject):
         self._paso = paso
         self._temp_worker = temp_worker
         self._activo = False
+        self._capturando = False
 
     @Slot()
     def detener(self):
         """Señaliza al loop para que termine en la próxima iteración."""
         self._activo = False
+
+    @Slot()
+    def on_captura_iniciando(self):
+        """Recibe la señal de MedicionWorker cuando arranca una captura."""
+        self._capturando = True
+
+    @Slot()
+    def on_captura_terminada(self):
+        """Recibe la señal de MedicionWorker cuando la captura termina."""
+        self._capturando = False
 
     @Slot()
     def iniciar(self):
@@ -85,6 +96,11 @@ class TriggerWorker(QObject):
 
     def _loop_tiempo(self):
         for _ in range(self._n_mediciones):
+            if not self._activo:
+                return
+
+            while self._capturando and self._activo:
+                time.sleep(0.1)
             if not self._activo:
                 return
 

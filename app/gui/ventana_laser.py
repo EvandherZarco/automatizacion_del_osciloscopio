@@ -455,16 +455,12 @@ class VentanaLaser(QMainWindow):
 
     @Slot()
     def _on_aplicar(self):
-        output_map = {"E OFF": "OFF", "E Adjust": "Adjustment", "E Max": "Max"}
-        burst_map  = {"Continuous": "Continuous", "Burst": "Burst", "Trigger": "Trigger"}
-
-        self._laser._set_reg("Output level", output_map[self._output_sel])
-        burst = burst_map[self._burst_sel]
-        self._laser._set_reg("Continuous / Burst mode / Trigger burst", burst)
-        if burst != "Continuous":
+        self._laser.set_output_level(self._output_sel)
+        self._laser.set_burst_mode(self._burst_sel)
+        if self._burst_sel != "Continuous":
             self._laser.set_burst_length(self._spin_burst_len.value())
         self._laser.set_cooling_temp(self._spin_cooling.value())
-        self._laser._set_reg("Adjustment EO delay", str(self._spin_eo.value()))
+        self._laser.set_eo_delay(self._spin_eo.value())
         estado = "RUN" if self._laser_running else "STOP"
         self._set_log(f"State → {estado} · Parámetros {'bloqueados' if self._laser_running else 'desbloqueados'}")
 

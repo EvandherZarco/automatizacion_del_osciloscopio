@@ -576,12 +576,9 @@ class OsciloscopioController(QObject):
     def _convertir(
         self, raw: np.ndarray, wfmpre: dict
     ) -> tuple[np.ndarray, np.ndarray]:
-        voltaje = (raw.astype(np.float64) - wfmpre["YOFF"]) * wfmpre["YMULT"] + wfmpre[
-            "YZERO"
-        ]
-        tiempo = (np.arange(wfmpre["NR_PT"]) - wfmpre["PT_OFF"]) * wfmpre[
-            "XINCR"
-        ] + wfmpre["XZERO"]
+        n = len(raw)
+        voltaje = (raw.astype(np.float64) - wfmpre["YOFF"]) * wfmpre["YMULT"] + wfmpre["YZERO"]
+        tiempo = (np.arange(n) - wfmpre["PT_OFF"]) * wfmpre["XINCR"] + wfmpre["XZERO"]
         return voltaje, tiempo
 
     def _emit_conn_error(self, msg: str) -> None:

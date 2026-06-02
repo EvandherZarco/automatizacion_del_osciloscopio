@@ -295,6 +295,10 @@ class Medicion(QObject):
         trigger.detener_y_capturar.connect(worker.on_detener_y_capturar)
         trigger.secuencia_terminada.connect(worker.on_secuencia_terminada)
 
+        # Worker → Trigger: bloqueo de solapamiento en modo tiempo
+        worker.captura_iniciando.connect(trigger.on_captura_iniciando)
+        worker.captura_terminada.connect(trigger.on_captura_terminada)
+
         # Worker → fachada
         worker.medicion_completada.connect(self._on_medicion_completada)
         worker.secuencia_terminada.connect(self._on_secuencia_terminada)

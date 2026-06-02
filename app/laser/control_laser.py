@@ -44,6 +44,18 @@ _REG_SET_COOL   = "Set cooling temperature"
 _REG_PULSE_CNT  = "Lamp pulse counter"
 _REG_EO_ADJ     = "Adjustment EO delay"
 
+_ENERGY_MAP: dict[str, str] = {
+    "E OFF":    "OFF",
+    "E Adjust": "Adjustment",
+    "E Max":    "Max",
+}
+
+_BURST_MAP: dict[str, str] = {
+    "Continuous": "Continuous",
+    "Burst":      "Burst",
+    "Trigger":    "Trigger",
+}
+
 _ERR_CODES: dict[int, str] = {
     0: "OK",         1: "NOMOREDATA",    2: "NOCFGFILE",
     3: "WRONGCFGFILE", 4: "BUFFERTOOSHORT", 5: "NOSUCHDEVICE",
@@ -154,12 +166,45 @@ class LaserController(QObject):
             return self._get_reg_nl(_REG_STATE)
 
     # ══════════════════════════════════════════════════════════════════════════
+    # OUTPUT LEVEL (API pública — evita acceso directo a _set_reg)
+    # ══════════════════════════════════════════════════════════════════════════
+
+    def set_output_level(self, opcion: str) -> bool:
+        """
+        Establece el nivel de energía de salida.
+        opcion: 'E OFF' | 'E Adjust' | 'E Max'
+        """
+        valor = _ENERGY_MAP.get(opcion)
+        if valor is None:
+            self.error.emit(f"Output level desconocido: {opcion}. Opciones: {list(_ENERGY_MAP)}")
+            return False
+        return self._set_reg(_REG_ENERGY, valor)
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # EO DELAY (API pública — evita acceso directo a _set_reg)
+    # ══════════════════════════════════════════════════════════════════════════
+
+    def set_eo_delay(self, us: int) -> bool:
+        """
+        Establece el retardo EO en microsegundos (800–8000).
+        Valor de modo seguro: 3800.
+        """
+        if not (800 <= us <= 8000):
+            self.error.emit(f"EO delay fuera de rango: {us} µs (válido: 800–8000)")
+            return False
+        return self._set_reg(_REG_EO_ADJ, str(us))
+
+    # ══════════════════════════════════════════════════════════════════════════
     # BURST
     # ══════════════════════════════════════════════════════════════════════════
 
     def set_burst_mode(self, modo: str) -> bool:
         """modo: 'Continuous', 'Burst' o 'Trigger'."""
-        return self._set_reg(_REG_BATCH_MODE, modo)
+        valor = _BURST_MAP.get(modo)
+        if valor is None:
+            self.error.emit(f"Burst mode desconocido: {modo}. Opciones: {list(_BURST_MAP)}")
+            return False
+        return self._set_reg(_REG_BATCH_MODE, valor)
 
     def set_burst_length(self, n_pulsos: int) -> bool:
         return self._set_reg(_REG_BURST_LEN, str(int(n_pulsos)))
@@ -203,7 +248,7 @@ class LaserController(QObject):
     def modo_seguro(self) -> dict[str, bool]:
         resultados = {
             "stop":          self.stop(),
-            "eo_delay_3800": self._set_reg(_REG_EO_ADJ, "3800"),
+            "eo_delay_3800": self.set_eo_delay(3800),
             "e_off":         self.e_off(),
             "burst_cont":    self.set_burst_mode("Continuous"),
         }

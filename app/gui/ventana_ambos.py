@@ -22,7 +22,7 @@ from PySide6.QtCore import Qt, QThread, QTimer, Signal, Slot, QObject
 from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QGroupBox,
     QLabel, QPushButton, QComboBox, QSpinBox, QDoubleSpinBox,
-    QTabWidget, QFrame, QFileDialog, QMessageBox, QSplitter,
+    QTabWidget, QFrame, QFileDialog, QMessageBox,
 )
 
 from app.config import TEMP_COM_PORT
@@ -827,16 +827,12 @@ class VentanaAmbos(QMainWindow):
 
     @Slot()
     def _on_aplicar_laser(self):
-        output_map = {"E OFF": "OFF", "E Adjust": "Adjustment", "E Max": "Max"}
-        burst_map  = {"Continuous": "Continuous", "Burst": "Burst", "Trigger": "Trigger"}
-
-        self._laser._set_reg("Output level", output_map[self._output_sel])
-        burst = burst_map[self._burst_sel]
-        self._laser._set_reg("Continuous / Burst mode / Trigger burst", burst)
-        if burst != "Continuous":
+        self._laser.set_output_level(self._output_sel)
+        self._laser.set_burst_mode(self._burst_sel)
+        if self._burst_sel != "Continuous":
             self._laser.set_burst_length(self._spin_p_burst_len.value())
         self._laser.set_cooling_temp(self._spin_p_cooling.value())
-        self._laser._set_reg("Adjustment EO delay", str(self._spin_p_eo.value()))
+        self._laser.set_eo_delay(self._spin_p_eo.value())
         self._set_log("Parámetros del láser aplicados")
 
     def _actualizar_monitoreo_laser(self):
@@ -974,6 +970,21 @@ class VentanaAmbos(QMainWindow):
 
     @Slot()
     def _on_iniciar_secuencia(self):
+        if not self._laser.conectado:
+            QMessageBox.warning(self, "Láser desconectado",
+                                "El láser debe estar conectado para iniciar la secuencia.")
+            return
+
+        if not self._laser_running:
+            QMessageBox.warning(self, "Láser apagado",
+                                "Enciende el láser antes de iniciar la secuencia automática.")
+            return
+
+        if not self._oscil.conectado:
+            QMessageBox.warning(self, "Osciloscopio desconectado",
+                                "El osciloscopio debe estar conectado para iniciar la secuencia.")
+            return
+
         por_temp = self._modo_auto_activo() == "temperatura"
         if por_temp and not self._temp.esta_conectado():
             QMessageBox.warning(self, "ESP32 desconectado",
@@ -982,7 +993,7 @@ class VentanaAmbos(QMainWindow):
 
         resp = QMessageBox.warning(
             self, "Iniciar secuencia automática",
-            "La secuencia arrancará el láser y tomará mediciones de forma autónoma.\n\n¿Continuar?",
+            "La secuencia tomará mediciones de forma autónoma.\n\n¿Continuar?",
             QMessageBox.Ok | QMessageBox.Cancel,
         )
         if resp != QMessageBox.Ok:
@@ -1137,7 +1148,8 @@ class VentanaAmbos(QMainWindow):
             self._captura_thread.quit()
             self._captura_thread.wait(2000)
         self._medicion.detener()
-        self._safe.activar()
+        if self._laser.conectado:
+            self._safe.activar()
         self._monitor.detener()
         if self._temp_thread.isRunning():
             self._temp.detener()

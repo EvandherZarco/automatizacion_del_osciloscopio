@@ -127,6 +127,7 @@ class MonitoreoConexion(QObject):
 
         self._timer = QTimer(self)
         self._timer.timeout.connect(self._ciclo)
+        self._threads_reconexion: list = []
 
     # ──────────────────────────────────────────────────────────────────────────
     # CONTROL EXTERNO
@@ -222,11 +223,17 @@ class MonitoreoConexion(QObject):
         thread = QThread(self)
         worker.moveToThread(thread)
 
+        self._threads_reconexion.append((thread, worker))
+
         thread.started.connect(worker.ejecutar)
         worker.resultado.connect(self._on_reconexion)
         worker.resultado.connect(thread.quit)
         thread.finished.connect(thread.deleteLater)
         thread.finished.connect(worker.deleteLater)
+        thread.finished.connect(
+            lambda: self._threads_reconexion.remove((thread, worker))
+            if (thread, worker) in self._threads_reconexion else None
+        )
 
         thread.start()
 

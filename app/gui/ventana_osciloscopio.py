@@ -20,11 +20,9 @@ from PySide6.QtWidgets import (
 
 from app.osciloscopio.control_osciloscopio import OsciloscopioController
 from app.almacenamiento.almacenamiento import Almacenamiento, PaqueteMedicion
-from app.modo_seguro.modo_seguro import ModoSeguro
-from app.laser.control_laser import LaserController
 from app.gui.theme import (
     APP_STYLESHEET, LED_VERDE, LED_AMARILLO, LED_ROJO, LED_GRIS,
-    make_led, set_led, set_btn_activo, chip_log,
+    make_led, set_led, set_btn_activo,
 )
 
 
@@ -63,8 +61,6 @@ class VentanaOsciloscopio(QMainWindow):
         self.setStyleSheet(APP_STYLESHEET)
 
         self._oscil  = OsciloscopioController(self)
-        self._laser  = LaserController(self)
-        self._safe   = ModoSeguro(self._laser, self)
         self._store  = Almacenamiento(self)
 
         self._ultima_captura = None
@@ -518,7 +514,12 @@ class VentanaOsciloscopio(QMainWindow):
 
     @Slot()
     def _on_stop_emergencia(self):
-        self._safe.activar()
+        QMessageBox.information(
+            self,
+            "Stop emergencia",
+            "Para detener el láser de emergencia usa la ventana \"Láser\" o \"Ambos\",\n"
+            "o presiona el botón físico de paro en el equipo.",
+        )
 
     @Slot()
     def _on_volver(self):
