@@ -16,6 +16,7 @@ from __future__ import annotations
 from datetime import datetime
 from pathlib import Path
 
+import numpy as np
 import pyqtgraph as pg
 
 from PySide6.QtCore import Qt, QThread, QTimer, Signal, Slot, QObject
@@ -44,8 +45,23 @@ INTERVALO_MIN_TIEMPO_S = 15.0
 MONITOREO_LASER_MS     = 10_000
 
 
+class _ConexionWorker(QObject):
+    terminado = Signal()
+
+    def __init__(self, laser, oscil):
+        super().__init__()
+        self._laser = laser
+        self._oscil = oscil
+
+    @Slot()
+    def ejecutar(self):
+        self._laser.conectar()
+        self._oscil.conectar()
+        self.terminado.emit()
+
+
 class _CapturaWorker(QObject):
-    terminado = Signal(object)
+    terminado = Signal(object, object)
 
     def __init__(self, oscil: OsciloscopioController):
         super().__init__()
@@ -53,7 +69,9 @@ class _CapturaWorker(QObject):
 
     @Slot()
     def ejecutar(self):
-        self.terminado.emit(self._oscil.capturar())
+        captura = self._oscil.leer_pantalla()
+        escala = self._oscil.leer_escala_actual() if captura else None
+        self.terminado.emit(captura, escala)
 
 
 class VentanaAmbos(QMainWindow):
@@ -700,8 +718,19 @@ class VentanaAmbos(QMainWindow):
     # ══════════════════════════════════════════════════════════════════════════
 
     def _iniciar_app(self):
-        self._laser.conectar()
-        self._oscil.conectar()
+        worker = _ConexionWorker(self._laser, self._oscil)
+        thread = QThread(self)
+        worker.moveToThread(thread)
+        thread.started.connect(worker.ejecutar)
+        worker.terminado.connect(self._post_conexion)
+        worker.terminado.connect(thread.quit)
+        thread.finished.connect(thread.deleteLater)
+        thread.finished.connect(worker.deleteLater)
+        self._init_thread = thread
+        self._init_worker = worker
+        thread.start()
+
+    def _post_conexion(self):
         self._temp_thread.start()
         self._monitor.iniciar()
 
@@ -902,8 +931,8 @@ class VentanaAmbos(QMainWindow):
         self._captura_worker = worker
         thread.start()
 
-    @Slot(object)
-    def _on_captura_terminada(self, captura):
+    @Slot(object, object)
+    def _on_captura_terminada(self, captura, escala):
         self._captura_thread = None
         self._captura_worker = None
         self._btn_capturar.setEnabled(self._oscil.conectado and self._canal_sel is not None)
@@ -913,9 +942,34 @@ class VentanaAmbos(QMainWindow):
                                 "No se pudo obtener la señal del osciloscopio.")
             return
 
+        t = captura.tiempo
+        v = captura.voltaje
+        mask = np.isfinite(t) & np.isfinite(v)
+
+        if not np.any(mask):
+            QMessageBox.warning(self, "Datos inválidos",
+                                "La señal capturada no contiene datos válidos.")
+            return
+
         self._ultima_captura = captura
         self._btn_guardar_manual.setEnabled(True)
-        self._curva_manual.setData(captura.tiempo * 1e6, captura.voltaje * 1e3)
+
+        t_us = t[mask] * 1e6
+        v_mv = v[mask] * 1e3
+        self._curva_manual.setData(t_us, v_mv)
+
+        if escala is not None:
+            vdiv_mv = escala["vdiv_v"] * 1e3
+            tdiv_us = escala["tdiv_s"] * 1e6
+            t_mid = (t_us[0] + t_us[-1]) / 2
+            y_mid = captura.wfmpre["YZERO"] * 1e3
+            self._plot_manual.setXRange(t_mid - 5 * tdiv_us, t_mid + 5 * tdiv_us, padding=0)
+            self._plot_manual.setYRange(y_mid - 4 * vdiv_mv, y_mid + 4 * vdiv_mv, padding=0)
+        else:
+            self._plot_manual.setXRange(float(t_us[0]), float(t_us[-1]), padding=0.05)
+            v_min, v_max = float(v_mv.min()), float(v_mv.max())
+            margen = max((v_max - v_min) * 0.1, 1e-6)
+            self._plot_manual.setYRange(v_min - margen, v_max + margen, padding=0)
 
         vr = self._plot_manual.viewRange()
         xr, yr = vr
@@ -1000,6 +1054,7 @@ class VentanaAmbos(QMainWindow):
             return
 
         self._secuencia_running = True
+        self._timer_inactividad.stop()
         self._btn_iniciar_seq.setEnabled(False)
         self._btn_detener_seq.setEnabled(True)
         self._btn_por_tiempo.setEnabled(False)
@@ -1083,6 +1138,8 @@ class VentanaAmbos(QMainWindow):
 
     @Slot()
     def _aviso_inactividad(self):
+        if self._secuencia_running:
+            return
         resp = QMessageBox.question(
             self, "¿Sigues usando el láser?",
             "No se ha detectado actividad en 1 minuto.\n\nEl láser se detendrá si no confirmas.",

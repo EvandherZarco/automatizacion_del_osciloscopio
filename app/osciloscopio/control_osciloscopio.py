@@ -59,6 +59,7 @@ class OsciloscopioController(QObject):
         self._modelo: str = ""
         self._canal: str = _CANAL_DEFAULT
         self._nr_pt: int = 0
+        self._cancelar_espera = False
 
     @property
     def conectado(self) -> bool:
@@ -131,6 +132,9 @@ class OsciloscopioController(QObject):
             if not self._inst:
                 return False
             return self._ping(self._inst) is not None
+
+    def cancelar_espera(self) -> None:
+        self._cancelar_espera = True
 
     def leer_escala_actual(self) -> dict | None:
         """
@@ -352,13 +356,46 @@ class OsciloscopioController(QObject):
         with QMutexLocker(self._mutex):
             if not self._inst:
                 return False
+            try:
+                self._inst.write("ACQ:MODE AVERAGE")
+                self._inst.write("ACQ:STOPAFTER SEQUENCE")
+            except Exception as exc:
+                self._emit_conn_error(f"Error al configurar modo tiempo: {exc}")
+                return False
             return self._set_numavg(self._inst, numavg)
 
     def configurar_modo_temperatura(self) -> bool:
         with QMutexLocker(self._mutex):
             if not self._inst:
                 return False
+            try:
+                self._inst.write("ACQ:MODE AVERAGE")
+                self._inst.write("ACQ:STOPAFTER SEQUENCE")
+            except Exception as exc:
+                self._emit_conn_error(f"Error al configurar modo temperatura: {exc}")
+                return False
             return self._set_numavg(self._inst, NUMAVG_TEMPERATURA)
+
+    # ── Lectura directa de pantalla ───────────────────────────────────────────
+
+    def leer_pantalla(self) -> CapturaOscil | None:
+        """
+        Captura rápida que respeta la configuración actual del panel frontal.
+        Pone el scope en modo libre (RUNSTOP), adquiere brevemente y lee.
+        """
+        with QMutexLocker(self._mutex):
+            if not self._inst:
+                return None
+            try:
+                self._inst.write("ACQ:STOPAFTER RUNSTOP")
+                self._inst.write("ACQ:STATE RUN")
+                time.sleep(0.5)
+                self._inst.write("ACQ:STATE STOP")
+                self._inst.ask("*OPC?")
+            except Exception as exc:
+                self._emit_conn_error(f"Error en lectura de pantalla: {exc}")
+                return None
+            return self._leer_waveform(self._inst)
 
     # ── Captura modo manual ───────────────────────────────────────────────────
 
@@ -374,6 +411,8 @@ class OsciloscopioController(QObject):
                 return None
 
             try:
+                self._inst.write("ACQ:MODE AVERAGE")
+                self._inst.write("ACQ:STOPAFTER SEQUENCE")
                 self._inst.write("ACQ:STATE RUN")
             except Exception as exc:
                 self._emit_conn_error(f"Error al iniciar adquisición manual: {exc}")
@@ -411,6 +450,7 @@ class OsciloscopioController(QObject):
                 return None
 
             try:
+                self._inst.write("ACQ:STOPAFTER SEQUENCE")
                 self._inst.write("ACQ:STATE RUN")
             except Exception as exc:
                 self._emit_conn_error(f"Error al iniciar adquisición: {exc}")
@@ -424,9 +464,12 @@ class OsciloscopioController(QObject):
                 captura = self._leer_waveform(self._inst)
                 if captura:
                     captura.error_flag = 1
+                self._reanudar_freerun(self._inst)
                 return captura
 
-            return self._leer_waveform(self._inst)
+            captura = self._leer_waveform(self._inst)
+            self._reanudar_freerun(self._inst)
+            return captura
 
     # ── Captura modo temperatura ──────────────────────────────────────────────
 
@@ -464,24 +507,21 @@ class OsciloscopioController(QObject):
     def _configurar_base(self, inst: vxi11.Instrument) -> int | None:
         """
         Envía configuración base de transferencia de datos.
-        Abre la ventana DATA:STOP al máximo posible, luego lee NR_PT para saber
-        cuántos puntos entregará realmente el scope con su configuración actual.
-        Retorna el número de puntos (NR_PT) si tuvo éxito, None si falló.
+        Solo configura el formato de transferencia, no toca parámetros
+        de adquisición (modo, promediado, stopafter) para no alterar
+        lo que el usuario configuró en el panel frontal.
         """
         cmds_pre = [
             f"DATA:SOURCE {self._canal}",
             "DATA:ENCDG RIBINARY",
-            "DATA:WIDTH 1",
+            "DATA:WIDTH 2",
             "DATA:START 1",
-            "DATA:STOP 15000",
-            "ACQ:MODE AVERAGE",
-            "ACQ:STOPAFTER SEQUENCE",
+            "DATA:STOP 1000000",
         ]
         try:
             for cmd in cmds_pre:
                 inst.write(cmd)
             nr_pt = int(inst.ask("WFMPRE:NR_PT?").strip())
-            inst.write(f"DATA:STOP {nr_pt}")
             return nr_pt
         except Exception as exc:
             self._emit_conn_error(f"Error en configuración base: {exc}")
@@ -502,8 +542,11 @@ class OsciloscopioController(QObject):
             return None
 
     def _esperar_fin(self, inst: vxi11.Instrument) -> bool:
+        self._cancelar_espera = False
         deadline = time.monotonic() + POLL_TIMEOUT_S
         while time.monotonic() < deadline:
+            if self._cancelar_espera:
+                return False
             try:
                 state = inst.ask("ACQ:STATE?").strip()
                 if state == "0":
@@ -565,7 +608,7 @@ class OsciloscopioController(QObject):
         if data and data[-1] == ord("\n"):
             data = data[:-1]
 
-        arr = np.frombuffer(data, dtype=np.int8).copy()
+        arr = np.frombuffer(data, dtype=np.dtype(">i2")).copy()
 
         if len(arr) == 0:
             self._emit_capture_warning("CURVE devolvió un array vacío.")
@@ -586,6 +629,13 @@ class OsciloscopioController(QObject):
         self._connected = False
         self.led_rojo.emit()
         self.error.emit(msg)
+
+    def _reanudar_freerun(self, inst: vxi11.Instrument) -> None:
+        try:
+            inst.write("ACQ:STOPAFTER RUNSTOP")
+            inst.write("ACQ:STATE RUN")
+        except Exception:
+            pass
 
     def _emit_capture_warning(self, msg: str) -> None:
         """Error de captura de waveform — la conexión VXI-11 sigue viva."""

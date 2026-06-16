@@ -27,7 +27,7 @@ from app.gui.theme import (
 
 
 class _CapturaWorker(QObject):
-    terminado = Signal(object)
+    terminado = Signal(object, object)
 
     def __init__(self, oscil: OsciloscopioController):
         super().__init__()
@@ -35,7 +35,9 @@ class _CapturaWorker(QObject):
 
     @Slot()
     def ejecutar(self):
-        self.terminado.emit(self._oscil.capturar())
+        captura = self._oscil.leer_pantalla()
+        escala = self._oscil.leer_escala_actual() if captura else None
+        self.terminado.emit(captura, escala)
 
 
 class _EscalaWorker(QObject):
@@ -466,8 +468,8 @@ class VentanaOsciloscopio(QMainWindow):
         self._captura_worker = worker
         thread.start()
 
-    @Slot(object)
-    def _on_captura_terminada(self, captura):
+    @Slot(object, object)
+    def _on_captura_terminada(self, captura, escala):
         self._captura_thread = None
         self._captura_worker = None
         self._btn_capturar.setEnabled(self._oscil.conectado and self._canal_sel is not None)
@@ -479,11 +481,33 @@ class VentanaOsciloscopio(QMainWindow):
 
         self._ultima_captura = captura
         self._btn_guardar.setEnabled(True)
-        t_us = captura.tiempo
-        v_mv = captura.voltaje
-        mask = np.isfinite(t_us) & np.isfinite(v_mv)
-        self._curva.setData(t_us[mask], v_mv[mask])
-        self._plot.autoRange()
+        t = captura.tiempo
+        v = captura.voltaje
+        mask = np.isfinite(t) & np.isfinite(v)
+
+        if not np.any(mask):
+            QMessageBox.warning(self, "Datos inválidos",
+                                "La señal capturada no contiene datos válidos.")
+            return
+
+        self._curva.setData(t[mask], v[mask])
+
+        if escala is not None:
+            self._on_escala_leida(escala)
+            vdiv = escala["vdiv_v"]
+            tdiv = escala["tdiv_s"]
+            t_mid = (t[mask][0] + t[mask][-1]) / 2
+            y_mid = captura.wfmpre["YZERO"]
+            self._plot.setXRange(t_mid - 5 * tdiv, t_mid + 5 * tdiv, padding=0)
+            self._plot.setYRange(y_mid - 4 * vdiv, y_mid + 4 * vdiv, padding=0)
+        else:
+            t_valid = t[mask]
+            v_valid = v[mask]
+            self._plot.setXRange(float(t_valid[0]), float(t_valid[-1]), padding=0.05)
+            v_min, v_max = float(v_valid.min()), float(v_valid.max())
+            margen = max((v_max - v_min) * 0.1, 1e-6)
+            self._plot.setYRange(v_min - margen, v_max + margen, padding=0)
+
         self._refrescar_labels_plot()
 
     @Slot()

@@ -328,9 +328,10 @@ class Medicion(QObject):
 
     def detener(self):
         if self._trigger is not None:
-            QMetaObject.invokeMethod(self._trigger, "detener", Qt.QueuedConnection)
+            self._trigger._activo = False
         if self._worker is not None:
-            QMetaObject.invokeMethod(self._worker, "detener", Qt.QueuedConnection)
+            self._worker._activo = False
+        self._oscil.cancelar_espera()
 
     # ── Slots internos ────────────────────────────────────────────────────────
 
