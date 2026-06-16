@@ -33,6 +33,8 @@ CSV_HEADER = [
     "YOFF",
     "YZERO",
     "NR_PT",
+    "CH_SCALE",
+    "HOR_SCALE",
     "pulsos_estimados",
     "archivo_npy",
 ]
@@ -165,6 +167,8 @@ class Almacenamiento(QObject):
             w.get("YOFF", ""),
             w.get("YZERO", ""),
             w.get("NR_PT", ""),
+            w.get("CH_SCALE", ""),
+            w.get("HOR_SCALE", ""),
             paquete.pulsos_estimados if paquete.pulsos_estimados is not None else "",
             npy_nombre if npy_ok else "",
         ]

@@ -136,6 +136,16 @@ class OsciloscopioController(QObject):
     def cancelar_espera(self) -> None:
         self._cancelar_espera = True
 
+    def estimar_tiempo_captura(self, numavg: int) -> float:
+        """
+        Estima en segundos cuánto tarda una captura con el NUMAVG dado.
+        t = NUMAVG/10Hz (limitado por láser) + transferencia (N_puntos/200k) + overhead.
+        """
+        n_puntos = max(self._nr_pt, 1000)
+        t_promediado = numavg / 10.0
+        t_transferencia = n_puntos / 200_000.0
+        return (t_promediado + t_transferencia) * 1.2 + 0.5
+
     def leer_escala_actual(self) -> dict | None:
         """
         Lee del hardware los parámetros de escala actuales.
@@ -561,6 +571,7 @@ class OsciloscopioController(QObject):
         wfmpre = self._leer_wfmpre(inst)
         if wfmpre is None:
             return None
+        self._nr_pt = int(wfmpre.get("NR_PT", self._nr_pt))
         raw = self._leer_curve(inst)
         if raw is None:
             return None
@@ -575,6 +586,14 @@ class OsciloscopioController(QObject):
                 for p in params:
                     raw = inst.ask(f"WFMPRE:{p}?").strip()
                     wfmpre[p] = int(raw) if p in ("PT_OFF", "NR_PT") else float(raw)
+                try:
+                    wfmpre["CH_SCALE"] = float(inst.ask(f"{self._canal}:SCALE?").strip())
+                except Exception:
+                    wfmpre["CH_SCALE"] = 0.0
+                try:
+                    wfmpre["HOR_SCALE"] = float(inst.ask("HORizontal:SCAle?").strip())
+                except Exception:
+                    wfmpre["HOR_SCALE"] = 0.0
                 return wfmpre
             except Exception as exc:
                 if intento == MAX_REINTENTOS - 1:

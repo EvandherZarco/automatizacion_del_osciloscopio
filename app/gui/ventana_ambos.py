@@ -28,7 +28,7 @@ from PySide6.QtWidgets import (
 
 from app.config import TEMP_COM_PORT
 from app.laser.control_laser import LaserController
-from app.osciloscopio.control_osciloscopio import OsciloscopioController
+from app.osciloscopio.control_osciloscopio import OsciloscopioController, NUMAVG_TIEMPO
 from app.temperatura.temperatura import TempWorker
 from app.almacenamiento.almacenamiento import Almacenamiento, PaqueteMedicion
 from app.modo_seguro.modo_seguro import ModoSeguro
@@ -1044,6 +1044,20 @@ class VentanaAmbos(QMainWindow):
             QMessageBox.warning(self, "ESP32 desconectado",
                                 "El módulo de temperatura debe estar conectado para este modo.")
             return
+
+        if not por_temp:
+            intervalo = self._spin_intervalo.value()
+            t_estimado = self._oscil.estimar_tiempo_captura(NUMAVG_TIEMPO)
+            if t_estimado > intervalo:
+                QMessageBox.warning(
+                    self, "Intervalo insuficiente",
+                    f"Cada captura tarda ~{t_estimado:.1f} s con la resolución actual "
+                    f"({self._oscil._nr_pt:,} puntos) y NUMAVG={NUMAVG_TIEMPO}.\n\n"
+                    f"El intervalo configurado es de {intervalo:.1f} s.\n\n"
+                    f"Aumenta el intervalo a por lo menos {int(t_estimado) + 1} s "
+                    f"o reduce la resolución del osciloscopio.",
+                )
+                return
 
         resp = QMessageBox.warning(
             self, "Iniciar secuencia automática",
