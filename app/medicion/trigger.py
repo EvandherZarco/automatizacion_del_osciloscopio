@@ -29,6 +29,7 @@ class TriggerWorker(QObject):
     iniciar_acumulacion = Signal()  # modo temperatura: ACQ:STATE RUN
     detener_y_capturar = Signal()  # modo temperatura: ACQ:STATE STOP + CURVE?
     secuencia_terminada = Signal()  # fin normal o detenida externamente
+    intervalo_excedido = Signal(float)  # segundos que la captura excedió el intervalo
 
     def __init__(
         self,
@@ -104,13 +105,23 @@ class TriggerWorker(QObject):
             if not self._activo:
                 return
 
+            t0 = time.monotonic()
             self.medir_ahora.emit()
 
-            t_fin = time.monotonic() + self._intervalo_s
-            while time.monotonic() < t_fin:
-                if not self._activo:
-                    return
-                time.sleep(0.2)
+            while self._capturando and self._activo:
+                time.sleep(0.1)
+            if not self._activo:
+                return
+
+            tiempo_restante = self._intervalo_s - (time.monotonic() - t0)
+            if tiempo_restante < 0:
+                self.intervalo_excedido.emit(abs(tiempo_restante))
+            else:
+                t_fin = time.monotonic() + tiempo_restante
+                while time.monotonic() < t_fin:
+                    if not self._activo:
+                        return
+                    time.sleep(0.2)
 
     # ── Modo por temperatura ───────────────────────────────────────────────────
 

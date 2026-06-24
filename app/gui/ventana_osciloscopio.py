@@ -173,7 +173,7 @@ class VentanaOsciloscopio(QMainWindow):
 
     def _sep_label(self, texto: str) -> QLabel:
         lbl = QLabel(texto)
-        lbl.setStyleSheet("color: #888; font-size: 11px; text-transform: uppercase;")
+        lbl.setStyleSheet("color: #888; font-size: 11px; text-transform: uppercase; margin-top: 4px;")
         return lbl
 
     def _hline(self) -> QFrame:
@@ -216,6 +216,12 @@ class VentanaOsciloscopio(QMainWindow):
         self._combo_tdiv.addItems(list(OsciloscopioController.TDIV_OPCIONES.keys()))
         self._combo_tdiv.setCurrentText("1 µs/div")
         lay.addWidget(self._combo_tdiv)
+
+        lay.addWidget(self._sep_label("Record length (puntos)"))
+        self._combo_rec_length = QComboBox()
+        self._combo_rec_length.addItems(list(OsciloscopioController.REC_LENGTH_OPCIONES.keys()))
+        self._combo_rec_length.setCurrentText("25 000")
+        lay.addWidget(self._combo_rec_length)
         lay.addWidget(self._hline())
 
         # Acoplamiento
@@ -430,6 +436,7 @@ class VentanaOsciloscopio(QMainWindow):
 
     @Slot()
     def _on_aplicar_params(self):
+        self._oscil.set_rec_length(self._combo_rec_length.currentText())
         self._oscil.aplicar_parametros(
             vdiv      = self._combo_vdiv.currentText(),
             tdiv      = self._combo_tdiv.currentText(),

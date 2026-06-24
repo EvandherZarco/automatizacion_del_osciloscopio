@@ -385,6 +385,12 @@ class VentanaAmbos(QMainWindow):
         self._combo_p_tdiv.setCurrentText("1 µs/div")
         lay.addWidget(self._combo_p_tdiv)
 
+        lay.addWidget(self._sep_lbl("Record length (puntos)"))
+        self._combo_p_rec_length = QComboBox()
+        self._combo_p_rec_length.addItems(list(OsciloscopioController.REC_LENGTH_OPCIONES.keys()))
+        self._combo_p_rec_length.setCurrentText("25 000")
+        lay.addWidget(self._combo_p_rec_length)
+
         lay.addWidget(self._sep_lbl("Acoplamiento"))
         fila_ac = QHBoxLayout()
         fila_ac.setSpacing(6)
@@ -416,7 +422,8 @@ class VentanaAmbos(QMainWindow):
             fila_aq.addWidget(btn)
         lay.addLayout(fila_aq)
 
-        lay.addWidget(self._sep_lbl("Nº promedios"))
+        self._lbl_p_numavg = self._sep_lbl("Nº promedios")
+        lay.addWidget(self._lbl_p_numavg)
         self._spin_p_numavg = QSpinBox()
         self._spin_p_numavg.setRange(2, 10000)
         self._spin_p_numavg.setValue(100)
@@ -894,10 +901,14 @@ class VentanaAmbos(QMainWindow):
         self._adquisicion = modo
         set_btn_activo(self._btn_p_sample,  modo == "Sample",  "azul")
         set_btn_activo(self._btn_p_average, modo == "Average", "azul")
-        self._spin_p_numavg.setEnabled(modo == "Average")
+        visible = (modo == "Average")
+        self._spin_p_numavg.setEnabled(visible)
+        self._spin_p_numavg.setVisible(visible)
+        self._lbl_p_numavg.setVisible(visible)
 
     @Slot()
     def _on_aplicar_oscil(self):
+        self._oscil.set_rec_length(self._combo_p_rec_length.currentText())
         self._oscil.aplicar_parametros(
             vdiv      = self._combo_p_vdiv.currentText(),
             tdiv      = self._combo_p_tdiv.currentText(),

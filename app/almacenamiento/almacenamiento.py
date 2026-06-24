@@ -26,6 +26,7 @@ CSV_HEADER = [
     "temperatura",
     "modo",
     "error_flag",
+    "error_desc",
     "XINCR",
     "XZERO",
     "PT_OFF",
@@ -50,6 +51,7 @@ class PaqueteMedicion:
     wfmpre: dict  # XINCR, XZERO, PT_OFF, YMULT, YOFF, YZERO, NR_PT
     raw_data: np.ndarray
     error_flag: int  # 0 = limpio, 1 = medición con advertencia
+    error_desc: str = field(default="")  # descripción legible del error
     pulsos_estimados: int | None = field(default=None)  # solo modo temperatura
 
 
@@ -160,6 +162,7 @@ class Almacenamiento(QObject):
             paquete.temperatura,
             paquete.modo,
             paquete.error_flag,
+            paquete.error_desc,
             w.get("XINCR", ""),
             w.get("XZERO", ""),
             w.get("PT_OFF", ""),

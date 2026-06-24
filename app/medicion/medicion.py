@@ -72,6 +72,7 @@ class MedicionWorker(QObject):
         self._realizadas = 0
         self._con_flag = 0
         self._t_inicio_acum: float | None = None
+        self._intervalo_excedido: float = 0.0
 
     @Slot()
     def detener(self):
@@ -143,6 +144,10 @@ class MedicionWorker(QObject):
         self.captura_terminada.emit()
         self._procesar_captura(captura, pulsos_estimados=pulsos)
 
+    @Slot(float)
+    def on_intervalo_excedido(self, exceso_s: float):
+        self._intervalo_excedido = exceso_s
+
     @Slot()
     def on_secuencia_terminada(self):
         """El Trigger señaliza que terminó su loop."""
@@ -152,14 +157,25 @@ class MedicionWorker(QObject):
 
     def _procesar_captura(self, captura, pulsos_estimados: int | None):
         error_flag = 0
+        errores: list[str] = []
 
         if captura is None:
             error_flag = 1
+            errores.append("captura fallida")
             self.error.emit("Captura fallida — se registra con error_flag=1.")
 
         temp, _, es_fresco = self._leer_temperatura()
         if not es_fresco:
             error_flag = 1
+            errores.append("temperatura no detectada")
+
+        if self._intervalo_excedido > 0:
+            errores.append(
+                f"captura excedió el intervalo por {self._intervalo_excedido:.1f} s"
+            )
+            self._intervalo_excedido = 0.0
+
+        error_desc = "; ".join(errores)
 
         mid = None
         if captura is not None:
@@ -170,6 +186,7 @@ class MedicionWorker(QObject):
                 wfmpre=captura.wfmpre,
                 raw_data=captura.raw_data,
                 error_flag=error_flag,
+                error_desc=error_desc,
                 pulsos_estimados=pulsos_estimados,
             )
             mid = self._storage.guardar(paquete)
@@ -298,6 +315,9 @@ class Medicion(QObject):
         # Worker → Trigger: bloqueo de solapamiento en modo tiempo
         worker.captura_iniciando.connect(trigger.on_captura_iniciando)
         worker.captura_terminada.connect(trigger.on_captura_terminada)
+
+        # Trigger → Worker: aviso de intervalo excedido
+        trigger.intervalo_excedido.connect(worker.on_intervalo_excedido)
 
         # Worker → fachada
         worker.medicion_completada.connect(self._on_medicion_completada)

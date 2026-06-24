@@ -99,10 +99,13 @@ class VisualizacionWidget(QWidget):
         self._lbl_temp = QLabel("—")
         self._lbl_modo = QLabel("—")
         self._lbl_flag = QLabel("—")
+        self._lbl_error_desc = QLabel("—")
+        self._lbl_error_desc.setWordWrap(True)
         meta_lay.addRow("Timestamp:", self._lbl_ts)
         meta_lay.addRow("Temperatura:", self._lbl_temp)
         meta_lay.addRow("Modo:", self._lbl_modo)
         meta_lay.addRow("Error flag:", self._lbl_flag)
+        meta_lay.addRow("Detalle:", self._lbl_error_desc)
         panel_der_lay.addWidget(meta_box, 1)
 
         splitter.addWidget(panel_der)
@@ -228,6 +231,7 @@ class VisualizacionWidget(QWidget):
 
     def _actualizar_meta(self, fila: dict):
         flag = str(fila.get("error_flag", "0"))
+        desc = fila.get("error_desc", "").strip()
         self._lbl_ts.setText(fila.get("timestamp", "—"))
         self._lbl_temp.setText(f"{fila.get('temperatura', '—')} °C")
         self._lbl_modo.setText(fila.get("modo", "—"))
@@ -235,9 +239,15 @@ class VisualizacionWidget(QWidget):
         self._lbl_flag.setStyleSheet(
             "color: #ffc800;" if flag == "1" else "color: #4caf50;"
         )
+        if desc:
+            self._lbl_error_desc.setText(desc)
+            self._lbl_error_desc.setStyleSheet("color: #ffc800; font-size: 10px;")
+        else:
+            self._lbl_error_desc.setText("—")
+            self._lbl_error_desc.setStyleSheet("color: #555; font-size: 10px;")
 
     def _limpiar_meta(self):
-        for lbl in (self._lbl_ts, self._lbl_temp, self._lbl_modo, self._lbl_flag):
+        for lbl in (self._lbl_ts, self._lbl_temp, self._lbl_modo, self._lbl_flag, self._lbl_error_desc):
             lbl.setText("—")
 
     # ──────────────────────────────────────────────────────────────────────────

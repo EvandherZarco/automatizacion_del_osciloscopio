@@ -136,16 +136,6 @@ class OsciloscopioController(QObject):
     def cancelar_espera(self) -> None:
         self._cancelar_espera = True
 
-    def estimar_tiempo_captura(self, numavg: int) -> float:
-        """
-        Estima en segundos cuánto tarda una captura con el NUMAVG dado.
-        t = NUMAVG/10Hz (limitado por láser) + transferencia (N_puntos/200k) + overhead.
-        """
-        n_puntos = max(self._nr_pt, 1000)
-        t_promediado = numavg / 10.0
-        t_transferencia = n_puntos / 200_000.0
-        return (t_promediado + t_transferencia) * 1.2 + 0.5
-
     def leer_escala_actual(self) -> dict | None:
         """
         Lee del hardware los parámetros de escala actuales.
@@ -210,6 +200,42 @@ class OsciloscopioController(QObject):
         "5 ms/div": 5e-3,
         "10 ms/div": 10e-3,
     }
+
+    REC_LENGTH_OPCIONES: dict[str, int] = {
+        "500":       500,
+        "2 500":     2_500,
+        "5 000":     5_000,
+        "12 500":    12_500,
+        "25 000":    25_000,
+        "50 000":    50_000,
+        "125 000":   125_000,
+        "250 000":   250_000,
+        "500 000":   500_000,
+        "1 000 000": 1_000_000,
+        "2 000 000": 2_000_000,
+        "4 000 000": 4_000_000,
+        "8 000 000": 8_000_000,
+    }
+
+    def set_rec_length(self, opcion: str) -> bool:
+        """
+        Establece el record length del osciloscopio.
+        opcion debe ser una clave de REC_LENGTH_OPCIONES (p. ej. '25 000').
+        """
+        valor = self.REC_LENGTH_OPCIONES.get(opcion)
+        if valor is None:
+            self.error.emit(f"Record length desconocido: {opcion}")
+            return False
+        with QMutexLocker(self._mutex):
+            if not self._inst:
+                return False
+            try:
+                self._inst.write(f"HOR:RECLENGTH {valor}")
+                self.cmd_ok.emit(f"Osciloscopio: record length → {opcion} puntos")
+                return True
+            except Exception as exc:
+                self.error.emit(f"Error al configurar record length: {exc}")
+                return False
 
     def set_vdiv(self, opcion: str) -> bool:
         """
@@ -571,7 +597,6 @@ class OsciloscopioController(QObject):
         wfmpre = self._leer_wfmpre(inst)
         if wfmpre is None:
             return None
-        self._nr_pt = int(wfmpre.get("NR_PT", self._nr_pt))
         raw = self._leer_curve(inst)
         if raw is None:
             return None
@@ -586,14 +611,6 @@ class OsciloscopioController(QObject):
                 for p in params:
                     raw = inst.ask(f"WFMPRE:{p}?").strip()
                     wfmpre[p] = int(raw) if p in ("PT_OFF", "NR_PT") else float(raw)
-                try:
-                    wfmpre["CH_SCALE"] = float(inst.ask(f"{self._canal}:SCALE?").strip())
-                except Exception:
-                    wfmpre["CH_SCALE"] = 0.0
-                try:
-                    wfmpre["HOR_SCALE"] = float(inst.ask("HORizontal:SCAle?").strip())
-                except Exception:
-                    wfmpre["HOR_SCALE"] = 0.0
                 return wfmpre
             except Exception as exc:
                 if intento == MAX_REINTENTOS - 1:
