@@ -4,101 +4,791 @@
 \chapter{Arreglo experimental}
 \label{cap:arreglo}
 
-En este capítulo se describe el arreglo experimental desarrollado
-para la medición fotoacústica de líquidos. Se presentan la celda
-fotoacústica, los equipos de medición involucrados, el sistema
-de medición de energía del láser y los sistemas de automatización
-implementados para el osciloscopio y el láser.
+En este capítulo se describe el arreglo experimental empleado para la
+medición fotoacústica de líquidos. Se presentan la celda que contiene
+la muestra, los equipos de medición involucrados, la fuente de
+excitación y su trayectoria óptica, y los tres subsistemas de
+instrumentación que fueron automatizados en este trabajo: el
+osciloscopio, el láser y el módulo de medición de temperatura.
+
+El arreglo parte de una configuración experimental preexistente en el
+Laboratorio de Fotofísica y Películas Delgadas del ICAT. La aportación
+de este trabajo no consiste en modificar dicha configuración, sino en
+dotarla de control programático y adquisición sincronizada, de modo
+que las secciones \ref{sec:celda} a \ref{sec:excitacion} describen el
+arreglo heredado y las secciones \ref{sec:auto_osci} a
+\ref{sec:modulo_temperatura} describen los subsistemas desarrollados.
 
 % ============================================================
 \section{Descripción de la celda fotoacústica}
 \label{sec:celda}
 % ============================================================
 
-% GUÍA:
-% - Geometría de la celda (dimensiones, material, ventanas ópticas)
-% - Posición del hidrófono / fotodiodo dentro de la celda
-% - Fotografía o diagrama esquemático (figura obligatoria aquí)
-% - Cómo se introduce y extrae la muestra líquida
+La celda que contiene la muestra líquida fue diseñada y manufacturada
+por Rangel Mendieta como parte del arreglo experimental desarrollado
+para la caracterización del hidrófono empleado en este trabajo
+\cite{Rangel2023}. En la presente investigación se reutiliza la misma
+celda física, por lo que su geometría constituye una condición de
+frontera del experimento y no un parámetro de diseño.
 
-% TODO: redactar contenido aquí
+\subsection*{Construcción y dimensiones}
 
-% Ejemplo de cómo insertar figura cuando la tengas:
+La celda es un recipiente prismático de acrílico de \SI{3}{\milli\meter}
+de espesor, ensamblado mediante pestañas y ranuras y sellado con
+adhesivo. Dos de sus paredes incorporan ventanas de cuarzo que
+permiten el ingreso del haz láser sin las pérdidas ni la fluorescencia
+que introduciría el acrílico. La \cref{tab:piezas_celda} resume las
+piezas que la componen.
+
+\begin{table}[H]
+  \centering
+  \caption{Piezas que integran la celda fotoacústica \cite{Rangel2023}.}
+  \label{tab:piezas_celda}
+  \begin{tabular}{clcc}
+    \toprule
+    \textbf{Pieza} & \textbf{Función} & \textbf{Dimensiones [\si{\milli\meter}]}
+    & \textbf{Material} \\
+    \midrule
+    1 & Base con ranuras de ensamble & $220 \times 150 \times 3$ & Acrílico \\
+    2 & Paredes largas (dos piezas)  & $206 \times 70 \times 3$  & Acrílico \\
+    3 & Pared con barreno \diameter\,12 & $76 \times 76 \times 3$ & Acrílico \\
+    4 & Pared con barreno \diameter\,16 & $76 \times 76 \times 3$ & Acrílico \\
+    5 & Pared con barreno \diameter\,24 & $76 \times 76 \times 3$ & Acrílico \\
+    6 & Ventana rectangular          & $54 \times 16 \times 0.5$ & Cuarzo \\
+    7 & Ventana cuadrada             & $18 \times 18 \times 0.5$ & Cuarzo \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+El ensamble resulta en una cavidad interna aproximada de
+$200 \times 70 \times \SI{70}{\milli\meter}$. El volumen de muestra
+empleado es de \SI{400}{\milli\liter} \cite{Rangel2023}, que
+corresponde a un tirante de líquido de
+\begin{equation}
+    h = \frac{V}{A_\text{base}}
+      = \frac{\SI{400}{\centi\meter\cubed}}
+             {\SI{20.0}{\centi\meter} \times \SI{7.0}{\centi\meter}}
+      \approx \SI{28.6}{\milli\meter}.
+    \label{eq:tirante}
+\end{equation}
+
+Este valor no es arbitrario. La ranura que aloja la ventana
+rectangular de cuarzo en la pared larga abarca de \SI{12}{\milli\meter}
+a \SI{29}{\milli\meter} de altura medidos desde el fondo de la celda,
+de modo que el volumen de \SI{400}{\milli\liter} corresponde
+precisamente al nivel mínimo que cubre por completo la ventana de
+entrada del haz. Un volumen menor dejaría parte de la ventana en
+contacto con aire y modificaría la trayectoria óptica; uno mayor no
+aporta beneficio y aproxima la superficie libre al eje del haz.
+
 % \begin{figure}[H]
 %   \centering
-%   \includegraphics[width=0.7\textwidth]{celda_fotoacustica}
-%   \caption{Diagrama de la celda fotoacústica utilizada.}
-%   \label{fig:celda}
+%   \includegraphics[width=0.8\textwidth]{celda_ensamble}
+%   \caption{Vista isométrica de la celda fotoacústica ensamblada.}
+%   \label{fig:celda_ensamble}
 % \end{figure}
 
+\subsection*{Montaje del hidrófono}
+
+Las tres paredes transversales de la celda incorporan barrenos de
+\diameter\,12, \diameter\,16 y \diameter\,24\,\si{\milli\meter}
+respectivamente, cuya función es alojar y sostener el hidrófono en
+posición fija dentro del líquido. El hidrófono empleado es el
+desarrollado por Rangel Mendieta \cite{Rangel2023}, cuyas
+características se detallan en la \cref{sec:equipos}.
+
+El montaje mediante barrenos pasantes garantiza que la posición
+relativa entre el hidrófono y la pared de la celda se conserve entre
+sesiones experimentales.
+
+\subsection*{Geometría de la interacción y consecuencias acústicas}
+
+El haz láser ingresa a la muestra a través de la ventana rectangular
+de cuarzo situada en una de las paredes largas, de manera que su
+trayectoria dentro del líquido corresponde al ancho interno de la
+cavidad, es decir, aproximadamente \SI{70}{\milli\meter}. El haz
+viaja paralelo a la cara sensora del hidrófono, a una distancia
+aproximada de \SI{10}{\milli\meter} \cite{Rangel2023}.
+
+Esta configuración reproduce la geometría de fuente cilíndrica
+descrita en la \cref{sec:fotoacustico_liquidos}: una columna
+iluminada larga y delgada que emite una onda cilíndrica hacia un
+transductor situado a corta distancia perpendicular
+\cite{PatelTam1981}.
+
+Ahora bien, las dimensiones finitas de la celda imponen un límite
+temporal a la señal utilizable. Tomando la velocidad del sonido en
+agua como \SI{1480}{\meter\per\second} a \SI{20}{\celsius}, los
+tiempos de arribo al hidrófono de la señal directa y de las primeras
+reflexiones en las fronteras de la cavidad son los indicados en la
+\cref{tab:tiempos_celda}. El desarrollo del cálculo, junto con las
+hipótesis geométricas empleadas, se presenta en el
+\cref{ap:tiempos_arribo}.
+
+\begin{table}[H]
+  \centering
+  \caption{Tiempos de arribo estimados al hidrófono para la señal
+           directa y las primeras reflexiones en las fronteras de la
+           celda.}
+  \label{tab:tiempos_celda}
+  \begin{tabular}{lcc}
+    \toprule
+    \textbf{Trayectoria} & \textbf{Distancia [\si{\milli\meter}]}
+    & \textbf{Arribo [\si{\micro\second}]} \\
+    \midrule
+    Señal directa                       & 10  & 6.8  \\
+    Reflexión en superficie libre       & 19  & 12.9 \\
+    Reflexión en el fondo               & 42  & 28.5 \\
+    Reflexión en paredes transversales  & 100 & 67.6 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+De la \cref{tab:tiempos_celda} se desprende que la ventana temporal
+libre de reflexiones es de aproximadamente \SI{6}{\micro\second}
+contados a partir de la llegada de la señal directa. Este intervalo
+es el que contiene el pulso bipolar de generación fotoacústica en
+volumen, y determina tanto la base de tiempo que debe configurarse
+en el osciloscopio como la longitud de registro necesaria para
+resolverlo adecuadamente. Quan \textit{et al.} advierten
+explícitamente que las dimensiones finitas del recipiente producen
+reflexiones acústicas múltiples que se superponen a la señal de
+interés y complican su interpretación \cite{Quan1994}; la
+\cref{tab:tiempos_celda} cuantifica ese efecto para la celda
+particular empleada en este trabajo.
+
+Debe señalarse que la primera reflexión que limita la ventana útil es
+la de la superficie libre, cuya posición depende del volumen vertido
+según la \cref{eq:tirante}. Una variación en el llenado desplaza este
+tiempo de arribo, por lo que el volumen de muestra constituye un
+parámetro experimental que debe controlarse y registrarse.
+
+\subsection*{Condiciones de operación y limitaciones identificadas}
+
+El láser de excitación es un recurso compartido entre varios usuarios
+del laboratorio. En consecuencia, ni la celda ni el cabezal del láser
+se encuentran fijados de manera permanente a la mesa óptica, y la
+geometría del arreglo debe restablecerse al inicio de cada sesión
+experimental. Esta condición no afecta la validez de las mediciones
+realizadas dentro de una misma sesión, durante la cual el arreglo
+permanece inalterado, pero sí impide comparar amplitudes absolutas
+entre sesiones distintas sin información adicional.
+
+La estrategia adoptada consiste en registrar la geometría efectiva
+como metadato de cada sesión: altura del eje del haz sobre el fondo
+interno, distancia entre el hidrófono y el eje del haz, posición del
+hidrófono a lo largo de la celda, volumen vertido y temperatura
+ambiente inicial. Con estos parámetros, los tiempos de arribo de la
+\cref{tab:tiempos_celda} pueden recalcularse para cada sesión
+mediante el procedimiento del \cref{ap:tiempos_arribo}, y cualquier
+discrepancia entre sesiones puede atribuirse a su causa geométrica.
+
+El uso de la celda a lo largo del desarrollo experimental permitió
+identificar además dos limitaciones de su diseño actual.
+
+La primera es el sellado adhesivo entre piezas, que constituye un
+punto de falla ante el llenado y vaciado repetidos que exige el
+protocolo de medición, y que introduce un material adicional en
+contacto con la muestra.
+
+La segunda es el tirante de líquido reducido. Un tirante de
+\SI{28.6}{\milli\meter} aproxima la superficie libre al eje del haz y
+acorta la ventana temporal disponible; además, favorece la
+estratificación térmica vertical del líquido en reposo, aspecto
+relevante para la medición de temperatura descrita en la
+\cref{sec:modulo_temperatura}.
+
+Ambas observaciones, junto con la conveniencia de fijar la geometría
+del arreglo, motivan las propuestas de trabajo a futuro presentadas
+en el \cref{cap:conclusiones}.
 
 % ============================================================
 \section{Equipos de medición: osciloscopio, hidrófono y fotodiodo}
 \label{sec:equipos}
 % ============================================================
 
-% GUÍA:
-% - Osciloscopio Tektronix TDS5000B: especificaciones relevantes
-%   (canales, ancho de banda, resolución vertical, interfaz VXI-11)
-% - Hidrófono: modelo, sensibilidad, rango de frecuencia
-% - Fotodiodo: modelo, respuesta espectral, función en el arreglo
-% - Tabla comparativa o tabla de especificaciones técnicas
+\subsection*{Osciloscopio}
 
-% TODO: redactar contenido aquí
+La adquisición de señales se realiza con un osciloscopio digital de
+la serie Tektronix TDS5000B. A lo largo del desarrollo experimental
+se emplearon indistintamente los modelos TDS5052B y TDS5054B, cuya
+única diferencia relevante es el número de canales de entrada: dos en
+el primero y cuatro en el segundo. Dado que el arreglo utiliza
+únicamente dos canales --- uno para el hidrófono y otro para el
+fotodiodo de disparo --- ambos modelos son equivalentes para los
+fines de este trabajo, y el software desarrollado opera sobre
+cualquiera de los dos sin modificación.
 
+Los instrumentos de esta serie ejecutan internamente un sistema
+operativo Windows y exponen una interfaz de red que implementa el
+protocolo VXI-11, lo que permite su control remoto mediante comandos
+SCPI sobre Ethernet. Las características de esta interfaz y su
+aprovechamiento se describen en la \cref{sec:auto_osci}.
+
+\subsection*{Hidrófono}
+
+El transductor acústico es el hidrófono diseñado, manufacturado y
+caracterizado por Rangel Mendieta \cite{Rangel2023}. Su elemento
+sensor es una cerámica piezoeléctrica de composición KNLNS-BaCaZr de
+\diameter\,10.5\,\si{\milli\meter} y \SI{1.00}{\milli\meter} de
+espesor, alojada en una carcasa de uretano de
+\diameter\,23\,\si{\milli\meter} exterior. El uretano fue
+seleccionado por su impedancia acústica próxima a la del agua, lo que
+reduce las pérdidas por desacoplamiento en la interfaz entre el medio
+y el transductor.
+
+La caracterización reportada por su autor arroja los resultados
+resumidos en la \cref{tab:hidrofono}.
+
+\begin{table}[H]
+  \centering
+  \caption{Características del hidrófono empleado, según la
+           caracterización de su autor \cite{Rangel2023}.}
+  \label{tab:hidrofono}
+  \begin{tabular}{ll}
+    \toprule
+    \textbf{Parámetro} & \textbf{Valor} \\
+    \midrule
+    Material del elemento sensor      & Cerámica KNLNS-BaCaZr \\
+    Dimensiones del elemento sensor   & \diameter\,10.5 $\times$ \SI{1.00}{\milli\meter} \\
+    Material de la carcasa            & Uretano \\
+    Respuesta en frecuencia de la cerámica aislada
+                                      & \SIrange{320}{1582}{\kilo\hertz} \\
+    Respuesta en frecuencia del hidrófono ensamblado
+                                      & \SIrange{41}{797.5}{\kilo\hertz} \\
+    Frecuencia dominante en agua      & \SI{41}{\kilo\hertz} \\
+    Resonancias secundarias en agua   & \SI{323}{\kilo\hertz}, \SI{797.5}{\kilo\hertz} \\
+    Amplitud máxima en agua tridestilada & \SI{50}{\milli\volt} \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+Rangel Mendieta reporta que la amplitud de la respuesta fotoacústica
+del hidrófono sumergido en agua supera al doble de la obtenida con el
+hidrófono en aire, lo que confirma un acoplamiento acústico adecuado
+con el medio en el que opera \cite{Rangel2023}.
+
+\subsection*{Consideración sobre la respuesta en frecuencia}
+
+Los valores de la \cref{tab:hidrofono} imponen una restricción que
+debe hacerse explícita, pues condiciona la interpretación de las
+señales adquiridas.
+
+La ventana temporal libre de reflexiones establecida en la
+\cref{sec:celda} es de aproximadamente \SI{6}{\micro\second}. Un
+transitorio contenido en ese intervalo posee contenido espectral
+significativo por encima de \SI{170}{\kilo\hertz}, y el pulso de
+excitación empleado, de \SI{7}{\nano\second} de duración, es aún más
+rápido. Sin embargo, la respuesta dominante del hidrófono ensamblado
+se localiza en \SI{41}{\kilo\hertz}, cuyo periodo de
+\SI{24}{\micro\second} excede la ventana útil completa.
+
+Se concluye que la señal registrada no corresponde a la forma
+temporal del pulso fotoacústico, sino predominantemente a la
+respuesta propia del transductor excitada por dicho pulso. Es
+pertinente notar que la cerámica aislada exhibe una respuesta mucho
+más rápida (\SIrange{320}{1582}{\kilo\hertz}) que el conjunto
+ensamblado, lo que sugiere que el encapsulado de uretano es el
+elemento que limita el ancho de banda del sistema.
+
+Esta observación coincide con la advertencia de Quan \textit{et al.},
+quienes señalan que el tiempo de subida del detector queda
+determinado por el espesor del elemento piezoeléctrico y que un
+detector cuyas dimensiones excedan la longitud de onda del pulso
+degrada tanto la resolución espacial como la temporal de la forma de
+onda \cite{Quan1994}.
+
+La consecuencia metodológica es que el análisis espectral de las
+señales adquiridas caracteriza conjuntamente al líquido y al
+transductor, y que la comparación entre líquidos distintos solo es
+válida en tanto el transductor permanezca invariante. El desarrollo
+de un hidrófono de mayor ancho de banda constituye una línea de
+trabajo identificada y se aborda en el \cref{cap:conclusiones}.
+
+\subsection*{Fotodiodo}
+
+El disparo de la adquisición se obtiene mediante un fotodiodo
+amplificado de silicio Thorlabs PDA10A \cite{Rangel2023}, que capta
+una fracción del pulso láser y entrega un pulso eléctrico al segundo
+canal del osciloscopio.
+
+Su función en el arreglo es doble. En primer lugar, provee la señal
+de disparo (\textit{trigger}) que sincroniza la adquisición con la
+emisión del pulso láser. En segundo lugar, establece el origen
+temporal $t_0$ respecto del cual se miden los tiempos de vuelo
+acústicos; sin esta referencia, los valores de la
+\cref{tab:tiempos_celda} no serían verificables experimentalmente,
+ya que no existiría un instante conocido desde el cual contar.
+
+Debe precisarse que el fotodiodo no se emplea como medidor de energía
+del pulso. El arreglo no incorpora un sensor calibrado de energía,
+por lo que las señales adquiridas no se normalizan respecto de $E_0$.
+De acuerdo con la \cref{eq:presion_general}, la amplitud registrada
+es proporcional al producto $E_0\,\alpha$, de modo que las
+variaciones de amplitud entre mediciones no pueden atribuirse de
+manera unívoca al coeficiente de absorción del medio. Por esta razón,
+el análisis de las señales en este trabajo se sustenta en su forma
+temporal y en su contenido espectral, y no en su amplitud absoluta.
 
 % ============================================================
-\section{Sistema de medición de energía del láser}
-\label{sec:energia_laser}
+\section{Fuente de excitación y trayectoria óptica}
+\label{sec:excitacion}
 % ============================================================
 
-% GUÍA:
-% - Modelo del láser (Nd:YAG, longitud de onda, energía por pulso, tasa de repetición)
-% - Sensor de energía (joulmeter / power meter): modelo y rango
-% - Cómo se mide la energía antes y/o durante el experimento
-% - Esquema del arreglo óptico completo (figura)
+\subsection*{Láser de excitación}
 
-% TODO: redactar contenido aquí
+La excitación se realiza con un láser pulsado de estado sólido
+EKSPLA NL303HT-10-SH, de Nd:YAG con conmutación Q, cuyas
+características relevantes se resumen en la \cref{tab:laser}.
 
+\begin{table}[H]
+  \centering
+  \caption{Características del láser de excitación.}
+  \label{tab:laser}
+  \begin{tabular}{ll}
+    \toprule
+    \textbf{Parámetro} & \textbf{Valor} \\
+    \midrule
+    Modelo                    & EKSPLA NL303HT-10-SH \\
+    Medio activo              & Nd:YAG \\
+    Longitudes de onda        & \SI{1064}{\nano\meter} (fundamental),
+                                \SI{532}{\nano\meter} (segundo armónico) \\
+    Longitud de onda empleada & \SI{1064}{\nano\meter} \\
+    Duración de pulso         & \SI{7}{\nano\second} \\
+    Frecuencia de repetición  & \SI{10}{\hertz} \\
+    Interfaz de control       & RS-232 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+Las mediciones de este trabajo se realizaron con la línea fundamental
+de \SI{1064}{\nano\meter}. La frecuencia de repetición de
+\SI{10}{\hertz} es fija y constituye el parámetro sobre el que se
+sustenta la estimación del número de pulsos integrados descrita en el
+\cref{cap:resultados}.
+
+\subsection*{Control de energía}
+
+El láser no expone un valor de energía por pulso en unidades físicas,
+sino un conjunto de niveles discretos de salida denominados
+\textit{Output level}, con los valores \textit{OFF},
+\textit{Adjustment} y \textit{Max}, complementados por el retardo del
+conmutador electro-óptico (\textit{EO delay}), que admite ajuste
+numérico. La combinación de ambos parámetros determina la energía
+efectivamente emitida.
+
+En consecuencia, la interfaz desarrollada permite seleccionar y
+modificar el nivel de salida del láser, pero no cuantificar la
+energía resultante. Esta distinción es relevante y se retoma en la
+discusión de resultados del \cref{cap:resultados}.
+
+\subsection*{Trayectoria óptica}
+
+El haz emitido incide sobre la ventana rectangular de cuarzo de la
+celda, situada a aproximadamente \SI{27.5}{\centi\meter} de la salida
+del láser \cite{Rangel2023}, e ingresa a la muestra líquida
+atravesando el ancho interno de la cavidad. Una fracción del haz se
+deriva hacia el fotodiodo para generar la señal de disparo.
+
+Como se indicó en la \cref{sec:celda}, la trayectoria óptica no se
+encuentra fijada de manera permanente y debe restablecerse al inicio
+de cada sesión.
+
+% \begin{figure}[H]
+%   \centering
+%   \includegraphics[width=0.9\textwidth]{esquema_optico}
+%   \caption{Esquema del arreglo óptico: láser, fotodiodo, celda
+%            fotoacústica y osciloscopio.}
+%   \label{fig:esquema_optico}
+% \end{figure}
+
+% \begin{figure}[H]
+%   \centering
+%   \includegraphics[width=0.9\textwidth]{arreglo_fotografia}
+%   \caption{Fotografía del arreglo experimental montado.}
+%   \label{fig:arreglo_fotografia}
+% \end{figure}
 
 % ============================================================
 \section{Automatización del osciloscopio}
 \label{sec:auto_osci}
 % ============================================================
 
-% GUÍA:
-% - Protocolo VXI-11 sobre Ethernet
-% - PyVISA como capa de abstracción: instalación, ResourceManager, open_resource
-% - Comandos SCPI principales utilizados (adquisición de forma de onda,
-%   configuración de escala, trigger)
-% - Diagrama de flujo del proceso de adquisición
-% - Fragmento de código representativo (usa el entorno lstlisting)
+\subsection*{Interfaz de comunicación}
 
-% TODO: redactar contenido aquí
+Los osciloscopios de la serie TDS5000B implementan el protocolo
+VXI-11, un estándar de control de instrumentos sobre TCP/IP basado en
+llamadas a procedimiento remoto. La comunicación se establece con la
+biblioteca \texttt{python-vxi11}, que expone las operaciones de
+escritura y consulta necesarias para enviar comandos SCPI y recibir
+sus respuestas.
 
-% Ejemplo bloque de código:
-% \begin{lstlisting}[caption={Adquisición de forma de onda con PyVISA},
-%                    label={lst:pyvisa_waveform}]
-% import pyvisa
-% rm = pyvisa.ResourceManager()
-% osci = rm.open_resource("TCPIP::192.168.1.100::INSTR")
-% osci.write("DATA:SOURCE CH1")
-% raw = osci.query_binary_values("CURVE?", datatype='B')
-% \end{lstlisting}
+Se descartó el uso de PyVISA, alternativa habitual para el control de
+instrumentos, debido a que su capa de abstracción requiere una
+implementación de VISA instalada en el sistema anfitrión y no aportó
+ventaja alguna frente al acceso directo al protocolo. La biblioteca
+\texttt{python-vxi11} implementa VXI-11 de forma nativa en Python y
+elimina esa dependencia externa.
 
+Una particularidad de estos instrumentos condiciona su operación
+remota: dado que ejecutan internamente un sistema operativo Windows,
+el servidor VXI-11 solo responde mientras la aplicación nativa del
+osciloscopio se encuentra en ejecución. Si dicha aplicación está
+cerrada, los intentos de conexión fallan aunque el instrumento
+responda a nivel de red.
+
+\subsection*{Configuración de la transferencia de datos}
+
+Antes de cualquier adquisición, el módulo de control establece los
+parámetros que gobiernan el formato de transferencia de la forma de
+onda, mediante la secuencia de comandos SCPI de la
+\cref{lst:config_base}.
+
+\begin{lstlisting}[caption={Configuración base de la transferencia de
+                            forma de onda.},
+                   label={lst:config_base},
+                   language={}]
+DATA:SOURCE CH1
+DATA:ENCDG RIBINARY
+DATA:WIDTH 2
+DATA:START 1
+DATA:STOP 1000000
+WFMPRE:NR_PT?
+\end{lstlisting}
+
+La codificación \texttt{RIBINARY} con ancho de dos bytes transfiere
+las muestras como enteros con signo en formato binario de orden de
+byte grande, lo que reduce el volumen de datos y el tiempo de
+transferencia respecto de una codificación en texto.
+
+El valor de \texttt{DATA:STOP} se establece deliberadamente por
+encima de cualquier longitud de registro admitida por el instrumento;
+el osciloscopio lo limita internamente a la longitud real
+configurada. La consulta posterior de \texttt{WFMPRE:NR\_PT?} devuelve
+el número efectivo de puntos que serán transferidos. Este orden de
+operaciones es indispensable: fijar \texttt{DATA:STOP} a un valor
+inferior al desplazamiento del punto de disparo provoca que la
+transferencia contenga únicamente muestras anteriores al evento de
+interés, sin que el instrumento reporte error alguno.
+
+\subsection*{Conversión a unidades físicas}
+
+La respuesta al comando \texttt{CURVE?} consiste en un bloque binario
+precedido por una cabecera que indica su longitud, y contiene los
+valores digitalizados sin escalar. Su conversión a unidades físicas
+requiere los factores de escala que el instrumento expone a través
+del preámbulo \texttt{WFMPRE}: \texttt{YMULT}, \texttt{YOFF},
+\texttt{YZERO}, \texttt{XINCR}, \texttt{XZERO} y \texttt{PT\_OFF}.
+
+El voltaje correspondiente a la muestra $i$-ésima se obtiene como
+\begin{equation}
+    V_i = \left(D_i - \texttt{YOFF}\right)\cdot \texttt{YMULT}
+          + \texttt{YZERO},
+    \label{eq:conv_voltaje}
+\end{equation}
+donde $D_i$ es el valor entero transferido. El instante asociado a esa
+misma muestra es
+\begin{equation}
+    t_i = \left(i - \texttt{PT\_OFF}\right)\cdot \texttt{XINCR}
+          + \texttt{XZERO},
+    \label{eq:conv_tiempo}
+\end{equation}
+en la que \texttt{PT\_OFF} representa el índice de la muestra que
+coincide con el evento de disparo, de modo que los instantes
+anteriores al mismo resultan negativos.
+
+Ambas conversiones se aplican de forma vectorizada sobre el arreglo
+completo mediante \texttt{numpy}, lo que evita iterar sobre registros
+que pueden alcanzar varios millones de muestras.
+
+\subsection*{Parámetros configurables}
+
+El módulo expone como parámetros ajustables desde la interfaz gráfica
+la longitud de registro (\texttt{HOR:RECLENGTH}), la escala vertical
+(\texttt{CH$n$:SCALE}), la escala horizontal
+(\texttt{HORizontal:SCAle}), el acoplamiento de entrada
+(\texttt{CH$n$:COUPling}), el nivel de disparo
+(\texttt{TRIGger:MAIn:LEVel}), el modo de adquisición
+(\texttt{ACQ:MODE}) y el número de promedios (\texttt{ACQ:NUMAVG}).
+
+La longitud de registro admite únicamente un conjunto discreto de
+valores determinado por el instrumento, por lo que la interfaz
+presenta dichos valores como opciones cerradas en lugar de aceptar
+entrada numérica libre.
+
+\subsection*{Modos de adquisición}
+
+El módulo implementa dos formas de adquisición que corresponden a los
+modos de operación descritos en el \cref{cap:resultados}.
+
+En el modo de adquisición por secuencia se configura
+\texttt{ACQ:MODE AVERAGE} junto con
+\texttt{ACQ:STOPAFTER SEQUENCE}, de manera que el instrumento
+promedia el número de disparos indicado por \texttt{ACQ:NUMAVG} y
+detiene la adquisición automáticamente al completarlos. La aplicación
+consulta periódicamente \texttt{ACQ:STATE?} hasta constatar su
+terminación.
+
+En el modo de adquisición controlada por evento externo, la
+aplicación inicia y detiene la integración de forma explícita
+mediante \texttt{ACQ:STATE RUN} y \texttt{ACQ:STATE STOP}, en función
+de una condición evaluada por el software. El osciloscopio actúa
+entonces como integrador y el número de disparos promediados queda
+determinado por la duración del intervalo, no por un valor
+preestablecido.
+
+\subsection*{Robustez de la comunicación}
+
+Toda operación de lectura se reintenta un número acotado de veces
+antes de declararse fallida. El módulo distingue dos categorías de
+fallo con tratamiento diferenciado: los errores de conexión, que
+invalidan la sesión VXI-11 y marcan el instrumento como desconectado,
+y los errores de captura, en los que la conexión permanece activa
+pero una transferencia concreta no pudo completarse. Esta distinción
+evita que una lectura fallida aislada provoque la desconexión
+innecesaria del instrumento y la interrupción de una secuencia en
+curso.
+
+Al concluir cualquier operación de adquisición, el módulo restablece
+el instrumento a su estado de barrido continuo mediante
+\texttt{ACQ:STOPAFTER RUNSTOP} seguido de \texttt{ACQ:STATE RUN}, de
+modo que el osciloscopio quede en condiciones de uso manual sin
+intervención adicional.
 
 % ============================================================
 \section{Automatización del láser}
 \label{sec:auto_laser}
 % ============================================================
 
-% GUÍA:
-% - DLL del fabricante: nombre, versión, arquitectura (32-bit)
-% - Uso de ctypes para cargar la DLL desde Python
-% - Funciones principales expuestas por la DLL (inicialización,
-%   disparo, lectura de parámetros)
-% - Consideraciones de compatibilidad 32-bit (proceso separado /
-%   subproceso, bridge con multiprocessing o subprocess + pickle)
-% - Fragmento de código representativo
+\subsection*{Interfaz de comunicación}
 
-% TODO: redactar contenido aquí
+El láser expone su control remoto a través de un enlace RS-232 y de
+una biblioteca de enlace dinámico proporcionada por el fabricante,
+\texttt{REMOTECONTROL64.dll}, acompañada de un archivo de
+configuración que declara los registros accesibles del instrumento y
+sus valores admisibles.
+
+La biblioteca se carga desde Python mediante \texttt{ctypes.WinDLL}.
+Al tratarse de una biblioteca exclusivamente de \SI{64}{bits}, debe
+cargarse en el espacio de proceso de un intérprete de la misma
+arquitectura; el uso de Python de \SI{64}{bits} satisface esta
+condición sin requerir un proceso puente ni capa intermedia alguna.
+
+La carga presenta una particularidad: la biblioteca resuelve sus
+dependencias y localiza su archivo de configuración por rutas
+relativas al directorio de trabajo. Por ello, el módulo registra
+temporalmente el directorio de la biblioteca como ruta de búsqueda y
+cambia a él durante la carga, restaurando el directorio original
+inmediatamente después.
+
+\subsection*{Modelo de registros}
+
+El control del instrumento se ejerce mediante lectura y escritura de
+registros identificados por nombre, a través de las funciones
+\texttt{rcSetRegFromString} y \texttt{rcGetRegAsString}. Los
+registros empleados en este trabajo se listan en la
+\cref{tab:registros_laser}.
+
+\begin{table}[H]
+  \centering
+  \caption{Registros del láser empleados por el sistema de control.}
+  \label{tab:registros_laser}
+  \begin{tabular}{lll}
+    \toprule
+    \textbf{Registro} & \textbf{Función} & \textbf{Acceso} \\
+    \midrule
+    \texttt{State}                  & Inicio y detención de la emisión & Lectura/escritura \\
+    \texttt{Output level}           & Nivel de energía de salida       & Lectura/escritura \\
+    \texttt{Continuous / Burst mode / Trigger burst}
+                                    & Modo de disparo                  & Lectura/escritura \\
+    \texttt{Burst length, pulses}   & Pulsos por ráfaga                & Lectura/escritura \\
+    \texttt{Adjustment EO delay}    & Retardo del conmutador electro-óptico
+                                                                       & Lectura/escritura \\
+    \texttt{Set cooling temperature}& Temperatura objetivo del refrigerante
+                                                                       & Lectura/escritura \\
+    \texttt{Read cooling temperature}
+                                    & Temperatura actual del refrigerante
+                                                                       & Solo lectura \\
+    \texttt{Lamp pulse counter}     & Contador acumulado de disparos   & Solo lectura \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+El módulo encapsula el acceso a estos registros tras una interfaz de
+métodos con nombres descriptivos, de modo que ni la interfaz gráfica
+ni el orquestador de mediciones manipulan cadenas de registro
+directamente. Todas las llamadas a la biblioteca se serializan
+mediante un mecanismo de exclusión mutua, requisito impuesto por el
+carácter no reentrante del enlace RS-232 subyacente.
+
+\subsection*{Procedimiento de estado seguro}
+
+El sistema incorpora un procedimiento que devuelve el láser a una
+condición de operación segura. Dicho procedimiento se activa ante
+cuatro condiciones: conclusión normal de una secuencia de medición,
+parada de emergencia solicitada por el operador, fallo irrecuperable
+de comunicación tras agotar los reintentos de reconexión, e
+inactividad prolongada en modo manual.
+
+El procedimiento ejecuta en orden los cuatro comandos de la
+\cref{tab:modo_seguro}.
+
+\begin{table}[H]
+  \centering
+  \caption{Secuencia de comandos del procedimiento de estado seguro.}
+  \label{tab:modo_seguro}
+  \begin{tabular}{clc}
+    \toprule
+    \textbf{Orden} & \textbf{Acción} & \textbf{Registro} \\
+    \midrule
+    1 & Detener la emisión                 & \texttt{State $\rightarrow$ STOP} \\
+    2 & Establecer el retardo EO en 3800   & \texttt{Adjustment EO delay} \\
+    3 & Anular el nivel de salida          & \texttt{Output level $\rightarrow$ OFF} \\
+    4 & Restituir el modo de disparo continuo
+                                           & \texttt{Continuous / Burst mode} \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+El procedimiento intenta la totalidad de los comandos con
+independencia del resultado de cada uno, en lugar de abortar ante el
+primer fallo. Esta decisión de diseño obedece a que un fallo de
+comunicación parcial no debe impedir que se ejecuten los comandos
+restantes: el objetivo es maximizar el número de acciones de
+seguridad efectivamente aplicadas. El resultado individual de cada
+comando se reporta a la interfaz, que advierte al operador si alguno
+no pudo confirmarse.
+
+Debe subrayarse que el procedimiento actúa exclusivamente sobre el
+láser. Los parámetros del osciloscopio no se modifican en ningún
+caso, de modo que la configuración de adquisición establecida por el
+operador se conserva íntegra tras un evento de seguridad.
+
+% ============================================================
+\section{Módulo de medición de temperatura}
+\label{sec:modulo_temperatura}
+% ============================================================
+
+La medición de la temperatura de la muestra constituye un subsistema
+desarrollado íntegramente en este trabajo. Su necesidad se estableció
+en la \cref{sec:fotoacustico_liquidos}: la señal fotoacústica depende
+de $\beta$, $C_p$ y $v_s$, magnitudes que varían con la temperatura,
+y el peso relativo de los mecanismos de generación también lo hace
+\cite{Astrath2023}. Registrar la señal sin registrar simultáneamente
+la temperatura del medio impide interpretar correctamente las
+variaciones observadas.
+
+\subsection*{Arquitectura del módulo}
+
+El módulo se compone de un microcontrolador ESP32 WROOM-32 y cuatro
+sensores digitales de temperatura DS18B20 en encapsulado sumergible.
+Los sensores se conectan a un bus 1-Wire compartido sobre una única
+línea de datos, con alimentación externa explícita y una resistencia
+de polarización de \SI{4.7}{\kilo\ohm}.
+
+La comunicación con la computadora de control se realiza por enlace
+serial a \SI{115200}{baud}. El microcontrolador transmite
+periódicamente una trama de texto delimitada por comas que contiene
+la temperatura promedio y el estado de presencia de cada uno de los
+cuatro sensores, y acepta un conjunto reducido de comandos que
+permiten verificar la comunicación y suspender o reanudar la
+transmisión.
+
+\subsection*{Consideraciones de firmware}
+
+La adquisición de los cuatro sensores incorpora tres decisiones que
+merecen mención.
+
+La primera es el filtrado del valor de \SI{85}{\celsius}. Los
+sensores DS18B20 devuelven ese valor como estado de reinicio tras el
+encendido, antes de completar su primera conversión. Una lectura de
+\SI{85}{\celsius} se descarta por corresponder a una conversión no
+concluida y no a una medición válida.
+
+La segunda es el direccionamiento de los sensores. La enumeración por
+índice sobre el bus 1-Wire obliga a repetir el recorrido completo de
+identificación en cada lectura, lo que introduce latencia y hace que
+la correspondencia entre índice y sensor físico dependa del orden de
+respuesta en el bus. El firmware emplea en su lugar las direcciones
+únicas de cada sensor, obtenidas en una enumeración inicial, lo que
+garantiza que cada lectura corresponda invariablemente al mismo
+sensor físico.
+
+La tercera es el manejo del tiempo de conversión. A resolución de
+\SI{12}{bits} la conversión de temperatura requiere aproximadamente
+\SI{750}{\milli\second}. Bloquear el ciclo de ejecución durante ese
+intervalo impide atender los comandos entrantes, por lo que la
+conversión se solicita y se recoge de forma no bloqueante,
+permitiendo que el firmware permanezca receptivo mientras la
+conversión se encuentra en curso.
+
+\subsection*{Colocación de los sensores}
+
+Los cuatro sensores se disponen en las esquinas de la celda,
+completamente sumergidos y próximos al fondo de la cavidad. Esta
+disposición proporciona cobertura espacial del volumen de muestra y
+permite detectar gradientes horizontales mediante la comparación
+entre lecturas individuales.
+
+Dos consideraciones acompañan esta elección.
+
+La primera es de naturaleza acústica y resulta favorable. Con la
+geometría establecida en la \cref{sec:celda}, una esquina se
+encuentra a aproximadamente \SI{100}{\milli\meter} del eje del haz.
+Una eventual reflexión acústica en el encapsulado metálico de un
+sensor arribaría al hidrófono alrededor de \SI{68}{\micro\second}
+después del disparo, muy por fuera de la ventana útil de
+\SI{6}{\micro\second} establecida en la \cref{tab:tiempos_celda}. La
+presencia de los sensores no perturba, por tanto, el intervalo de la
+señal que se analiza.
+
+La segunda es de naturaleza térmica y constituye una limitación. Con
+un tirante de \SI{28.6}{\milli\meter} y el eje del haz situado a
+aproximadamente \SI{20}{\milli\meter} del fondo, unos sensores
+próximos al fondo miden el estrato inferior del líquido, que en
+condiciones de reposo no coincide necesariamente con la temperatura
+del volumen efectivamente iluminado. La magnitud de esta diferencia
+depende del gradiente vertical presente y no fue cuantificada en este
+trabajo. Se documenta aquí como fuente de incertidumbre sistemática y
+se retoma en el \cref{cap:conclusiones}.
+
+\subsection*{Calibración relativa entre sensores}
+
+Los sensores DS18B20 presentan una dispersión de fábrica entre
+unidades que, para el conjunto empleado, alcanza
+\SI{0.32}{\celsius}. Dado que el criterio de disparo de la secuencia
+automática descrito en el \cref{cap:resultados} opera sobre un umbral
+de \SI{0.1}{\celsius} en torno a la temperatura objetivo, una
+dispersión de esa magnitud excede el propio criterio de decisión y
+debe corregirse.
+
+La corrección adoptada es de carácter relativo y no absoluto. El
+experimento no requiere que las lecturas coincidan con un patrón
+trazable, sino que los cuatro sensores concuerden entre sí, puesto que
+las condiciones de disparo se evalúan sobre transiciones de
+temperatura y no sobre valores absolutos.
+
+El procedimiento consiste en sumergir los cuatro sensores en un mismo
+volumen de agua mantenido en agitación continua --- condición
+indispensable, pues sin ella se mide la estratificación del líquido y
+no la dispersión entre sensores --- y registrar sus lecturas en
+varios puntos a lo largo del intervalo de operación. Se designa un
+sensor como referencia y se calcula el desplazamiento medio de cada
+uno de los tres restantes respecto de él. Las constantes de
+corrección resultantes se incorporan al firmware, de modo que la
+compensación se aplique antes del promediado.
+
+% \begin{figure}[H]
+%   \centering
+%   \includegraphics[width=0.75\textwidth]{modulo_temperatura}
+%   \caption{Módulo de medición de temperatura: microcontrolador
+%            ESP32 WROOM-32 y sensores DS18B20.}
+%   \label{fig:modulo_temperatura}
+% \end{figure}
+
+% \begin{figure}[H]
+%   \centering
+%   \includegraphics[width=0.75\textwidth]{diagrama_temperatura}
+%   \caption{Diagrama de conexión del bus 1-Wire y los cuatro sensores.}
+%   \label{fig:diagrama_temperatura}
+% \end{figure}

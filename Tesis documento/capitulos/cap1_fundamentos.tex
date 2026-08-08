@@ -4,7 +4,6 @@
 \chapter{Fundamentos teóricos}
 \label{cap:fundamentos}
 
-% ── Introducción del capítulo ────────────────────────────────
 En este capítulo se presentan los fundamentos físicos y teóricos
 sobre los que se sustenta el sistema fotoacústico desarrollado
 en este trabajo. Se describe el efecto fotoacústico, su manifestación
@@ -16,53 +15,342 @@ este tipo de medios y las técnicas actuales empleadas con ese fin.
 \label{sec:efecto_fotoacustico}
 % ============================================================
 
-% GUÍA para redactar esta sección:
-% - Descubrir quién describió el efecto primero (Alexander Graham Bell, 1880)
-% - Explicar el mecanismo físico: absorción de luz pulsada →
-%   calentamiento local → expansión térmica → onda de presión (acústica)
-% - Ecuación de generación fotoacústica básica
-% - Referencia clave: Rosencwaig & Gersho (1976), o la que use tu asesor
+\subsection*{Origen histórico}
 
-% TODO: redactar contenido aquí
+El efecto fotoacústico fue descrito por primera vez por Alexander
+Graham Bell en 1880 \cite{Bell1880}. Bell trabajaba entonces, junto
+con Charles Sumner Tainter, en el desarrollo del \textit{fotófono},
+un instrumento con el que pretendía transmitir la voz a distancia
+empleando la luz solar como portadora de la información
+\cite{Marin2008}. Durante esos experimentos observó que una muestra
+iluminada con radiación luminosa interrumpida periódicamente, y
+colocada dentro de una celda cerrada, emitía un sonido audible.
 
+El fenómeno permaneció prácticamente sin aplicaciones durante casi
+un siglo, en buena medida porque no existían fuentes luminosas ni
+detectores con la sensibilidad necesaria. Su reactivación ocurre en
+la década de 1970 con los trabajos de Harshbarger y Robin, y de
+Rosencwaig, que reintroducen la técnica como herramienta
+espectroscópica; poco después, Rosencwaig y Gersho publican el
+modelo analítico que describe la dependencia de la señal con la
+frecuencia de modulación, el coeficiente de absorción y las
+propiedades térmicas de la muestra \cite{RosencwaigGersho1976},
+modelo que se convierte en la referencia estándar de la técnica
+convencional \cite{PatelTam1981}.
+
+\subsection*{Descripción del mecanismo físico}
+
+El efecto fotoacústico consiste en la generación de una onda de
+presión en un medio como consecuencia de la absorción de radiación
+electromagnética. La cadena de conversión de energía comprende tres
+etapas sucesivas \cite{Marin2008}:
+
+\begin{enumerate}
+    \item \textbf{Absorción óptica.} La muestra absorbe una fracción
+    de la radiación incidente, determinada por su coeficiente de
+    absorción óptica $\alpha$ a la longitud de onda de excitación.
+
+    \item \textbf{Relajación no radiativa.} La energía absorbida
+    promueve al medio a estados excitados que decaen predominantemente
+    por vías no radiativas, depositando la energía como calor local.
+    Esta conversión ocurre en un tiempo característico
+    $\tau_\text{NR}$ mucho menor que las escalas temporales de
+    interés en el experimento \cite{PatelTam1981}.
+
+    \item \textbf{Expansión termoelástica.} El calentamiento local
+    produce una dilatación del volumen iluminado; dicha dilatación
+    actúa como fuente acústica y emite una onda de presión que se
+    propaga por el medio hasta el transductor.
+\end{enumerate}
+
+La magnitud de la señal depende, por tanto, tanto de propiedades
+ópticas ($\alpha$) como termodinámicas y mecánicas del medio
+(coeficiente de expansión volumétrica $\beta$, calor específico a
+presión constante $C_p$, densidad $\rho$ y velocidad del sonido
+$v_s$). Esta doble dependencia es precisamente lo que convierte al
+efecto fotoacústico en una técnica de caracterización: la señal
+acústica contiene información que no es accesible por medición
+óptica directa.
+
+\subsection*{Régimen modulado y régimen pulsado}
+
+Históricamente la técnica se desarrolló en el régimen de
+\textit{excitación modulada}, en el que un haz continuo se interrumpe
+periódicamente a frecuencias de audio y un micrófono detecta el
+calentamiento y enfriamiento de una capa de gas en contacto térmico
+con la muestra. Patel y Tam señalan que esta configuración es en
+rigor una técnica \textit{fototérmica} más que fotoacústica, ya que
+la onda acústica generada en la propia muestra desempeña un papel
+menor y la detección depende de la difusión térmica hacia el gas,
+un proceso poco eficiente; en consecuencia, su sensibilidad resulta
+limitada y su aplicación práctica queda restringida a absorciones
+relativamente altas \cite{PatelTam1981}.
+
+El \textit{régimen pulsado}, empleado en este trabajo, sustituye la
+modulación por pulsos láser cortos y el micrófono de gas por un
+transductor piezoeléctrico en contacto directo con la muestra
+líquida. La detección es entonces auténticamente fotoacústica: el
+pulso de presión generado en el medio se registra directamente, sin
+intermediarios térmicos, y el buen acoplamiento de impedancia
+acústica entre líquido y transductor eleva la sensibilidad varios
+órdenes de magnitud \cite{PatelTam1981}.
+
+Independientemente del régimen considerado, la amplitud de presión
+generada admite la forma
+\begin{equation}
+    p_0 = \text{const} \cdot \frac{\beta\, v_s^2}{C_p}\, E_0\, \alpha,
+    \label{eq:presion_general}
+\end{equation}
+donde $p_0$ es la amplitud de presión acústica, $E_0$ la energía del
+pulso láser, $\beta$ el coeficiente de expansión térmica, $C_p$ el
+calor específico a presión constante, $v_s$ la velocidad acústica y
+$\alpha$ el coeficiente de absorción óptica del medio
+\cite{PatelTam1981}. El agrupamiento $\beta v_s^2 / C_p$ se conoce
+como parámetro de Grüneisen y sintetiza la eficiencia con la que un
+medio convierte calor depositado en presión acústica.
+
+De la \cref{eq:presion_general} se desprende la propiedad que
+sustenta el uso cuantitativo de la técnica: normalizando la señal
+detectada por la energía del pulso, la cantidad resultante es
+directamente proporcional al coeficiente de absorción óptica del
+medio \cite{PatelTam1981}. Esta es la razón por la que el arreglo
+experimental descrito en el \cref{cap:arreglo} incorpora un
+fotodiodo dedicado a monitorear la energía de cada disparo.
 
 % ============================================================
 \section{El efecto fotoacústico en líquidos de baja absorción}
 \label{sec:fotoacustico_liquidos}
 % ============================================================
 
-% GUÍA:
-% - Qué hace que los líquidos de baja absorción sean un caso especial
-% - Relación señal/ruido, limitaciones de técnicas ópticas convencionales
-% - Por qué la fotoacústica es conveniente en este régimen
-% - Mencionar NaCl en agua como caso de estudio (si es tu líquido de prueba)
+\subsection*{Geometría de la fuente acústica}
 
-% TODO: redactar contenido aquí
+El caso de los líquidos de baja absorción óptica constituye un
+régimen distinto y requiere un tratamiento propio. Si el producto
+$\alpha l$ entre el coeficiente de absorción y la longitud del
+camino óptico satisface
+\begin{equation}
+    \alpha l \ll 1,
+    \label{eq:condicion_debil}
+\end{equation}
+la energía absorbida se distribuye de manera aproximadamente
+uniforme a lo largo de toda la trayectoria del haz dentro de la
+muestra. La fuente acústica deja entonces de ser puntual y se
+convierte en un cilindro delgado coincidente con el haz, que emite
+una \textit{onda cilíndrica} \cite{PatelTam1981}.
 
+Esta situación contrasta con la de los medios fuertemente
+absorbentes, donde la energía se deposita en una capa superficial
+delgada y la emisión es esencialmente esférica desde el punto de
+incidencia \cite{PatelTam1981}. La distinción no es un detalle
+geométrico menor: determina la forma temporal del pulso registrado,
+su ley de decaimiento con la distancia y, en consecuencia, la
+manera correcta de interpretar la señal capturada por el
+transductor.
+
+Bajo la aproximación adiabática --- es decir, despreciando la
+difusión de calor fuera del volumen iluminado durante la duración
+del pulso, hipótesis justificada porque la longitud de difusión
+térmica en escalas de nanosegundos es varios órdenes de magnitud
+menor que el radio del haz --- el desarrollo riguroso muestra que
+el pulso de presión resultante consta de un lóbulo positivo seguido
+de uno negativo, separados por un intervalo aproximadamente igual a
+la duración del pulso láser \cite{PatelTam1981}. Esta firma bipolar
+es el rasgo distintivo de la generación fotoacústica en volumen y
+es la que se busca identificar en las señales adquiridas.
+
+\subsection*{Sensibilidad alcanzable}
+
+La motivación central del régimen pulsado con detección
+piezoeléctrica es la medición de coeficientes de absorción muy
+pequeños. Patel y Tam reportan capacidad demostrada para medir
+coeficientes del orden de \SIrange{e-4}{e-5}{\per\centi\meter},
+un intervalo inaccesible para la espectrofotometría de transmisión
+convencional, y aplican la técnica a la determinación de los
+espectros de absorción visible del agua y del agua pesada, así como
+a los armónicos vibracionales altos de líquidos orgánicos
+transparentes como el benceno \cite{PatelTam1981}.
+
+Este es el argumento que justifica el uso de la técnica
+fotoacústica sobre alternativas ópticas directas cuando el medio de
+interés es esencialmente transparente a la longitud de onda de
+excitación, como ocurre con el agua en la región visible.
+
+\subsection*{Detección con hidrófono de banda ancha}
+
+La configuración empleada en este trabajo tiene un antecedente
+directo en el trabajo de Quan \textit{et al.}, quienes generaron
+ondas acústicas en agua destilada y metanol mediante pulsos cortos
+de un láser Nd:YAG a \SI{1064}{\nano\meter} y las detectaron con un
+hidrófono piezoeléctrico de banda ancha (\SIrange{0.1}{20}{\mega\hertz}),
+obteniendo buena concordancia entre predicción teórica y medición
+\cite{Quan1994}.
+
+Dicho trabajo señala además tres factores que condicionan la forma
+de onda registrada y que resultan pertinentes para el diseño del
+arreglo experimental: el tiempo de subida del detector queda
+determinado por el espesor del transductor y la velocidad del
+sonido en el material piezoeléctrico; un detector con dimensiones
+laterales mayores que la longitud de onda del pulso degrada tanto
+la resolución espacial como la temporal; y las dimensiones finitas
+de la celda que contiene el líquido dan lugar a reflexiones
+acústicas múltiples que se superponen a la señal de interés
+\cite{Quan1994}. Este último punto es determinante para el diseño
+de la celda fotoacústica descrita en el \cref{cap:arreglo}.
+
+\subsection*{Mecanismos competidores: electrostricción}
+
+Conforme el coeficiente de absorción disminuye, la contribución
+termoelástica descrita en la \cref{sec:efecto_fotoacustico} deja de
+ser el único mecanismo capaz de generar presión en el medio. En
+dieléctricos de baja absorción, la interacción entre el campo
+electromagnético y los dipolos inducidos comprime el material hacia
+las regiones de mayor intensidad de campo; este fenómeno se conoce
+como \textit{electrostricción} y constituye un efecto inherentemente
+transitorio, cuya escala temporal de compensación corresponde al
+tiempo que tarda la onda acústica generada en recorrer un ancho de
+haz \cite{Astrath2023}.
+
+Astrath \textit{et al.} demuestran experimentalmente en agua que,
+bajo excitación con haces pulsados fuertemente enfocados, la
+electrostricción puede ser el efecto transitorio dominante en la
+generación de la onda acústica. Su evidencia más contundente
+proviene de mediciones realizadas a \SI{4.0}{\celsius}: a esa
+temperatura el coeficiente de expansión térmica del agua se anula,
+la contribución termoelástica se reduce drásticamente y la señal
+remanente puede atribuirse inequívocamente a la electrostricción
+\cite{Astrath2023}.
+
+Este resultado tiene una consecuencia metodológica directa sobre el
+presente trabajo. La dependencia de la señal fotoacústica con la
+temperatura de la muestra no proviene únicamente de la variación de
+$\beta$, $C_p$ y $v_s$ con $T$; también refleja el peso relativo de
+mecanismos de generación distintos. Por ello, la capacidad de
+registrar simultáneamente la señal acústica y la temperatura de la
+muestra --- función central del sistema de automatización
+desarrollado --- no es un accesorio del experimento, sino una
+condición para interpretar correctamente los datos obtenidos.
 
 % ============================================================
 \section{Necesidad de caracterizar líquidos}
 \label{sec:necesidad_caracterizacion}
 % ============================================================
 
-% GUÍA:
-% - Aplicaciones: industria, medicina, control de calidad
-% - Parámetros que se buscan medir (concentración, coeficiente de absorción)
-% - Motivación del trabajo
+La caracterización de líquidos consiste en la determinación
+cuantitativa de las propiedades que describen su comportamiento
+físico: coeficiente de absorción óptica, difusividad térmica,
+velocidad del sonido, coeficiente de expansión volumétrica y su
+dependencia con la temperatura, entre otras.
 
-% TODO: redactar contenido aquí
+Las técnicas fotoacústicas pulsadas se han aplicado a la
+determinación de trazas de analitos en sistemas gaseosos y
+líquidos, al ensayo no destructivo mediante ultrasonido inducido
+ópticamente y al estudio de tiempos de vida de estados excitados
+\cite{Quan1994}. En el ámbito de la espectroscopía de sistemas
+acuosos, la configuración habitual consiste en disolver el analito
+de interés en un medio de baja absorción de fondo, de modo que la
+señal fotoacústica quede dominada por la especie que se desea
+cuantificar \cite{Quan1994}.
 
+La técnica ha encontrado también aplicación en la caracterización
+de materiales y en problemáticas ambientales, campo en el que su
+sensibilidad a absorciones pequeñas resulta particularmente
+ventajosa \cite{Marin2008,Tam1986}.
+
+Un aspecto relevante para este trabajo es que la señal fotoacústica
+no depende exclusivamente de la absorción óptica. Como muestra la
+\cref{eq:presion_general}, la amplitud registrada involucra también
+$\beta$, $C_p$ y $v_s$, parámetros que son característicos de cada
+líquido y que varían con la temperatura. En consecuencia, el
+análisis conjunto de la amplitud, la forma temporal y el contenido
+espectral de la señal permite extraer parámetros físicos del medio
+que sirven para discriminar entre un conjunto acotado de líquidos
+candidatos conocidos.
+
+Conviene precisar el alcance de esta afirmación. La identificación
+molecular abierta de una sustancia desconocida requiere realizar un
+barrido espectral, esto es, excitar la muestra a múltiples
+longitudes de onda y reconstruir su espectro de absorción, tal como
+hicieron Patel y Tam para obtener los espectros del agua y del agua
+pesada \cite{PatelTam1981}. Un láser de longitudes de onda fijas
+como el empleado en este trabajo no permite ese barrido. El objetivo
+perseguido aquí es, por tanto, la caracterización de parámetros
+físicos y la discriminación entre candidatos conocidos, no la
+identificación espectroscópica abierta.
 
 % ============================================================
 \section{Técnicas actuales de caracterización de líquidos}
 \label{sec:tecnicas_actuales}
 % ============================================================
 
-% GUÍA:
-% - Espectroscopía UV-Vis, infrarroja
-% - Técnicas fotoacústicas previas (celda de gas, detección con micrófono,
-%   detección con hidrófono/fotodiodo)
-% - Limitaciones de cada una → justifica tu sistema
-% - Aquí entra el estado del arte, cítalo bien
+\subsection*{Espectrofotometría de transmisión}
 
-% TODO: redactar contenido aquí
+El método de referencia para determinar el coeficiente de absorción
+óptica de un líquido es la medición directa de la transmitancia,
+mediante espectrofotometría UV-Vis o infrarroja, y la aplicación de
+la ley de Lambert-Beer, cuyos orígenes se remontan a los trabajos
+de Lambert y Beer en los siglos XVIII y XIX \cite{Marin2008}.
+
+Su limitación aparece precisamente en el régimen de interés de este
+trabajo. Cuando $\alpha l \ll 1$, la diferencia entre la intensidad
+incidente y la transmitida es del mismo orden que el ruido y las
+pérdidas por reflexión e interfaces, de modo que la medición pierde
+significado. Es esta limitación la que motivó el desarrollo de las
+técnicas fotoacústicas para la medición de absorciones débiles
+\cite{PatelTam1981}.
+
+\subsection*{Fotoacústica de gas con micrófono}
+
+La configuración convencional, derivada del trabajo de Bell y
+reactivada en los años setenta, emplea un haz modulado y un
+micrófono que detecta las variaciones de presión en una capa de gas
+en contacto térmico con la muestra
+\cite{RosencwaigGersho1976,PatelTam1981}. Su principal desventaja
+para muestras condensadas es la dependencia de la difusión térmica
+hacia el gas, un mecanismo de acoplamiento ineficiente que limita
+la sensibilidad y restringe su utilidad a absorciones
+relativamente altas \cite{PatelTam1981}.
+
+\subsection*{Detección piezoeléctrica con excitación modulada}
+
+Una mejora intermedia consiste en conservar la modulación a
+frecuencias de audio pero sustituir el micrófono por un transductor
+piezoeléctrico en contacto directo con la muestra sólida o líquida,
+aprovechando el mejor acoplamiento de impedancia acústica
+\cite{PatelTam1981}. La sensibilidad mejora respecto a la
+detección con micrófono, pero la excitación modulada continúa
+limitando la relación señal a ruido alcanzable frente al régimen
+pulsado.
+
+\subsection*{Métodos ópticos de detección}
+
+La onda de presión también puede detectarse por vía óptica, sin
+transductor en contacto. Las variaciones locales de presión alteran
+el índice de refracción del medio, efecto que puede sondearse
+mediante interferometría o técnicas de lente fototérmica
+\cite{Astrath2023}; alternativamente, puede medirse la deflexión de
+un haz de prueba que atraviesa la región perturbada \cite{Quan1994}.
+Estos métodos evitan perturbar mecánicamente la muestra, a costa de
+un arreglo óptico considerablemente más complejo y de una
+alineación más delicada.
+
+\subsection*{Fotoacústica pulsada con detección piezoeléctrica}
+
+La técnica adoptada en este trabajo combina excitación por pulsos
+láser cortos, detección piezoeléctrica en contacto directo con el
+líquido y adquisición sincronizada con el disparo del láser
+\cite{PatelTam1981}. Sus ventajas frente a las alternativas
+anteriores son tres: sensibilidad a coeficientes de absorción
+varios órdenes de magnitud menores que los accesibles por
+transmisión; acceso a la forma temporal completa del pulso
+acústico, y no solo a su amplitud, lo que habilita el análisis
+espectral de la señal; y un arreglo experimental mecánicamente más
+simple que el requerido por los métodos de detección óptica.
+
+Su principal desventaja es de naturaleza operativa: cada punto
+experimental exige coordinar el disparo del láser, la adquisición
+del osciloscopio, el monitoreo de la energía del pulso y el
+registro de la temperatura de la muestra. Realizada manualmente,
+esta coordinación es lenta, propensa a error e imposible de
+reproducir con exactitud entre sesiones. Es esta limitación la que
+el sistema de automatización descrito en los capítulos siguientes
+se propone resolver.
