@@ -8,7 +8,7 @@ from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# ── ESP32-C3 (temperatura) ────────────────────────────────────────────────────
+# ── ESP32 WROOM-32 (temperatura) ──────────────────────────────────────────────
 TEMP_COM_PORT = "COM3"
 
 # ── Láser EKSPLA NLL455 ───────────────────────────────────────────────────────
