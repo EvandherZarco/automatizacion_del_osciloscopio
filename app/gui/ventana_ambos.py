@@ -17,18 +17,22 @@ from datetime import datetime
 from pathlib import Path
 
 import numpy as np
+import math
+
 import pyqtgraph as pg
 
-from PySide6.QtCore import Qt, QThread, QTimer, Signal, Slot, QObject
+from PySide6.QtCore import Qt, QThread, QTimer, Signal, Slot, QObject, QEvent
 from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QGroupBox,
     QLabel, QPushButton, QComboBox, QSpinBox, QDoubleSpinBox,
-    QTabWidget, QFrame, QFileDialog, QMessageBox,
+    QTabWidget, QFrame, QFileDialog, QMessageBox, QApplication,
 )
 
 from app.config import TEMP_COM_PORT
 from app.laser.control_laser import LaserController
-from app.osciloscopio.control_osciloscopio import OsciloscopioController, NUMAVG_TIEMPO
+from app.osciloscopio.control_osciloscopio import (
+    OsciloscopioController, NUMAVG_TIEMPO, FREC_DISPARO_HZ,
+)
 from app.temperatura.temperatura import TempWorker
 from app.almacenamiento.almacenamiento import Almacenamiento, PaqueteMedicion
 from app.modo_seguro.modo_seguro import ModoSeguro
@@ -43,6 +47,12 @@ from app.gui.theme import (
 INACTIVIDAD_AVISO_MS   = 60_000
 INTERVALO_MIN_TIEMPO_S = 15.0
 MONITOREO_LASER_MS     = 10_000
+
+_EVENTOS_ACTIVIDAD = (
+    QEvent.Type.MouseButtonPress,
+    QEvent.Type.KeyPress,
+    QEvent.Type.Wheel,
+)
 
 
 class _ConexionWorker(QObject):
@@ -104,6 +114,7 @@ class VentanaAmbos(QMainWindow):
         # Estado
         self._laser_running     = False
         self._secuencia_running = False
+        self._iniciando_secuencia = False
         self._sesion_activa     = False
         self._ultima_captura    = None
         self._canal_sel: str | None = None
@@ -127,6 +138,8 @@ class VentanaAmbos(QMainWindow):
         self._construir_ui()
         self._conectar_signals()
         self._iniciar_app()
+
+        QApplication.instance().installEventFilter(self)
 
     # ══════════════════════════════════════════════════════════════════════════
     # UI
@@ -1035,6 +1048,15 @@ class VentanaAmbos(QMainWindow):
 
     @Slot()
     def _on_iniciar_secuencia(self):
+        self._iniciando_secuencia = True
+        self._timer_inactividad.stop()
+        try:
+            self._intentar_iniciar_secuencia()
+        finally:
+            self._iniciando_secuencia = False
+            self._reiniciar_timer_inactividad()
+
+    def _intentar_iniciar_secuencia(self):
         if not self._laser.conectado:
             QMessageBox.warning(self, "Láser desconectado",
                                 "El láser debe estar conectado para iniciar la secuencia.")
@@ -1056,22 +1078,33 @@ class VentanaAmbos(QMainWindow):
                                 "El módulo de temperatura debe estar conectado para este modo.")
             return
 
+        detalle_duracion = ""
         if not por_temp:
-            intervalo = self._spin_intervalo.value()
+            intervalo  = self._spin_intervalo.value()
+            n_med      = self._spin_n_med.value()
             t_estimado = self._oscil.estimar_tiempo_captura(NUMAVG_TIEMPO)
             if t_estimado > intervalo:
+                minimo = math.ceil(t_estimado)
                 QMessageBox.warning(
-                    self, "Intervalo insuficiente",
-                    f"Cada captura tarda ~{t_estimado:.1f} s con la resolución actual "
-                    f"({self._oscil._nr_pt:,} puntos) y NUMAVG={NUMAVG_TIEMPO}.\n\n"
-                    f"El intervalo configurado es de {intervalo:.1f} s.\n\n"
-                    f"Aumenta el intervalo a por lo menos {int(t_estimado) + 1} s "
-                    f"o reduce la resolución del osciloscopio.",
+                    self, "Configuración no realizable",
+                    f"Cada captura requiere ~{t_estimado:.1f} s: {NUMAVG_TIEMPO} promedios "
+                    f"a {FREC_DISPARO_HZ:.0f} Hz más la transferencia de "
+                    f"{self._oscil._nr_pt:,} puntos.\n\n"
+                    f"El intervalo configurado es de {intervalo:.1f} s, de modo que "
+                    f"las {n_med} mediciones solicitadas no caben en ese tiempo.\n\n"
+                    f"Aumenta el intervalo a por lo menos {minimo} s, reduce el número "
+                    f"de promedios o baja la resolución del osciloscopio.",
                 )
                 return
+            total_s = n_med * intervalo
+            detalle_duracion = (
+                f"{n_med} mediciones cada {intervalo:.1f} s.\n"
+                f"Duración estimada: {self._formato_duracion(total_s)}.\n\n"
+            )
 
         resp = QMessageBox.warning(
             self, "Iniciar secuencia automática",
+            f"{detalle_duracion}"
             "La secuencia tomará mediciones de forma autónoma.\n\n¿Continuar?",
             QMessageBox.Ok | QMessageBox.Cancel,
         )
@@ -1130,6 +1163,7 @@ class VentanaAmbos(QMainWindow):
         self._btn_por_temp.setEnabled(True)
         self._lbl_progreso.setText("Secuencia detenida por el usuario.")
         self._monitor.set_estado(EstadoMonitoreo.REPOSO)
+        self._reiniciar_timer_inactividad()
 
     # ══════════════════════════════════════════════════════════════════════════
     # STOP EMERGENCIA
@@ -1156,14 +1190,27 @@ class VentanaAmbos(QMainWindow):
     # INACTIVIDAD
     # ══════════════════════════════════════════════════════════════════════════
 
+    def eventFilter(self, obj, event):
+        if event.type() in _EVENTOS_ACTIVIDAD:
+            self._reiniciar_timer_inactividad()
+        return super().eventFilter(obj, event)
+
+    def _inactividad_aplicable(self) -> bool:
+        return (
+            self._laser_running
+            and not self._secuencia_running
+            and not self._iniciando_secuencia
+        )
+
     def _reiniciar_timer_inactividad(self):
-        if self._laser_running and not self._secuencia_running:
-            self._timer_inactividad.stop()
+        if self._inactividad_aplicable():
             self._timer_inactividad.start(INACTIVIDAD_AVISO_MS)
+        else:
+            self._timer_inactividad.stop()
 
     @Slot()
     def _aviso_inactividad(self):
-        if self._secuencia_running:
+        if not self._inactividad_aplicable():
             return
         resp = QMessageBox.question(
             self, "¿Sigues usando el láser?",
@@ -1178,6 +1225,17 @@ class VentanaAmbos(QMainWindow):
     # ══════════════════════════════════════════════════════════════════════════
     # OTROS SLOTS
     # ══════════════════════════════════════════════════════════════════════════
+
+    @staticmethod
+    def _formato_duracion(segundos: float) -> str:
+        total = int(round(segundos))
+        horas, resto = divmod(total, 3600)
+        minutos, seg = divmod(resto, 60)
+        if horas:
+            return f"{horas} h {minutos:02d} min"
+        if minutos:
+            return f"{minutos} min {seg:02d} s"
+        return f"{seg} s"
 
     def _set_log(self, texto: str):
         self._lbl_log.setText(texto)

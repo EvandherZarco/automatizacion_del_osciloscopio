@@ -14,6 +14,7 @@ Modos de operación:
 
 from __future__ import annotations
 
+import math
 import time
 import numpy as np
 import vxi11
@@ -29,6 +30,10 @@ POLL_TIMEOUT_S = 90.0
 
 NUMAVG_TIEMPO = 100
 NUMAVG_TEMPERATURA = 10000
+
+FREC_DISPARO_HZ = 10.0
+TRANSFER_BYTES_POR_S = 250_000.0
+OVERHEAD_TRANSFERENCIA_S = 1.0
 
 _CANALES_VALIDOS = ("CH1", "CH2")
 _CANAL_DEFAULT = "CH1"
@@ -467,6 +472,20 @@ class OsciloscopioController(QObject):
             return self._leer_waveform(self._inst)
 
     # ── Captura modo tiempo ───────────────────────────────────────────────────
+
+    def estimar_tiempo_captura(self, numavg: int = NUMAVG_TIEMPO) -> float:
+        """
+        Tiempo aproximado de una captura en modo tiempo, en segundos.
+        Suma el promediado (numavg disparos a la frecuencia del laser,
+        cuantizado por el periodo de polling) y la transferencia de la
+        forma de onda por VXI-11.
+        """
+        n = max(1, int(numavg))
+        t_promedio = n / FREC_DISPARO_HZ
+        t_promedio = math.ceil(t_promedio / POLL_INTERVAL_S) * POLL_INTERVAL_S
+        puntos = self._nr_pt if self._nr_pt > 0 else 0
+        t_transfer = (puntos * 2) / TRANSFER_BYTES_POR_S
+        return t_promedio + t_transfer + OVERHEAD_TRANSFERENCIA_S
 
     def capturar_modo_tiempo(self) -> CapturaOscil | None:
         """
