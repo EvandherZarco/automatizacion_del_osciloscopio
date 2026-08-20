@@ -17,7 +17,7 @@ from PySide6.QtCore import QObject, Signal
 
 logger = logging.getLogger(__name__)
 
-SESIONES_DIR = Path(r"C:\Users\i7\Desktop\automatizacion_Zarco\datos\sesiones")
+SESIONES_DIR = Path(__file__).resolve().parent.parent.parent / "datos" / "sesiones"
 
 CSV_HEADER = [
     "timestamp",

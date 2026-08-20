@@ -1,6 +1,7 @@
 import ctypes, os, time
 
-DLL_DIR  = r"C:\Users\i7\Desktop\automatizacion_Zarco\complementos"
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DLL_DIR  = os.path.normpath(os.path.join(BASE_DIR, "..", "..", "..", "complementos"))
 os.chdir(DLL_DIR)
 
 dll = ctypes.WinDLL(os.path.join(DLL_DIR, "REMOTECONTROL64.dll"))
