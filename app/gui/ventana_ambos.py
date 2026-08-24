@@ -432,8 +432,8 @@ class VentanaAmbos(QMainWindow):
         lay = QHBoxLayout(w)
         lay.setContentsMargins(8, 8, 8, 8)
         lay.setSpacing(12)
-        lay.addWidget(self._panel_manual(), 1)
-        lay.addWidget(self._panel_auto(), 1)
+        lay.addWidget(self._panel_manual(), 65)
+        lay.addWidget(self._panel_auto(), 35)
         return w
 
     def _panel_manual(self) -> QGroupBox:
