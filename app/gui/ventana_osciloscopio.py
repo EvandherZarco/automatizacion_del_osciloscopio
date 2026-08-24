@@ -13,7 +13,7 @@ import pyqtgraph as pg
 
 from PySide6.QtCore import Qt, Signal, Slot, QThread, QObject, QTimer
 from PySide6.QtWidgets import (
-    QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
+    QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QGridLayout,
     QLabel, QPushButton, QSpinBox,
     QFrame, QFileDialog, QMessageBox, QSplitter,
 )
@@ -179,7 +179,7 @@ class VentanaOsciloscopio(QMainWindow):
 
     def _sep_label(self, texto: str) -> QLabel:
         lbl = QLabel(texto)
-        lbl.setStyleSheet("color: #888; font-size: 11px; text-transform: uppercase; margin-top: 4px;")
+        lbl.setStyleSheet("color: #888; font-size: 11px; text-transform: uppercase; margin-top: 2px;")
         return lbl
 
     def _hline(self) -> QFrame:
@@ -206,7 +206,7 @@ class VentanaOsciloscopio(QMainWindow):
         w.setFixedWidth(270)
         lay = QVBoxLayout(w)
         lay.setContentsMargins(4, 4, 4, 4)
-        lay.setSpacing(8)
+        lay.setSpacing(4)
 
         lay.addWidget(self._sep_label("Configuración"))
 
@@ -251,14 +251,19 @@ class VentanaOsciloscopio(QMainWindow):
         self._lbl_eq_acoplamiento, self._val_eq_acoplamiento = self._valor_lectura("Acoplamiento")
         self._lbl_eq_trigger, self._val_eq_trigger = self._valor_lectura("Trigger")
         self._lbl_eq_puntos, self._val_eq_puntos = self._valor_lectura("Puntos")
-        for wid in (
+        grid_eq = QGridLayout()
+        grid_eq.setHorizontalSpacing(10)
+        grid_eq.setVerticalSpacing(4)
+        celdas = (
             self._lbl_eq_vertical, self._lbl_eq_horizontal,
             self._lbl_eq_acoplamiento, self._lbl_eq_trigger, self._lbl_eq_puntos,
-        ):
-            lay.addWidget(wid)
+        )
+        for i, wid in enumerate(celdas):
+            grid_eq.addWidget(wid, i // 2, i % 2)
+        lay.addLayout(grid_eq)
 
         self._lbl_leido_hace = QLabel("Leído hace — s")
-        self._lbl_leido_hace.setStyleSheet("color: #555; font-size: 10px; margin-top: 4px;")
+        self._lbl_leido_hace.setStyleSheet("color: #555; font-size: 10px; margin-top: 2px;")
         lay.addWidget(self._lbl_leido_hace)
 
         lay.addStretch()

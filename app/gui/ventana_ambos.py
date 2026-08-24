@@ -455,7 +455,6 @@ class VentanaAmbos(QMainWindow):
         lay.addWidget(desc)
 
         self._plot_manual = pg.PlotWidget(background="#0d1117")
-        self._plot_manual.setMaximumHeight(180)
         self._plot_manual.showGrid(x=True, y=True, alpha=0.12)
         self._plot_manual.setLabel("bottom", "Tiempo", units="µs",
                                    **{"color": "#333", "font-size": "9px"})
@@ -466,7 +465,7 @@ class VentanaAmbos(QMainWindow):
         self._lbl_tdiv_m   = pg.TextItem("", anchor=(0.5, 1), color="#555")
         self._plot_manual.addItem(self._lbl_canal_m)
         self._plot_manual.addItem(self._lbl_tdiv_m)
-        lay.addWidget(self._plot_manual)
+        lay.addWidget(self._plot_manual, 1)
 
         fila = QHBoxLayout()
         fila.setSpacing(8)
@@ -478,15 +477,15 @@ class VentanaAmbos(QMainWindow):
         self._btn_capturar.setEnabled(False)
         fila.addWidget(self._btn_actualizar)
         fila.addWidget(self._btn_capturar, 1)
-        lay.addLayout(fila)
+        lay.addLayout(fila, 0)
 
         self._btn_guardar_manual = QPushButton("⊟  Guardar")
         self._btn_guardar_manual.setFixedHeight(34)
         self._btn_guardar_manual.setEnabled(False)
-        lay.addWidget(self._btn_guardar_manual)
+        lay.addWidget(self._btn_guardar_manual, 0)
 
-        lay.addWidget(self._hline())
-        lay.addWidget(self._sep_lbl("Del equipo"))
+        lay.addWidget(self._hline(), 0)
+        lay.addWidget(self._sep_lbl("Del equipo"), 0)
 
         self._lbl_eq_vertical, self._val_eq_vertical = self._valor_lectura("Vertical")
         self._lbl_eq_horizontal, self._val_eq_horizontal = self._valor_lectura("Horizontal")
@@ -500,13 +499,12 @@ class VentanaAmbos(QMainWindow):
             self._lbl_eq_acoplamiento, self._lbl_eq_trigger, self._lbl_eq_puntos,
         ):
             fila_eq.addWidget(wid)
-        lay.addLayout(fila_eq)
+        lay.addLayout(fila_eq, 0)
 
         self._lbl_leido_hace = QLabel("Leído hace — s")
         self._lbl_leido_hace.setStyleSheet("color: #555; font-size: 10px; margin-top: 4px;")
-        lay.addWidget(self._lbl_leido_hace)
+        lay.addWidget(self._lbl_leido_hace, 0)
 
-        lay.addStretch()
         return g
 
     def _panel_auto(self) -> QGroupBox:
