@@ -11,10 +11,10 @@ from pathlib import Path
 import numpy as np
 import pyqtgraph as pg
 
-from PySide6.QtCore import Qt, Signal, Slot, QThread, QObject
+from PySide6.QtCore import Qt, Signal, Slot, QThread, QObject, QTimer
 from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
-    QLabel, QPushButton, QComboBox, QSpinBox, QDoubleSpinBox,
+    QLabel, QPushButton, QSpinBox,
     QFrame, QFileDialog, QMessageBox, QSplitter,
 )
 
@@ -68,11 +68,17 @@ class VentanaOsciloscopio(QMainWindow):
         self._ultima_captura = None
         self._captura_thread: QThread | None = None
         self._captura_worker: _CapturaWorker | None = None
+        self._escala_thread: QThread | None = None
+        self._escala_worker: _EscalaWorker | None = None
         self._cerrado = False
 
-        self._acoplamiento  = "DC"
         self._adquisicion   = "Sample"
         self._canal_sel: str | None = None
+        self._segundos_desde_lectura = 0
+
+        self._timer_lectura = QTimer(self)
+        self._timer_lectura.setInterval(1000)
+        self._timer_lectura.timeout.connect(self._tick_lectura)
 
         self._construir_ui()
         self._conectar_signals()
@@ -182,12 +188,27 @@ class VentanaOsciloscopio(QMainWindow):
         f.setStyleSheet("color: #2a2a2a;")
         return f
 
+    def _valor_lectura(self, titulo: str) -> tuple[QWidget, QLabel]:
+        w = QWidget()
+        lay = QVBoxLayout(w)
+        lay.setContentsMargins(0, 0, 0, 0)
+        lay.setSpacing(1)
+        lbl_t = QLabel(titulo)
+        lbl_t.setStyleSheet("color: #666; font-size: 10px; text-transform: uppercase;")
+        lbl_v = QLabel("—")
+        lbl_v.setStyleSheet("color: #ccc; font-size: 13px; font-weight: bold;")
+        lay.addWidget(lbl_t)
+        lay.addWidget(lbl_v)
+        return w, lbl_v
+
     def _panel_controles(self) -> QWidget:
         w = QWidget()
         w.setFixedWidth(270)
         lay = QVBoxLayout(w)
         lay.setContentsMargins(4, 4, 4, 4)
         lay.setSpacing(8)
+
+        lay.addWidget(self._sep_label("Configuración"))
 
         # Canal
         lay.addWidget(self._sep_label("Canal de señal"))
@@ -202,54 +223,9 @@ class VentanaOsciloscopio(QMainWindow):
         self._lbl_canal_hint.setStyleSheet("color: #555; font-size: 10px;")
         lay.addLayout(fila_c)
         lay.addWidget(self._lbl_canal_hint)
-        lay.addWidget(self._hline())
-
-        # Escalas
-        lay.addWidget(self._sep_label("Escala vertical"))
-        self._combo_vdiv = QComboBox()
-        self._combo_vdiv.addItems(list(OsciloscopioController.VDIV_OPCIONES.keys()))
-        self._combo_vdiv.setCurrentText("50 mV/div")
-        lay.addWidget(self._combo_vdiv)
-
-        lay.addWidget(self._sep_label("Escala horizontal"))
-        self._combo_tdiv = QComboBox()
-        self._combo_tdiv.addItems(list(OsciloscopioController.TDIV_OPCIONES.keys()))
-        self._combo_tdiv.setCurrentText("1 µs/div")
-        lay.addWidget(self._combo_tdiv)
-
-        lay.addWidget(self._sep_label("Record length (puntos)"))
-        self._combo_rec_length = QComboBox()
-        self._combo_rec_length.addItems(list(OsciloscopioController.REC_LENGTH_OPCIONES.keys()))
-        self._combo_rec_length.setCurrentText("25 000")
-        lay.addWidget(self._combo_rec_length)
-        lay.addWidget(self._hline())
-
-        # Acoplamiento
-        lay.addWidget(self._sep_label("Acoplamiento"))
-        fila_ac = QHBoxLayout()
-        fila_ac.setSpacing(6)
-        self._btn_dc = QPushButton("DC")
-        self._btn_ac = QPushButton("AC")
-        for btn in (self._btn_dc, self._btn_ac):
-            btn.setFixedHeight(32)
-            fila_ac.addWidget(btn)
-        lay.addLayout(fila_ac)
-
-        # Trigger
-        lay.addWidget(self._sep_label("Nivel de trigger"))
-        self._spin_trigger = QDoubleSpinBox()
-        self._spin_trigger.setRange(-10.0, 10.0)
-        self._spin_trigger.setSingleStep(0.001)
-        self._spin_trigger.setDecimals(3)
-        self._spin_trigger.setValue(0.010)
-        lbl_tr_h = QLabel("Voltios")
-        lbl_tr_h.setStyleSheet("color: #555; font-size: 10px;")
-        lay.addWidget(self._spin_trigger)
-        lay.addWidget(lbl_tr_h)
-        lay.addWidget(self._hline())
 
         # Adquisición
-        lay.addWidget(self._sep_label("Adquisición"))
+        lay.addWidget(self._sep_label("Modo de adquisición"))
         fila_aq = QHBoxLayout()
         fila_aq.setSpacing(6)
         self._btn_sample  = QPushButton("Sample")
@@ -266,12 +242,26 @@ class VentanaOsciloscopio(QMainWindow):
         self._spin_numavg.setEnabled(False)
         lay.addWidget(self._spin_numavg)
 
-        lay.addStretch()
+        lay.addWidget(self._hline())
 
-        self._btn_aplicar = QPushButton("Aplicar parámetros")
-        self._btn_aplicar.setFixedHeight(36)
-        self._btn_aplicar.setEnabled(False)
-        lay.addWidget(self._btn_aplicar)
+        lay.addWidget(self._sep_label("Del equipo"))
+
+        self._lbl_eq_vertical, self._val_eq_vertical = self._valor_lectura("Vertical")
+        self._lbl_eq_horizontal, self._val_eq_horizontal = self._valor_lectura("Horizontal")
+        self._lbl_eq_acoplamiento, self._val_eq_acoplamiento = self._valor_lectura("Acoplamiento")
+        self._lbl_eq_trigger, self._val_eq_trigger = self._valor_lectura("Trigger")
+        self._lbl_eq_puntos, self._val_eq_puntos = self._valor_lectura("Puntos")
+        for wid in (
+            self._lbl_eq_vertical, self._lbl_eq_horizontal,
+            self._lbl_eq_acoplamiento, self._lbl_eq_trigger, self._lbl_eq_puntos,
+        ):
+            lay.addWidget(wid)
+
+        self._lbl_leido_hace = QLabel("Leído hace — s")
+        self._lbl_leido_hace.setStyleSheet("color: #555; font-size: 10px; margin-top: 4px;")
+        lay.addWidget(self._lbl_leido_hace)
+
+        lay.addStretch()
         return w
 
     def _bottombar(self) -> QWidget:
@@ -282,7 +272,11 @@ class VentanaOsciloscopio(QMainWindow):
         lay.setContentsMargins(12, 6, 12, 6)
         lay.setSpacing(10)
 
-        self._btn_capturar = QPushButton("▶  Capturar")
+        self._btn_actualizar = QPushButton("Actualizar")
+        self._btn_actualizar.setFixedHeight(32)
+        self._btn_actualizar.setEnabled(False)
+
+        self._btn_capturar = QPushButton("▶  Capturar señal")
         self._btn_capturar.setFixedHeight(32)
         self._btn_capturar.setEnabled(False)
 
@@ -296,7 +290,8 @@ class VentanaOsciloscopio(QMainWindow):
         self._btn_stop_emergencia.style().unpolish(self._btn_stop_emergencia)
         self._btn_stop_emergencia.style().polish(self._btn_stop_emergencia)
 
-        lay.addWidget(self._btn_capturar)
+        lay.addWidget(self._btn_actualizar)
+        lay.addWidget(self._btn_capturar, 1)
         lay.addWidget(self._btn_guardar)
         lay.addStretch()
         lay.addWidget(self._btn_stop_emergencia)
@@ -317,17 +312,14 @@ class VentanaOsciloscopio(QMainWindow):
 
         self._btn_ch1.clicked.connect(lambda: self._sel_canal("CH1"))
         self._btn_ch2.clicked.connect(lambda: self._sel_canal("CH2"))
-        self._btn_dc.clicked.connect(lambda: self._sel_acoplamiento("DC"))
-        self._btn_ac.clicked.connect(lambda: self._sel_acoplamiento("AC"))
         self._btn_sample.clicked.connect(lambda: self._sel_adquisicion("Sample"))
         self._btn_average.clicked.connect(lambda: self._sel_adquisicion("Average"))
 
-        self._btn_aplicar.clicked.connect(self._on_aplicar_params)
+        self._btn_actualizar.clicked.connect(self._on_actualizar)
         self._btn_capturar.clicked.connect(self._on_capturar)
         self._btn_guardar.clicked.connect(self._on_guardar)
         self._btn_stop_emergencia.clicked.connect(self._on_stop_emergencia)
 
-        self._sel_acoplamiento("DC")
         self._sel_adquisicion("Sample")
 
     # ══════════════════════════════════════════════════════════════════════════
@@ -340,7 +332,7 @@ class VentanaOsciloscopio(QMainWindow):
             self._oscil.desconectar()
             self._btn_conectar.setText("Conectar")
             self._btn_capturar.setEnabled(False)
-            self._btn_aplicar.setEnabled(False)
+            self._btn_actualizar.setEnabled(False)
         else:
             if self._oscil.conectar():
                 self._btn_conectar.setText("Desconectar")
@@ -354,11 +346,13 @@ class VentanaOsciloscopio(QMainWindow):
             "background: #1a3a1a; color: #4caf50; font-size: 11px;"
             "border: 1px solid #2a5a2a; border-radius: 4px; padding: 3px 10px;"
         )
-        self._btn_aplicar.setEnabled(True)
+        self._btn_actualizar.setEnabled(True)
         self._btn_capturar.setEnabled(self._canal_sel is not None)
         self._lanzar_sincronizar_escala()
 
     def _lanzar_sincronizar_escala(self):
+        if self._escala_thread is not None and self._escala_thread.isRunning():
+            return
         worker = _EscalaWorker(self._oscil)
         thread = QThread(self)
         worker.moveToThread(thread)
@@ -367,36 +361,55 @@ class VentanaOsciloscopio(QMainWindow):
         worker.terminado.connect(thread.quit)
         thread.finished.connect(thread.deleteLater)
         thread.finished.connect(worker.deleteLater)
+        self._escala_thread = thread
+        self._escala_worker = worker
         thread.start()
+
+    @staticmethod
+    def _fmt_vdiv(vdiv_v: float) -> str:
+        if vdiv_v < 1.0:
+            return f"{vdiv_v * 1000:.3g} mV/div"
+        return f"{vdiv_v:.3g} V/div"
+
+    @staticmethod
+    def _fmt_tdiv(tdiv_s: float) -> str:
+        if tdiv_s < 1e-6:
+            return f"{tdiv_s * 1e9:.3g} ns/div"
+        if tdiv_s < 1e-3:
+            return f"{tdiv_s * 1e6:.3g} µs/div"
+        if tdiv_s < 1.0:
+            return f"{tdiv_s * 1e3:.3g} ms/div"
+        return f"{tdiv_s:.3g} s/div"
 
     @Slot(object)
     def _on_escala_leida(self, escala):
+        self._escala_thread = None
+        self._escala_worker = None
         if escala is None:
             return
 
-        mejor_vdiv = min(
-            OsciloscopioController.VDIV_OPCIONES.items(),
-            key=lambda kv: abs(kv[1] - escala["vdiv_v"])
-        )[0]
-        self._combo_vdiv.setCurrentText(mejor_vdiv)
-
-        mejor_tdiv = min(
-            OsciloscopioController.TDIV_OPCIONES.items(),
-            key=lambda kv: abs(kv[1] - escala["tdiv_s"])
-        )[0]
-        self._combo_tdiv.setCurrentText(mejor_tdiv)
-
-        coup = escala["coupling"]
-        if coup in ("DC", "AC"):
-            self._sel_acoplamiento(coup)
-
-        self._spin_trigger.setValue(escala["trigger_v"])
+        self._val_eq_vertical.setText(self._fmt_vdiv(escala["vdiv_v"]))
+        self._val_eq_horizontal.setText(self._fmt_tdiv(escala["tdiv_s"]))
+        self._val_eq_acoplamiento.setText(escala["coupling"])
+        self._val_eq_trigger.setText(f"{escala['trigger_v']:.3f} V")
+        puntos = escala.get("record_length")
+        self._val_eq_puntos.setText(f"{puntos:,}" if puntos is not None else "—")
 
         if "AVERAGE" in escala["acq_mode"]:
             self._sel_adquisicion("Average")
             self._spin_numavg.setValue(escala["numavg"])
         else:
             self._sel_adquisicion("Sample")
+
+        self._segundos_desde_lectura = 0
+        self._lbl_leido_hace.setText("Leído hace 0 s")
+        if not self._timer_lectura.isActive():
+            self._timer_lectura.start()
+
+    @Slot()
+    def _tick_lectura(self):
+        self._segundos_desde_lectura += 1
+        self._lbl_leido_hace.setText(f"Leído hace {self._segundos_desde_lectura} s")
 
     @Slot()
     def _on_oscil_desconectado(self):
@@ -407,8 +420,9 @@ class VentanaOsciloscopio(QMainWindow):
             "background: #2a2a2a; color: #666; font-size: 11px;"
             "border: 1px solid #333; border-radius: 4px; padding: 3px 10px;"
         )
-        self._btn_aplicar.setEnabled(False)
+        self._btn_actualizar.setEnabled(False)
         self._btn_capturar.setEnabled(False)
+        self._timer_lectura.stop()
 
     def _sel_canal(self, canal: str):
         self._canal_sel = canal
@@ -423,44 +437,32 @@ class VentanaOsciloscopio(QMainWindow):
             self._plot.setVisible(True)
         self._lbl_canal_plot.setText(canal)
 
-    def _sel_acoplamiento(self, modo: str):
-        self._acoplamiento = modo
-        set_btn_activo(self._btn_dc, modo == "DC", "azul")
-        set_btn_activo(self._btn_ac, modo == "AC", "azul")
-
     def _sel_adquisicion(self, modo: str):
         self._adquisicion = modo
         set_btn_activo(self._btn_sample,  modo == "Sample",  "azul")
         set_btn_activo(self._btn_average, modo == "Average", "azul")
         self._spin_numavg.setEnabled(modo == "Average")
 
-    @Slot()
-    def _on_aplicar_params(self):
-        self._oscil.set_rec_length(self._combo_rec_length.currentText())
-        self._oscil.aplicar_parametros(
-            vdiv      = self._combo_vdiv.currentText(),
-            tdiv      = self._combo_tdiv.currentText(),
-            coupling  = self._acoplamiento,
-            trigger_v = self._spin_trigger.value(),
-            acq_mode  = "AVERAGE" if self._adquisicion == "Average" else "SAMPLE",
-            numavg    = self._spin_numavg.value(),
-        )
-        self._refrescar_labels_plot()
-
-    def _refrescar_labels_plot(self):
+    def _refrescar_labels_plot(self, escala=None):
         vr = self._plot.viewRange()
         xr, yr = vr
         self._lbl_canal_plot.setPos(xr[0], yr[1])
         self._lbl_vdiv_plot.setPos(xr[1], yr[1])
-        self._lbl_vdiv_plot.setText(self._combo_vdiv.currentText())
         self._lbl_tdiv_plot.setPos((xr[0] + xr[1]) / 2, yr[0])
-        self._lbl_tdiv_plot.setText(self._combo_tdiv.currentText())
+        if escala is not None:
+            self._lbl_vdiv_plot.setText(self._fmt_vdiv(escala["vdiv_v"]))
+            self._lbl_tdiv_plot.setText(self._fmt_tdiv(escala["tdiv_s"]))
+
+    @Slot()
+    def _on_actualizar(self):
+        self._lanzar_sincronizar_escala()
 
     @Slot()
     def _on_capturar(self):
         if self._captura_thread is not None and self._captura_thread.isRunning():
             return
         self._btn_capturar.setEnabled(False)
+        self._btn_actualizar.setEnabled(False)
         self._btn_guardar.setEnabled(False)
 
         worker = _CapturaWorker(self._oscil)
@@ -480,6 +482,7 @@ class VentanaOsciloscopio(QMainWindow):
         self._captura_thread = None
         self._captura_worker = None
         self._btn_capturar.setEnabled(self._oscil.conectado and self._canal_sel is not None)
+        self._btn_actualizar.setEnabled(self._oscil.conectado)
 
         if captura is None:
             QMessageBox.warning(self, "Error de captura",
@@ -515,7 +518,7 @@ class VentanaOsciloscopio(QMainWindow):
             margen = max((v_max - v_min) * 0.1, 1e-6)
             self._plot.setYRange(v_min - margen, v_max + margen, padding=0)
 
-        self._refrescar_labels_plot()
+        self._refrescar_labels_plot(escala)
 
     @Slot()
     def _on_guardar(self):
@@ -562,9 +565,13 @@ class VentanaOsciloscopio(QMainWindow):
         if self._cerrado:
             return
         self._cerrado = True
+        self._timer_lectura.stop()
         if self._captura_thread is not None and self._captura_thread.isRunning():
             self._captura_thread.quit()
             self._captura_thread.wait(2000)
+        if self._escala_thread is not None and self._escala_thread.isRunning():
+            self._escala_thread.quit()
+            self._escala_thread.wait(2000)
         if self._oscil.conectado:
             self._oscil.desconectar()
 

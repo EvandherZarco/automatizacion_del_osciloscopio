@@ -24,7 +24,7 @@ import pyqtgraph as pg
 from PySide6.QtCore import Qt, QThread, QTimer, Signal, Slot, QObject, QEvent
 from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QGroupBox,
-    QLabel, QPushButton, QComboBox, QSpinBox, QDoubleSpinBox,
+    QLabel, QPushButton, QSpinBox, QDoubleSpinBox,
     QTabWidget, QFrame, QFileDialog, QMessageBox, QApplication,
 )
 
@@ -84,6 +84,18 @@ class _CapturaWorker(QObject):
         self.terminado.emit(captura, escala)
 
 
+class _EscalaWorker(QObject):
+    terminado = Signal(object)
+
+    def __init__(self, oscil: OsciloscopioController):
+        super().__init__()
+        self._oscil = oscil
+
+    @Slot()
+    def ejecutar(self):
+        self.terminado.emit(self._oscil.leer_escala_actual())
+
+
 class VentanaAmbos(QMainWindow):
 
     volver = Signal()
@@ -120,12 +132,14 @@ class VentanaAmbos(QMainWindow):
         self._canal_sel: str | None = None
         self._output_sel        = "E Adjust"
         self._burst_sel         = "Continuous"
-        self._acoplamiento      = "DC"
         self._adquisicion       = "Sample"
         self._cerrado           = False
+        self._segundos_desde_lectura = 0
 
         self._captura_thread: QThread | None = None
         self._captura_worker: _CapturaWorker | None = None
+        self._escala_thread: QThread | None = None
+        self._escala_worker: _EscalaWorker | None = None
 
         self._timer_inactividad = QTimer(self)
         self._timer_inactividad.setSingleShot(True)
@@ -134,6 +148,10 @@ class VentanaAmbos(QMainWindow):
         self._timer_monitor_laser = QTimer(self)
         self._timer_monitor_laser.setInterval(MONITOREO_LASER_MS)
         self._timer_monitor_laser.timeout.connect(self._actualizar_monitoreo_laser)
+
+        self._timer_lectura = QTimer(self)
+        self._timer_lectura.setInterval(1000)
+        self._timer_lectura.timeout.connect(self._tick_lectura)
 
         self._construir_ui()
         self._conectar_signals()
@@ -386,46 +404,7 @@ class VentanaAmbos(QMainWindow):
             fila_c.addWidget(btn)
         lay.addLayout(fila_c)
 
-        lay.addWidget(self._sep_lbl("Escala vertical"))
-        self._combo_p_vdiv = QComboBox()
-        self._combo_p_vdiv.addItems(list(OsciloscopioController.VDIV_OPCIONES.keys()))
-        self._combo_p_vdiv.setCurrentText("100 mV/div")
-        lay.addWidget(self._combo_p_vdiv)
-
-        lay.addWidget(self._sep_lbl("Escala horizontal"))
-        self._combo_p_tdiv = QComboBox()
-        self._combo_p_tdiv.addItems(list(OsciloscopioController.TDIV_OPCIONES.keys()))
-        self._combo_p_tdiv.setCurrentText("1 µs/div")
-        lay.addWidget(self._combo_p_tdiv)
-
-        lay.addWidget(self._sep_lbl("Record length (puntos)"))
-        self._combo_p_rec_length = QComboBox()
-        self._combo_p_rec_length.addItems(list(OsciloscopioController.REC_LENGTH_OPCIONES.keys()))
-        self._combo_p_rec_length.setCurrentText("25 000")
-        lay.addWidget(self._combo_p_rec_length)
-
-        lay.addWidget(self._sep_lbl("Acoplamiento"))
-        fila_ac = QHBoxLayout()
-        fila_ac.setSpacing(6)
-        self._btn_p_dc = QPushButton("DC")
-        self._btn_p_ac = QPushButton("AC")
-        for btn in (self._btn_p_dc, self._btn_p_ac):
-            btn.setFixedHeight(32)
-            fila_ac.addWidget(btn)
-        lay.addLayout(fila_ac)
-
-        lay.addWidget(self._sep_lbl("Trigger level"))
-        self._spin_p_trigger = QDoubleSpinBox()
-        self._spin_p_trigger.setRange(-10.0, 10.0)
-        self._spin_p_trigger.setSingleStep(0.001)
-        self._spin_p_trigger.setDecimals(3)
-        self._spin_p_trigger.setValue(0.010)
-        lbl_tr_h = QLabel("Voltios")
-        lbl_tr_h.setStyleSheet("color: #555; font-size: 10px;")
-        lay.addWidget(self._spin_p_trigger)
-        lay.addWidget(lbl_tr_h)
-
-        lay.addWidget(self._sep_lbl("Adquisición"))
+        lay.addWidget(self._sep_lbl("Modo de adquisición"))
         fila_aq = QHBoxLayout()
         fila_aq.setSpacing(6)
         self._btn_p_sample  = QPushButton("Sample")
@@ -444,11 +423,6 @@ class VentanaAmbos(QMainWindow):
         lay.addWidget(self._spin_p_numavg)
 
         lay.addStretch()
-
-        self._btn_p_aplicar_oscil = QPushButton("Aplicar parámetros")
-        self._btn_p_aplicar_oscil.setFixedHeight(34)
-        self._btn_p_aplicar_oscil.setEnabled(False)
-        lay.addWidget(self._btn_p_aplicar_oscil)
         return g
 
     # ── Pestaña Medición ──────────────────────────────────────────────────────
@@ -496,15 +470,42 @@ class VentanaAmbos(QMainWindow):
 
         fila = QHBoxLayout()
         fila.setSpacing(8)
-        self._btn_capturar = QPushButton("⊙  Capturar")
+        self._btn_actualizar = QPushButton("Actualizar")
+        self._btn_actualizar.setFixedHeight(34)
+        self._btn_actualizar.setEnabled(False)
+        self._btn_capturar = QPushButton("⊙  Capturar señal")
         self._btn_capturar.setFixedHeight(34)
         self._btn_capturar.setEnabled(False)
+        fila.addWidget(self._btn_actualizar)
+        fila.addWidget(self._btn_capturar, 1)
+        lay.addLayout(fila)
+
         self._btn_guardar_manual = QPushButton("⊟  Guardar")
         self._btn_guardar_manual.setFixedHeight(34)
         self._btn_guardar_manual.setEnabled(False)
-        fila.addWidget(self._btn_capturar)
-        fila.addWidget(self._btn_guardar_manual)
-        lay.addLayout(fila)
+        lay.addWidget(self._btn_guardar_manual)
+
+        lay.addWidget(self._hline())
+        lay.addWidget(self._sep_lbl("Del equipo"))
+
+        self._lbl_eq_vertical, self._val_eq_vertical = self._valor_lectura("Vertical")
+        self._lbl_eq_horizontal, self._val_eq_horizontal = self._valor_lectura("Horizontal")
+        self._lbl_eq_acoplamiento, self._val_eq_acoplamiento = self._valor_lectura("Acoplamiento")
+        self._lbl_eq_trigger, self._val_eq_trigger = self._valor_lectura("Trigger")
+        self._lbl_eq_puntos, self._val_eq_puntos = self._valor_lectura("Puntos")
+        fila_eq = QHBoxLayout()
+        fila_eq.setSpacing(10)
+        for wid in (
+            self._lbl_eq_vertical, self._lbl_eq_horizontal,
+            self._lbl_eq_acoplamiento, self._lbl_eq_trigger, self._lbl_eq_puntos,
+        ):
+            fila_eq.addWidget(wid)
+        lay.addLayout(fila_eq)
+
+        self._lbl_leido_hace = QLabel("Leído hace — s")
+        self._lbl_leido_hace.setStyleSheet("color: #555; font-size: 10px; margin-top: 4px;")
+        lay.addWidget(self._lbl_leido_hace)
+
         lay.addStretch()
         return g
 
@@ -624,6 +625,25 @@ class VentanaAmbos(QMainWindow):
         lbl.setStyleSheet("color: #888; font-size: 11px; text-transform: uppercase;")
         return lbl
 
+    def _hline(self) -> QFrame:
+        f = QFrame()
+        f.setFrameShape(QFrame.HLine)
+        f.setStyleSheet("color: #2a2a2a;")
+        return f
+
+    def _valor_lectura(self, titulo: str) -> tuple[QWidget, QLabel]:
+        w = QWidget()
+        lay = QVBoxLayout(w)
+        lay.setContentsMargins(0, 0, 0, 0)
+        lay.setSpacing(1)
+        lbl_t = QLabel(titulo)
+        lbl_t.setStyleSheet("color: #666; font-size: 10px; text-transform: uppercase;")
+        lbl_v = QLabel("—")
+        lbl_v.setStyleSheet("color: #ccc; font-size: 13px; font-weight: bold;")
+        lay.addWidget(lbl_t)
+        lay.addWidget(lbl_v)
+        return w, lbl_v
+
     def _metric_card(self, titulo: str, valor: str) -> QWidget:
         w = QWidget()
         w.setStyleSheet("background: #252525; border-radius: 6px;")
@@ -709,13 +729,11 @@ class VentanaAmbos(QMainWindow):
         # Parámetros — oscil
         self._btn_p_ch1.clicked.connect(lambda: self._sel_canal("CH1"))
         self._btn_p_ch2.clicked.connect(lambda: self._sel_canal("CH2"))
-        self._btn_p_dc.clicked.connect(lambda: self._sel_acoplamiento("DC"))
-        self._btn_p_ac.clicked.connect(lambda: self._sel_acoplamiento("AC"))
         self._btn_p_sample.clicked.connect(lambda: self._sel_adquisicion("Sample"))
         self._btn_p_average.clicked.connect(lambda: self._sel_adquisicion("Average"))
-        self._btn_p_aplicar_oscil.clicked.connect(self._on_aplicar_oscil)
 
         # Medición
+        self._btn_actualizar.clicked.connect(self._on_actualizar)
         self._btn_capturar.clicked.connect(self._on_capturar)
         self._btn_guardar_manual.clicked.connect(self._on_guardar_manual)
         self._btn_por_tiempo.clicked.connect(lambda: self._sel_modo_auto("tiempo"))
@@ -729,7 +747,6 @@ class VentanaAmbos(QMainWindow):
         # Estado inicial de selectores
         self._sel_output("E Adjust")
         self._sel_burst("Continuous")
-        self._sel_acoplamiento("DC")
         self._sel_adquisicion("Sample")
         self._sel_modo_auto("tiempo")
 
@@ -780,16 +797,18 @@ class VentanaAmbos(QMainWindow):
         self._chip_oscil.setText("Conectado")
         self._chip_oscil.setStyleSheet(
             "background: #1a3a1a; color: #4caf50; border-radius: 4px; padding: 2px 8px; font-size: 11px;")
-        self._btn_p_aplicar_oscil.setEnabled(True)
+        self._btn_actualizar.setEnabled(True)
         self._btn_capturar.setEnabled(self._canal_sel is not None)
+        self._lanzar_sincronizar_escala()
 
     @Slot()
     def _on_oscil_desconectado(self):
         self._chip_oscil.setText("Desconectado")
         self._chip_oscil.setStyleSheet(
             "background: #2a2a2a; color: #666; border-radius: 4px; padding: 2px 8px; font-size: 11px;")
-        self._btn_p_aplicar_oscil.setEnabled(False)
+        self._btn_actualizar.setEnabled(False)
         self._btn_capturar.setEnabled(False)
+        self._timer_lectura.stop()
 
     @Slot()
     def _on_esp32_desconectado(self):
@@ -905,11 +924,6 @@ class VentanaAmbos(QMainWindow):
         if self._oscil.conectado:
             self._btn_capturar.setEnabled(True)
 
-    def _sel_acoplamiento(self, modo: str):
-        self._acoplamiento = modo
-        set_btn_activo(self._btn_p_dc, modo == "DC", "azul")
-        set_btn_activo(self._btn_p_ac, modo == "AC", "azul")
-
     def _sel_adquisicion(self, modo: str):
         self._adquisicion = modo
         set_btn_activo(self._btn_p_sample,  modo == "Sample",  "azul")
@@ -919,17 +933,70 @@ class VentanaAmbos(QMainWindow):
         self._spin_p_numavg.setVisible(visible)
         self._lbl_p_numavg.setVisible(visible)
 
+    def _lanzar_sincronizar_escala(self):
+        if self._escala_thread is not None and self._escala_thread.isRunning():
+            return
+        worker = _EscalaWorker(self._oscil)
+        thread = QThread(self)
+        worker.moveToThread(thread)
+        thread.started.connect(worker.ejecutar)
+        worker.terminado.connect(self._on_escala_leida)
+        worker.terminado.connect(thread.quit)
+        thread.finished.connect(thread.deleteLater)
+        thread.finished.connect(worker.deleteLater)
+        self._escala_thread = thread
+        self._escala_worker = worker
+        thread.start()
+
+    @staticmethod
+    def _fmt_vdiv(vdiv_v: float) -> str:
+        if vdiv_v < 1.0:
+            return f"{vdiv_v * 1000:.3g} mV/div"
+        return f"{vdiv_v:.3g} V/div"
+
+    @staticmethod
+    def _fmt_tdiv(tdiv_s: float) -> str:
+        if tdiv_s < 1e-6:
+            return f"{tdiv_s * 1e9:.3g} ns/div"
+        if tdiv_s < 1e-3:
+            return f"{tdiv_s * 1e6:.3g} µs/div"
+        if tdiv_s < 1.0:
+            return f"{tdiv_s * 1e3:.3g} ms/div"
+        return f"{tdiv_s:.3g} s/div"
+
+    @Slot(object)
+    def _on_escala_leida(self, escala):
+        self._escala_thread = None
+        self._escala_worker = None
+        if escala is None:
+            return
+
+        self._val_eq_vertical.setText(self._fmt_vdiv(escala["vdiv_v"]))
+        self._val_eq_horizontal.setText(self._fmt_tdiv(escala["tdiv_s"]))
+        self._val_eq_acoplamiento.setText(escala["coupling"])
+        self._val_eq_trigger.setText(f"{escala['trigger_v']:.3f} V")
+        puntos = escala.get("record_length")
+        self._val_eq_puntos.setText(f"{puntos:,}" if puntos is not None else "—")
+
+        if "AVERAGE" in escala["acq_mode"]:
+            self._sel_adquisicion("Average")
+            self._spin_p_numavg.setValue(escala["numavg"])
+        else:
+            self._sel_adquisicion("Sample")
+
+        self._segundos_desde_lectura = 0
+        self._lbl_leido_hace.setText("Leído hace 0 s")
+        if not self._timer_lectura.isActive():
+            self._timer_lectura.start()
+
     @Slot()
-    def _on_aplicar_oscil(self):
-        self._oscil.set_rec_length(self._combo_p_rec_length.currentText())
-        self._oscil.aplicar_parametros(
-            vdiv      = self._combo_p_vdiv.currentText(),
-            tdiv      = self._combo_p_tdiv.currentText(),
-            coupling  = self._acoplamiento,
-            trigger_v = self._spin_p_trigger.value(),
-            acq_mode  = "AVERAGE" if self._adquisicion == "Average" else "SAMPLE",
-            numavg    = self._spin_p_numavg.value(),
-        )
+    def _tick_lectura(self):
+        self._segundos_desde_lectura += 1
+        self._lbl_leido_hace.setText(f"Leído hace {self._segundos_desde_lectura} s")
+
+    @Slot()
+    def _on_actualizar(self):
+        self._lanzar_sincronizar_escala()
 
     # ══════════════════════════════════════════════════════════════════════════
     # SLOTS — MEDICIÓN MANUAL
@@ -940,6 +1007,7 @@ class VentanaAmbos(QMainWindow):
         if self._captura_thread is not None and self._captura_thread.isRunning():
             return
         self._btn_capturar.setEnabled(False)
+        self._btn_actualizar.setEnabled(False)
         self._btn_guardar_manual.setEnabled(False)
         self._reiniciar_timer_inactividad()
 
@@ -960,6 +1028,7 @@ class VentanaAmbos(QMainWindow):
         self._captura_thread = None
         self._captura_worker = None
         self._btn_capturar.setEnabled(self._oscil.conectado and self._canal_sel is not None)
+        self._btn_actualizar.setEnabled(self._oscil.conectado)
 
         if captura is None:
             QMessageBox.warning(self, "Error de captura",
@@ -983,6 +1052,7 @@ class VentanaAmbos(QMainWindow):
         self._curva_manual.setData(t_us, v_mv)
 
         if escala is not None:
+            self._on_escala_leida(escala)
             vdiv_mv = escala["vdiv_v"] * 1e3
             tdiv_us = escala["tdiv_s"] * 1e6
             t_mid = (t_us[0] + t_us[-1]) / 2
@@ -1000,7 +1070,7 @@ class VentanaAmbos(QMainWindow):
         self._lbl_canal_m.setPos(xr[0], yr[1])
         self._lbl_canal_m.setText(self._canal_sel or "")
         self._lbl_tdiv_m.setPos((xr[0] + xr[1]) / 2, yr[0])
-        self._lbl_tdiv_m.setText(self._combo_p_tdiv.currentText())
+        self._lbl_tdiv_m.setText(self._fmt_tdiv(escala["tdiv_s"]) if escala is not None else "")
 
     @Slot()
     def _on_guardar_manual(self):
@@ -1284,9 +1354,13 @@ class VentanaAmbos(QMainWindow):
         self._cerrado = True
         self._timer_inactividad.stop()
         self._timer_monitor_laser.stop()
+        self._timer_lectura.stop()
         if self._captura_thread is not None and self._captura_thread.isRunning():
             self._captura_thread.quit()
             self._captura_thread.wait(2000)
+        if self._escala_thread is not None and self._escala_thread.isRunning():
+            self._escala_thread.quit()
+            self._escala_thread.wait(2000)
         self._medicion.detener()
         if self._laser.conectado:
             self._safe.activar()

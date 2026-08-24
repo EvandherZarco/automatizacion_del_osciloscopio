@@ -144,7 +144,8 @@ class OsciloscopioController(QObject):
     def leer_escala_actual(self) -> dict | None:
         """
         Lee del hardware los parámetros de escala actuales.
-        Retorna dict con claves: vdiv_v, tdiv_s, coupling, trigger_v, acq_mode, numavg.
+        Retorna dict con claves: vdiv_v, tdiv_s, coupling, trigger_v, acq_mode,
+        numavg, record_length. record_length va como None si esa consulta falla.
         Retorna None si el osciloscopio no responde.
         """
         with QMutexLocker(self._mutex):
@@ -157,6 +158,10 @@ class OsciloscopioController(QObject):
                 trig = float(self._inst.ask("TRIGger:MAIn:LEVel?").strip())
                 mode = self._inst.ask("ACQ:MODE?").strip().upper()
                 numavg = int(self._inst.ask("ACQ:NUMAVG?").strip())
+                try:
+                    rec_length = int(self._inst.ask("HORizontal:RECOrdlength?").strip())
+                except Exception:
+                    rec_length = None
                 return {
                     "vdiv_v": vdiv,
                     "tdiv_s": tdiv,
@@ -164,156 +169,11 @@ class OsciloscopioController(QObject):
                     "trigger_v": trig,
                     "acq_mode": mode,
                     "numavg": numavg,
+                    "record_length": rec_length,
                 }
             except Exception as exc:
                 self.error.emit(f"Error al leer escala actual: {exc}")
                 return None
-
-    # ── Escala vertical (V/div) ───────────────────────────────────────────────
-
-    # Mapa legible → valor en voltios para el comando SCPI CHx:SCALE
-    VDIV_OPCIONES: dict[str, float] = {
-        "1 mV/div": 0.001,
-        "2 mV/div": 0.002,
-        "5 mV/div": 0.005,
-        "10 mV/div": 0.010,
-        "20 mV/div": 0.020,
-        "50 mV/div": 0.050,
-        "100 mV/div": 0.100,
-        "200 mV/div": 0.200,
-        "500 mV/div": 0.500,
-        "1 V/div": 1.000,
-    }
-
-    # Mapa legible → valor en segundos para el comando SCPI HORizontal:SCAle
-    TDIV_OPCIONES: dict[str, float] = {
-        "100 ns/div": 100e-9,
-        "200 ns/div": 200e-9,
-        "500 ns/div": 500e-9,
-        "1 µs/div": 1e-6,
-        "2 µs/div": 2e-6,
-        "5 µs/div": 5e-6,
-        "10 µs/div": 10e-6,
-        "20 µs/div": 20e-6,
-        "50 µs/div": 50e-6,
-        "100 µs/div": 100e-6,
-        "200 µs/div": 200e-6,
-        "500 µs/div": 500e-6,
-        "1 ms/div": 1e-3,
-        "2 ms/div": 2e-3,
-        "4 ms/div": 4e-3,
-        "5 ms/div": 5e-3,
-        "10 ms/div": 10e-3,
-    }
-
-    REC_LENGTH_OPCIONES: dict[str, int] = {
-        "500":       500,
-        "2 500":     2_500,
-        "5 000":     5_000,
-        "12 500":    12_500,
-        "25 000":    25_000,
-        "50 000":    50_000,
-        "125 000":   125_000,
-        "250 000":   250_000,
-        "500 000":   500_000,
-        "1 000 000": 1_000_000,
-        "2 000 000": 2_000_000,
-        "4 000 000": 4_000_000,
-        "8 000 000": 8_000_000,
-    }
-
-    def set_rec_length(self, opcion: str) -> bool:
-        """
-        Establece el record length del osciloscopio.
-        opcion debe ser una clave de REC_LENGTH_OPCIONES (p. ej. '25 000').
-        """
-        valor = self.REC_LENGTH_OPCIONES.get(opcion)
-        if valor is None:
-            self.error.emit(f"Record length desconocido: {opcion}")
-            return False
-        with QMutexLocker(self._mutex):
-            if not self._inst:
-                return False
-            try:
-                self._inst.write(f"HOR:RECLENGTH {valor}")
-                self.cmd_ok.emit(f"Osciloscopio: record length → {opcion} puntos")
-                return True
-            except Exception as exc:
-                self.error.emit(f"Error al configurar record length: {exc}")
-                return False
-
-    def set_vdiv(self, opcion: str) -> bool:
-        """
-        Establece la escala vertical del canal activo.
-        opcion debe ser una clave de VDIV_OPCIONES (p. ej. '50 mV/div').
-        """
-        valor = self.VDIV_OPCIONES.get(opcion)
-        if valor is None:
-            self.error.emit(f"Escala vertical desconocida: {opcion}")
-            return False
-        with QMutexLocker(self._mutex):
-            if not self._inst:
-                return False
-            try:
-                self._inst.write(f"{self._canal}:SCALE {valor:.6g}")
-                self.cmd_ok.emit(f"Osciloscopio: {self._canal} escala → {opcion}")
-                return True
-            except Exception as exc:
-                self.error.emit(f"Error al configurar V/div: {exc}")
-                return False
-
-    def set_tdiv(self, opcion: str) -> bool:
-        """
-        Establece la escala horizontal (base de tiempo).
-        opcion debe ser una clave de TDIV_OPCIONES (p. ej. '1 µs/div').
-        """
-        valor = self.TDIV_OPCIONES.get(opcion)
-        if valor is None:
-            self.error.emit(f"Escala horizontal desconocida: {opcion}")
-            return False
-        with QMutexLocker(self._mutex):
-            if not self._inst:
-                return False
-            try:
-                self._inst.write(f"HORizontal:SCAle {valor:.6g}")
-                self.cmd_ok.emit(f"Osciloscopio: escala horizontal → {opcion}")
-                return True
-            except Exception as exc:
-                self.error.emit(f"Error al configurar s/div: {exc}")
-                return False
-
-    def set_coupling(self, modo: str) -> bool:
-        """
-        Establece el acoplamiento del canal activo.
-        modo: 'DC' | 'AC'
-        """
-        modo = modo.upper()
-        if modo not in ("DC", "AC"):
-            self.error.emit(f"Acoplamiento inválido: {modo}")
-            return False
-        with QMutexLocker(self._mutex):
-            if not self._inst:
-                return False
-            try:
-                self._inst.write(f"{self._canal}:COUPling {modo}")
-                self.cmd_ok.emit(f"Osciloscopio: {self._canal} acoplamiento → {modo}")
-                return True
-            except Exception as exc:
-                self.error.emit(f"Error al configurar acoplamiento: {exc}")
-                return False
-
-    def set_trigger_level(self, nivel_v: float) -> bool:
-        """Establece el nivel de trigger en voltios."""
-        with QMutexLocker(self._mutex):
-            if not self._inst:
-                return False
-            try:
-                self._inst.write(f"TRIGger:MAIn:LEVel {nivel_v:.4f}")
-                self.cmd_ok.emit(f"Osciloscopio: trigger → {nivel_v:.3f} V")
-                return True
-            except Exception as exc:
-                self.error.emit(f"Error al configurar trigger: {exc}")
-                return False
 
     def set_acq_mode(self, modo: str) -> bool:
         """
@@ -341,30 +201,6 @@ class OsciloscopioController(QObject):
             if not self._inst:
                 return False
             return self._set_numavg(self._inst, n)
-
-    def aplicar_parametros(
-        self,
-        vdiv: str,
-        tdiv: str,
-        coupling: str,
-        trigger_v: float,
-        acq_mode: str,
-        numavg: int,
-    ) -> bool:
-        """
-        Aplica todos los parámetros del panel de osciloscopio en una sola llamada.
-        Retorna True si todos los comandos tuvieron éxito.
-        """
-        resultados = [
-            self.set_vdiv(vdiv),
-            self.set_tdiv(tdiv),
-            self.set_coupling(coupling),
-            self.set_trigger_level(trigger_v),
-            self.set_acq_mode(acq_mode),
-        ]
-        if acq_mode.upper() == "AVERAGE":
-            resultados.append(self.set_numavg(numavg))
-        return all(resultados)
 
     # ── Canal de señal ────────────────────────────────────────────────────────
 
