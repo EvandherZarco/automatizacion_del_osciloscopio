@@ -3,8 +3,11 @@ temperatura.py
 Lectura continua de temperatura desde ESP32-C3 con cuatro sensores DS18B20.
 
 El ESP32 hace streaming automático cada ~1 s en el formato:
-    "25.30,1,1,0,1\\n"
-    └ temp_promedio °C · S1 · S2 · S3 · S4  (1 = presente, 0 = ausente)
+    "21.47,21.44,21.69,21.25,21.50\\n"
+    └ temp_promedio °C · S1 · S2 · S3 · S4  (temperatura de cada sensor, °C)
+
+La presencia de cada sensor se deduce del valor: un DS18B20 ausente o
+en falla reporta NaN o el artefacto de 85 °C, ambos fuera del rango válido.
 
 Este módulo corre en un QThread separado y mantiene en memoria
 la lectura más reciente. Otros módulos (Trigger, Medición, GUI)
@@ -220,13 +223,14 @@ class TempWorker(QObject):
             return None
         try:
             temp = float(partes[0])
-            sensores = [int(p) == 1 for p in partes[1:]]
+            lecturas = [float(p) for p in partes[1:]]
         except ValueError:
             return None
 
         if not (TEMP_MIN <= temp <= TEMP_MAX):
             return None
 
+        sensores = [TEMP_MIN <= t <= TEMP_MAX for t in lecturas]
         return temp, sensores
 
     def _enviar_stop(self) -> None:
