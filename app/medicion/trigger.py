@@ -18,6 +18,14 @@ Modo por temperatura:
   de la muestra se omiten: nunca podrían observarse y generarían ventanas
   de duración nula.
 
+  Si la lectura se recupera después de una interrupción, se aplica el mismo
+  criterio: el objetivo que se estaba esperando abrir se descarta si la
+  muestra ya bajó de su umbral de cierre (nunca hubo ventana), junto con
+  cualquier objetivo posterior que también haya quedado rebasado. Si la
+  interrupción ocurrió con la ventana ya abierta, la medición sigue siendo
+  válida —el osciloscopio no depende del ESP32— pero integró sobre un
+  rango más ancho que el nominal, y se avisa al cerrar.
+
   La ausencia sostenida de lecturas frescas emite advertencia y, si se
   prolonga, termina la secuencia en lugar de esperar indefinidamente.
 
@@ -144,7 +152,7 @@ class TriggerWorker(QObject):
     # ── Modo por temperatura ───────────────────────────────────────────────────
 
     def _loop_temperatura(self):
-        objetivos = self._descartar_objetivos_rebasados(self._generar_objetivos())
+        objetivos = deque(self._descartar_objetivos_rebasados(self._generar_objetivos()))
 
         if not objetivos:
             self.advertencia.emit(
@@ -153,16 +161,24 @@ class TriggerWorker(QObject):
             )
             return
 
-        for t_obj in objetivos:
+        while objetivos:
             if not self._activo:
                 return
 
-            if not self._esperar_umbral(t_obj + MARGEN_UMBRAL):
-                return
+            t_obj = objetivos[0]
 
+            resultado = self._esperar_umbral(t_obj + MARGEN_UMBRAL, t_obj=t_obj, fase="apertura")
+            if resultado is False:
+                return
+            if resultado is None:
+                objetivos.popleft()
+                self._descartar_pendientes_tras_reconexion(objetivos)
+                continue
+
+            objetivos.popleft()
             self.iniciar_acumulacion.emit()
 
-            if not self._esperar_umbral(t_obj - MARGEN_UMBRAL):
+            if not self._esperar_umbral(t_obj - MARGEN_UMBRAL, t_obj=t_obj, fase="cierre"):
                 return
 
             self.detener_y_capturar.emit()
@@ -182,6 +198,18 @@ class TriggerWorker(QObject):
             t = round(t - self._paso, 4)
         return objetivos
 
+    def _separar_alcanzables(
+        self, objetivos: list[float], temp: float
+    ) -> tuple[list[float], list[float]]:
+        """
+        Separa objetivos según si la muestra sigue por encima de su umbral
+        de apertura (alcanzables) o ya lo rebasó (omitidos), sin asumir que
+        objetivos venga ordenado.
+        """
+        alcanzables = [t for t in objetivos if temp > t + MARGEN_UMBRAL]
+        omitidos = [t for t in objetivos if temp <= t + MARGEN_UMBRAL]
+        return alcanzables, omitidos
+
     def _descartar_objetivos_rebasados(self, objetivos: list[float]) -> list[float]:
         """
         Elimina los objetivos cuya ventana de entrada ya quedó por encima de la
@@ -193,10 +221,9 @@ class TriggerWorker(QObject):
         if temp is None:
             return objetivos
 
-        alcanzables = [t for t in objetivos if temp > t + MARGEN_UMBRAL]
+        alcanzables, omitidos = self._separar_alcanzables(objetivos, temp)
 
-        if len(alcanzables) < len(objetivos):
-            omitidos = objetivos[: len(objetivos) - len(alcanzables)]
+        if omitidos:
             lista = ", ".join(f"{t:.1f}" for t in omitidos)
             self.advertencia.emit(
                 f"La muestra está a {temp:.2f} °C. Se omiten los objetivos "
@@ -204,6 +231,33 @@ class TriggerWorker(QObject):
             )
 
         return alcanzables
+
+    def _descartar_pendientes_tras_reconexion(self, objetivos: deque) -> None:
+        """
+        Tras perder un objetivo porque la lectura se restableció con su
+        ventana ya rebasada, aplica el mismo criterio a lo que quede
+        pendiente: la muestra pudo haber seguido bajando durante la misma
+        interrupción y rebasar objetivos posteriores también.
+        """
+        if not objetivos:
+            return
+
+        temp = self._leer_temperatura_estable()
+        if temp is None:
+            return
+
+        alcanzables, omitidos = self._separar_alcanzables(list(objetivos), temp)
+
+        if omitidos:
+            lista = ", ".join(f"{t:.1f}" for t in omitidos)
+            self.advertencia.emit(
+                f"La muestra sigue bajando: al restablecerse la lectura ya "
+                f"está a {temp:.2f} °C. Se omiten además los objetivos ya "
+                f"rebasados: {lista} °C."
+            )
+
+        objetivos.clear()
+        objetivos.extend(alcanzables)
 
     def _esperar_primera_lectura(self) -> float | None:
         """
@@ -218,17 +272,31 @@ class TriggerWorker(QObject):
             time.sleep(POLL_TEMP_S)
         return None
 
-    def _esperar_umbral(self, umbral: float) -> bool:
+    def _esperar_umbral(
+        self, umbral: float, t_obj: float | None = None, fase: str | None = None
+    ) -> bool | None:
         """
         Espera a que la temperatura filtrada baje hasta umbral (temp ≤ umbral),
-        confirmada por lecturas consecutivas.
+        confirmada por lecturas consecutivas. Devuelve True si el umbral se
+        alcanzó.
 
         Devuelve False si se cancela con detener() o si se pierde la lectura
         de temperatura durante más de TIMEOUT_ABORTO_S.
+
+        Si fase="apertura" y, al restablecerse la lectura tras una
+        interrupción, la muestra ya bajó del umbral de cierre del objetivo
+        (t_obj - MARGEN_UMBRAL), la ventana se perdió por completo mientras
+        no hubo datos: se avisa y se devuelve None en vez de True.
+
+        Si fase="cierre" y hubo una interrupción durante la espera, la
+        adquisición del osciloscopio siguió corriendo —no depende del
+        ESP32—, así que la medición sigue siendo válida, pero integró sobre
+        una ventana más ancha que la nominal: se avisa al cerrar.
         """
         confirmaciones = 0
         ultimo_dato = time.monotonic()
         advertido = False
+        hubo_interrupcion = False
 
         while self._activo:
             temp = self._leer_temperatura_estable()
@@ -249,6 +317,7 @@ class TriggerWorker(QObject):
                         "La secuencia continúa en espera."
                     )
                     advertido = True
+                    hubo_interrupcion = True
                 time.sleep(POLL_TEMP_S)
                 continue
 
@@ -257,9 +326,28 @@ class TriggerWorker(QObject):
                 self.advertencia.emit("Lectura de temperatura restablecida.")
                 advertido = False
 
+                if (
+                    fase == "apertura"
+                    and t_obj is not None
+                    and temp <= t_obj - MARGEN_UMBRAL
+                ):
+                    self.advertencia.emit(
+                        f"El objetivo {t_obj:.1f} °C se perdió durante la "
+                        f"interrupción de lectura: la muestra ya está a "
+                        f"{temp:.2f} °C, por debajo de su umbral de cierre. "
+                        "Nunca hubo ventana de integración para ese punto."
+                    )
+                    return None
+
             if temp <= umbral:
                 confirmaciones += 1
                 if confirmaciones >= CONFIRMACIONES_UMBRAL:
+                    if fase == "cierre" and hubo_interrupcion and t_obj is not None:
+                        self.advertencia.emit(
+                            f"El objetivo {t_obj:.1f} °C integró sobre una "
+                            "ventana más ancha que la nominal por una "
+                            f"interrupción de lectura: cerró a {temp:.2f} °C."
+                        )
                     return True
             else:
                 confirmaciones = 0
@@ -280,9 +368,16 @@ class TriggerWorker(QObject):
         """
         Lectura filtrada con mediana móvil. Devuelve None mientras no haya
         lecturas frescas suficientes para llenar la ventana del filtro.
+
+        Un hueco de lectura vacía el buffer: mezclar muestras de antes y
+        después de una interrupción en la misma mediana devolvería un valor
+        que no corresponde a ningún instante real, y en particular podría
+        ocultar cuánto bajó la muestra durante el hueco justo cuando la
+        lectura se restablece.
         """
         temp = self._leer_temperatura()
         if temp is None:
+            self._buffer_temp.clear()
             return None
 
         self._buffer_temp.append(temp)
