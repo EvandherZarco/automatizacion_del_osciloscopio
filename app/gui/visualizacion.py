@@ -11,7 +11,7 @@ from pathlib import Path
 
 import numpy as np
 import pyqtgraph as pg
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import Qt, Signal, QObject, QThread, Slot
 from PySide6.QtGui import QColor
 from PySide6.QtWidgets import (
     QWidget,
@@ -30,10 +30,31 @@ from PySide6.QtWidgets import (
 )
 
 from app.almacenamiento.almacenamiento import Almacenamiento
+from app.exportacion.exportar_mat import exportar_sesion
 
 COLUMNAS_TABLA = ["ID medición", "Timestamp", "Temperatura (°C)", "Modo", "Error"]
 COLOR_ERROR = QColor(60, 45, 0)  # fondo amarillo oscuro para dark theme
 COLOR_ERROR_FG = QColor(255, 200, 0)
+
+
+class _ConversionMatWorker(QObject):
+    """Ejecuta la conversión a .mat fuera del hilo de la interfaz."""
+
+    terminado = Signal(int, str)  # (n_exportadas, ruta_salida)
+    fallo = Signal(str)
+
+    def __init__(self, sesion_dir: Path, parent=None):
+        super().__init__(parent)
+        self._sesion_dir = sesion_dir
+
+    @Slot()
+    def ejecutar(self):
+        try:
+            n = exportar_sesion(self._sesion_dir)
+        except Exception as e:
+            self.fallo.emit(str(e))
+            return
+        self.terminado.emit(n, str(self._sesion_dir / "mat"))
 
 
 class VisualizacionWidget(QWidget):
@@ -45,6 +66,8 @@ class VisualizacionWidget(QWidget):
         self._store = store
         self._filas: list[dict] = []
         self._sesion_dir: Path | None = None
+        self._mat_thread: QThread | None = None
+        self._mat_worker: _ConversionMatWorker | None = None
 
         self._construir_ui()
         self._conectar_signals()
@@ -64,9 +87,11 @@ class VisualizacionWidget(QWidget):
         self._lbl_sesion.setStyleSheet("color: #aaa; font-size: 11px;")
         self._btn_reimportar = QPushButton("Abrir CSV…")
         self._btn_exportar = QPushButton("Exportar sesión…")
+        self._btn_matlab = QPushButton("Convertir a MATLAB")
         barra.addWidget(self._lbl_sesion, 1)
         barra.addWidget(self._btn_reimportar)
         barra.addWidget(self._btn_exportar)
+        barra.addWidget(self._btn_matlab)
         layout.addLayout(barra)
 
         # Splitter principal: tabla | gráfica
@@ -118,6 +143,7 @@ class VisualizacionWidget(QWidget):
 )
         self._btn_reimportar.clicked.connect(self._reimportar)
         self._btn_exportar.clicked.connect(self._exportar)
+        self._btn_matlab.clicked.connect(self._convertir_matlab)
 
     # ──────────────────────────────────────────────────────────────────────────
     # CARGA DE DATOS
@@ -292,6 +318,50 @@ class VisualizacionWidget(QWidget):
             )
         except Exception as e:
             QMessageBox.critical(self, "Error al exportar", str(e))
+
+    # ──────────────────────────────────────────────────────────────────────────
+    # CONVERSIÓN A MATLAB
+    # ──────────────────────────────────────────────────────────────────────────
+
+    def _convertir_matlab(self):
+        if not self._sesion_dir:
+            QMessageBox.information(
+                self, "Sin sesión", "No hay sesión activa para convertir."
+            )
+            return
+
+        self._btn_matlab.setEnabled(False)
+        self._btn_matlab.setText("Convirtiendo…")
+
+        self._mat_thread = QThread(self)
+        self._mat_worker = _ConversionMatWorker(self._sesion_dir)
+        self._mat_worker.moveToThread(self._mat_thread)
+
+        self._mat_thread.started.connect(self._mat_worker.ejecutar)
+        self._mat_worker.terminado.connect(self._on_matlab_ok)
+        self._mat_worker.fallo.connect(self._on_matlab_error)
+        self._mat_worker.terminado.connect(self._mat_thread.quit)
+        self._mat_worker.fallo.connect(self._mat_thread.quit)
+
+        self._mat_thread.start()
+
+    @Slot(int, str)
+    def _on_matlab_ok(self, n: int, salida: str):
+        self._restaurar_boton_matlab()
+        QMessageBox.information(
+            self,
+            "Conversión completa",
+            f"{n} mediciones convertidas a .mat.\n\nCarpeta de salida:\n{salida}",
+        )
+
+    @Slot(str)
+    def _on_matlab_error(self, mensaje: str):
+        self._restaurar_boton_matlab()
+        QMessageBox.critical(self, "Error al convertir", mensaje)
+
+    def _restaurar_boton_matlab(self):
+        self._btn_matlab.setEnabled(True)
+        self._btn_matlab.setText("Convertir a MATLAB")
 
     # ──────────────────────────────────────────────────────────────────────────
     # ACTUALIZACIÓN EN VIVO (llamado por Medición mientras corre la secuencia)

@@ -21,8 +21,21 @@ from scipy.io import savemat
 CAMPOS_NUMERICOS = (
     "XINCR", "XZERO", "PT_OFF", "YMULT", "YOFF", "YZERO",
     "NR_PT", "CH_SCALE", "HOR_SCALE", "temperatura", "pulsos_estimados",
+    "eo_delay_us",
     "error_flag",
 )
+
+
+def _a_texto(valor) -> str:
+    """
+    Normaliza los campos de texto a cadena de un carácter cuando están vacíos.
+    savemat convierte la cadena vacía en un arreglo vacío, lo que obliga a
+    verificar el tipo antes de compararla en MATLAB.
+    """
+    if valor is None:
+        return " "
+    texto = str(valor)
+    return texto if texto else " "
 
 
 def _a_numero(valor: str):
@@ -72,7 +85,7 @@ def _construir_medicion(fila: dict, raw: np.ndarray) -> dict:
         if clave in CAMPOS_NUMERICOS:
             metadatos[clave] = _a_numero(valor)
         else:
-            metadatos[clave] = valor if valor is not None else ""
+            metadatos[clave] = _a_texto(valor)
 
     return {
         "raw": raw.astype(np.int32),

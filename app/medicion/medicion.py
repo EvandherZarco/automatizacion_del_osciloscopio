@@ -177,6 +177,8 @@ class MedicionWorker(QObject):
 
         error_desc = "; ".join(errores)
 
+        params = self._leer_parametros_laser()
+
         mid = None
         if captura is not None:
             paquete = PaqueteMedicion(
@@ -188,6 +190,9 @@ class MedicionWorker(QObject):
                 error_flag=error_flag,
                 error_desc=error_desc,
                 pulsos_estimados=pulsos_estimados,
+                output_level=params.get("output_level"),
+                eo_delay_us=params.get("eo_delay_us"),
+                burst_mode=params.get("burst_mode"),
             )
             mid = self._storage.guardar(paquete)
 
@@ -223,6 +228,11 @@ class MedicionWorker(QObject):
             return None, [False] * 4, False
         return self._temp.consultar()
 
+    def _leer_parametros_laser(self) -> dict:
+        if self._laser is None:
+            return {}
+        return self._laser.leer_parametros()
+
 
 # ══════════════════════════════════════════════════════════════════════════════
 
@@ -238,6 +248,7 @@ class Medicion(QObject):
     medicion_guardada = Signal(str, int)  # (medicion_id, n_con_flag_acumulado)
     secuencia_ok = Signal(int)  # n_total_con_flag al terminar
     secuencia_abortada = Signal(str)  # motivo del aborto
+    advertencia = Signal(str)  # incidencias no fatales durante la secuencia
 
     def __init__(
         self,
@@ -319,6 +330,9 @@ class Medicion(QObject):
         # Trigger → Worker: aviso de intervalo excedido
         trigger.intervalo_excedido.connect(worker.on_intervalo_excedido)
 
+        # Trigger → fachada: incidencias no fatales
+        trigger.advertencia.connect(self._on_advertencia)
+
         # Worker → fachada
         worker.medicion_completada.connect(self._on_medicion_completada)
         worker.secuencia_terminada.connect(self._on_secuencia_terminada)
@@ -366,6 +380,10 @@ class Medicion(QObject):
     @Slot(str)
     def _on_secuencia_abortada(self, motivo: str):
         self.secuencia_abortada.emit(motivo)
+
+    @Slot(str)
+    def _on_advertencia(self, mensaje: str):
+        self.advertencia.emit(mensaje)
 
     def _limpiar_threads(self):
         for thread in (self._worker_thread, self._trigger_thread):

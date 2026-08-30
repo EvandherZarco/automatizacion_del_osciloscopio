@@ -61,6 +61,7 @@ class OsciloscopioController(QObject):
         self._inst: vxi11.Instrument | None = None
         self._mutex = QMutex()
         self._connected = False
+        self._idn: str = ""
         self._modelo: str = ""
         self._canal: str = _CANAL_DEFAULT
         self._nr_pt: int = 0
@@ -73,6 +74,16 @@ class OsciloscopioController(QObject):
     @property
     def canal(self) -> str:
         return self._canal
+
+    @property
+    def idn(self) -> str:
+        """Cadena *IDN? completa del instrumento conectado."""
+        return self._idn
+
+    @property
+    def modelo(self) -> str:
+        """Modelo extraído del *IDN?, por ejemplo 'TDS5054B'."""
+        return self._modelo
 
     # ── Conexión ──────────────────────────────────────────────────────────────
 
@@ -111,6 +122,7 @@ class OsciloscopioController(QObject):
                 return False
 
             self._inst = inst
+            self._idn = idn.strip()
             self._modelo = modelo
             self._nr_pt = nr_pt
             self._connected = True
@@ -630,6 +642,8 @@ class OsciloscopioController(QObject):
                 for p in params:
                     raw = inst.ask(f"WFMPRE:{p}?").strip()
                     wfmpre[p] = int(raw) if p in ("PT_OFF", "NR_PT") else float(raw)
+                wfmpre["CH_SCALE"] = float(inst.ask(f"{self._canal}:SCALE?").strip())
+                wfmpre["HOR_SCALE"] = float(inst.ask("HORizontal:SCAle?").strip())
                 return wfmpre
             except Exception as exc:
                 if intento == MAX_REINTENTOS - 1:

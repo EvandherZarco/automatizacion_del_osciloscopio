@@ -1002,6 +1002,22 @@ class VentanaAmbos(QMainWindow):
         self._lbl_tdiv_m.setPos((xr[0] + xr[1]) / 2, yr[0])
         self._lbl_tdiv_m.setText(self._combo_p_tdiv.currentText())
 
+    def _metadatos_instrumental(self) -> dict:
+        """
+        Identidad del instrumental al momento de crear la sesión. Se registra
+        el *IDN? del osciloscopio porque el modelo de la serie TDS5000B montado
+        en el laboratorio cambia entre sesiones.
+        """
+        params = self._laser.leer_parametros()
+        return {
+            "osciloscopio_idn": self._oscil.idn,
+            "osciloscopio_modelo": self._oscil.modelo,
+            "osciloscopio_canal": self._oscil.canal,
+            "laser_output_level": params.get("output_level"),
+            "laser_eo_delay_us": params.get("eo_delay_us"),
+            "laser_burst_mode": params.get("burst_mode"),
+        }
+
     @Slot()
     def _on_guardar_manual(self):
         if self._ultima_captura is None:
@@ -1011,11 +1027,15 @@ class VentanaAmbos(QMainWindow):
             carpeta = QFileDialog.getExistingDirectory(self, "Seleccionar carpeta de sesión")
             if not carpeta:
                 return
-            if not self._store.nueva_sesion(carpeta_base=Path(carpeta)):
+            if not self._store.nueva_sesion(
+                carpeta_base=Path(carpeta),
+                metadatos=self._metadatos_instrumental(),
+            ):
                 QMessageBox.critical(self, "Error", "No se pudo crear la sesión.")
                 return
 
         temp, _, _ = self._temp.consultar()
+        params = self._laser.leer_parametros()
         paquete = PaqueteMedicion(
             timestamp   = datetime.now().strftime("%Y-%m-%dT%H:%M:%S"),
             temperatura = temp if temp is not None else 0.0,
@@ -1023,6 +1043,9 @@ class VentanaAmbos(QMainWindow):
             wfmpre      = self._ultima_captura.wfmpre,
             raw_data    = self._ultima_captura.raw_data,
             error_flag  = 1 if self._monitor.error_flag else self._ultima_captura.error_flag,
+            output_level = params.get("output_level"),
+            eo_delay_us  = params.get("eo_delay_us"),
+            burst_mode   = params.get("burst_mode"),
         )
         mid = self._store.guardar(paquete)
         if mid:
