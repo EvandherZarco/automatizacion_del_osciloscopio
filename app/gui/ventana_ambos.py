@@ -25,7 +25,7 @@ from PySide6.QtCore import Qt, QThread, QTimer, Signal, Slot, QObject, QEvent
 from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QGroupBox,
     QLabel, QPushButton, QComboBox, QSpinBox, QDoubleSpinBox,
-    QTabWidget, QFrame, QFileDialog, QMessageBox, QApplication,
+    QTabWidget, QFrame, QFileDialog, QMessageBox, QApplication, QTextEdit,
 )
 
 from app.config import TEMP_COM_PORT
@@ -116,6 +116,7 @@ class VentanaAmbos(QMainWindow):
         self._secuencia_running = False
         self._iniciando_secuencia = False
         self._sesion_activa     = False
+        self._advertencias: list[str] = []
         self._ultima_captura    = None
         self._canal_sel: str | None = None
         self._output_sel        = "E Adjust"
@@ -691,6 +692,7 @@ class VentanaAmbos(QMainWindow):
         self._medicion.medicion_guardada.connect(self._on_medicion_guardada)
         self._medicion.secuencia_ok.connect(self._on_secuencia_ok)
         self._medicion.secuencia_abortada.connect(self._on_secuencia_abortada)
+        self._medicion.advertencia.connect(self._on_advertencia)
 
         # Topbar
         self._btn_volver.clicked.connect(self._on_volver)
@@ -1135,6 +1137,8 @@ class VentanaAmbos(QMainWindow):
             return
 
         self._secuencia_running = True
+        self._advertencias.clear()
+        self._lbl_progreso.setStyleSheet("color: #666; font-size: 11px;")
         self._timer_inactividad.stop()
         self._btn_iniciar_seq.setEnabled(False)
         self._btn_detener_seq.setEnabled(True)
@@ -1159,8 +1163,32 @@ class VentanaAmbos(QMainWindow):
     @Slot(str, int)
     def _on_medicion_guardada(self, mid: str, n_flags: int):
         self._tab_viz.agregar_medicion(mid)
+        partes = [f"Última: {mid}"]
+        if n_flags:
+            partes.append(f"⚠ con error: {n_flags}")
+        if self._advertencias:
+            partes.append(f"⚠ advertencias: {len(self._advertencias)}")
+        self._lbl_progreso.setText("  |  ".join(partes))
+
+    @Slot(str)
+    def _on_advertencia(self, mensaje: str):
+        marca = datetime.now().strftime("%H:%M:%S")
+        self._advertencias.append(f"[{marca}] {mensaje}")
+        self._set_log(f"⚠ {mensaje}")
+        self._lbl_progreso.setStyleSheet("color: #d29922; font-size: 11px;")
         self._lbl_progreso.setText(
-            f"Última: {mid}  |  ⚠ con error: {n_flags}" if n_flags else f"Última: {mid}")
+            f"Secuencia en curso…  |  ⚠ advertencias: {len(self._advertencias)}")
+        self._registrar_advertencias_en_sesion()
+
+    def _registrar_advertencias_en_sesion(self) -> None:
+        ruta_csv = self._store.csv_path
+        if ruta_csv is None:
+            return
+        try:
+            (ruta_csv.parent / "advertencias.log").write_text(
+                "\n".join(self._advertencias) + "\n", encoding="utf-8")
+        except OSError:
+            pass
 
     @Slot(int)
     def _on_secuencia_ok(self, n_flags: int):
@@ -1171,13 +1199,39 @@ class VentanaAmbos(QMainWindow):
             "Revise las muestras marcadas en la tabla."
             if n_flags else "Secuencia completada sin errores."
         )
-        QMessageBox.information(self, "Secuencia completada", msg)
+        caja = QMessageBox(QMessageBox.Information, "Secuencia completada", msg, QMessageBox.Ok, self)
+        self._adjuntar_advertencias(caja)
+        caja.exec()
 
     @Slot(str)
     def _on_secuencia_abortada(self, motivo: str):
         self._secuencia_running = False
         self._reset_ui_auto()
-        QMessageBox.critical(self, "Secuencia abortada", motivo)
+        caja = QMessageBox(QMessageBox.Critical, "Secuencia abortada", motivo, QMessageBox.Ok, self)
+        self._adjuntar_advertencias(caja)
+        caja.exec()
+
+    def _adjuntar_advertencias(self, caja: QMessageBox) -> None:
+        if not self._advertencias:
+            return
+        caja.setInformativeText(
+            f"Se registraron {len(self._advertencias)} advertencias durante la secuencia.")
+        caja.setDetailedText("\n".join(self._advertencias))
+
+        detalle = caja.findChild(QTextEdit)
+        if detalle is None:
+            return
+        detalle.setStyleSheet(
+            "QTextEdit {"
+            " background-color: #0d1117;"
+            " color: #c9d1d9;"
+            " border: 1px solid #30363d;"
+            " font-family: 'Consolas', 'Courier New', monospace;"
+            " font-size: 12px;"
+            " }"
+        )
+        detalle.setMinimumSize(560, 220)
+        detalle.setLineWrapMode(QTextEdit.WidgetWidth)
 
     def _reset_ui_auto(self):
         self._btn_iniciar_seq.setEnabled(self._sesion_activa)

@@ -120,7 +120,9 @@ def t_sim_para_temp(T0: float, T_amb: float, tau: float, T: float) -> float:
     return tau * math.log((T0 - T_amb) / (T - T_amb))
 
 
-def duracion_esperada_sim(T_amb: float, tau: float, objetivo: float, margen: float) -> float:
+def duracion_esperada_sim(
+    T_amb: float, tau: float, objetivo: float, margen: float
+) -> float:
     """
     Duración simulada teórica de la ventana de integración de un objetivo:
     tiempo entre cruzar objetivo+margen y objetivo-margen. No depende de T0.
@@ -129,7 +131,12 @@ def duracion_esperada_sim(T_amb: float, tau: float, objetivo: float, margen: flo
 
 
 def duracion_real_total_estimada(
-    T0: float, T_amb: float, tau: float, factor: float, objetivo_final: float, margen: float
+    T0: float,
+    T_amb: float,
+    tau: float,
+    factor: float,
+    objetivo_final: float,
+    margen: float,
 ) -> float:
     """Segundos reales estimados desde el arranque hasta cerrar el último objetivo."""
     return t_sim_para_temp(T0, T_amb, tau, objetivo_final - margen) / factor
@@ -205,12 +212,16 @@ class ColectorSenales:
         # iniciar_acumulacion, así que _on_iniciar nunca lo va a sacar de
         # _pendientes — hay que hacerlo aquí para no desalinear las
         # etiquetas de los objetivos que siguen.
-        if re.search(r"^El objetivo [\d.]+ °C se perdió durante la interrupción", mensaje):
+        if re.search(
+            r"^El objetivo [\d.]+ °C se perdió durante la interrupción", mensaje
+        ):
             if self._pendientes:
                 self._pendientes.popleft()
             return
 
-        m = re.search(r"Se omiten además los objetivos ya rebasados: (.+) °C\.", mensaje)
+        m = re.search(
+            r"Se omiten además los objetivos ya rebasados: (.+) °C\.", mensaje
+        )
         if m:
             omitidos = [x.strip() for x in m.group(1).split(",")]
             for _ in omitidos:
@@ -234,7 +245,9 @@ class ColectorSenales:
             obj = f"{v['objetivo']:.1f}" if v["objetivo"] is not None else "?"
             ta = f"{v['temp_apertura']:.2f}" if v["temp_apertura"] is not None else "?"
             tc = f"{v['temp_cierre']:.2f}" if v["temp_cierre"] is not None else "?"
-            print(f"{obj:>10} {ta:>12} {tc:>10} {v['duracion_sim']:>22.1f} {v['pulsos_estimados']:>12.1f}")
+            print(
+                f"{obj:>10} {ta:>12} {tc:>10} {v['duracion_sim']:>22.1f} {v['pulsos_estimados']:>12.1f}"
+            )
 
 
 # ══════════════════════════════════════════════════════════════════════════
@@ -280,7 +293,9 @@ class DobleOsciloscopio:
             "HOR_SCALE": 1e-5,
         }
         raw = (np.random.randn(self._nr_pt) * 100).astype(np.int16)
-        return CapturaOscil(raw_data=raw, wfmpre=wfmpre, voltaje=np.zeros(1), tiempo=np.zeros(1))
+        return CapturaOscil(
+            raw_data=raw, wfmpre=wfmpre, voltaje=np.zeros(1), tiempo=np.zeros(1)
+        )
 
     def cancelar_espera(self) -> None:
         pass
@@ -315,15 +330,20 @@ def caso_1_barrido_nominal() -> ResultadoCaso:
     T0, T_amb, tau, factor = 62.0, 21.0, 10800.0, 20.0
     margen = trigger.MARGEN_UMBRAL
 
-    doble = DobleTemperaturaSimulada(T0=T0, T_amb=T_amb, tau=tau, factor_compresion=factor, semilla=1)
-    tw = TriggerWorker(modo="temperatura", temp_worker=doble, t_inicial=60.0, t_final=30.0, paso=5.0)
+    doble = DobleTemperaturaSimulada(
+        T0=T0, T_amb=T_amb, tau=tau, factor_compresion=factor, semilla=1
+    )
+    tw = TriggerWorker(
+        modo="temperatura", temp_worker=doble, t_inicial=60.0, t_final=30.0, paso=5.0
+    )
     colector = ColectorSenales(tw, doble)
     tw.iniciar()
     colector.imprimir_tabla()
 
     n = len(colector.ventanas)
     orden_ok = all(v["objetivo"] is not None for v in colector.ventanas) and all(
-        colector.ventanas[i]["objetivo"] > colector.ventanas[i + 1]["objetivo"] for i in range(n - 1)
+        colector.ventanas[i]["objetivo"] > colector.ventanas[i + 1]["objetivo"]
+        for i in range(n - 1)
     )
     pulsos_ok = n > 0 and all(v["pulsos_estimados"] > 0 for v in colector.ventanas)
 
@@ -349,8 +369,12 @@ def caso_2_arranque_tibio() -> ResultadoCaso:
     print("\n=== Caso 2 — Arranque con la muestra ya tibia ===")
     T0, T_amb, tau, factor = 47.0, 21.0, 10800.0, 200.0
 
-    doble = DobleTemperaturaSimulada(T0=T0, T_amb=T_amb, tau=tau, factor_compresion=factor, semilla=2)
-    tw = TriggerWorker(modo="temperatura", temp_worker=doble, t_inicial=60.0, t_final=30.0, paso=5.0)
+    doble = DobleTemperaturaSimulada(
+        T0=T0, T_amb=T_amb, tau=tau, factor_compresion=factor, semilla=2
+    )
+    tw = TriggerWorker(
+        modo="temperatura", temp_worker=doble, t_inicial=60.0, t_final=30.0, paso=5.0
+    )
     colector = ColectorSenales(tw, doble)
     tw.iniciar()
     colector.imprimir_tabla()
@@ -360,14 +384,20 @@ def caso_2_arranque_tibio() -> ResultadoCaso:
     omitidos_esperados = {60.0, 55.0, 50.0}
     omitidos_detectados: set[float] = set()
     for msg in colector.advertencias:
-        m = re.search(r"Se omiten los objetivos por encima de esa temperatura: (.+) °C\.", msg)
+        m = re.search(
+            r"Se omiten los objetivos por encima de esa temperatura: (.+) °C\.", msg
+        )
         if m:
             omitidos_detectados = {float(x.strip()) for x in m.group(1).split(",")}
 
     objetivos_restantes = [v["objetivo"] for v in colector.ventanas]
     restantes_ok = objetivos_restantes == [45.0, 40.0, 35.0, 30.0]
 
-    aprobado = bool(omitidos_detectados) and omitidos_detectados == omitidos_esperados and restantes_ok
+    aprobado = (
+        bool(omitidos_detectados)
+        and omitidos_detectados == omitidos_esperados
+        and restantes_ok
+    )
     detalle = f"omitidos={sorted(omitidos_detectados)} ventanas={objetivos_restantes}"
     return ResultadoCaso("Caso 2 — Arranque con la muestra ya tibia", aprobado, detalle)
 
@@ -379,7 +409,9 @@ def caso_3_ruido_elevado() -> ResultadoCaso:
     doble = DobleTemperaturaSimulada(
         T0=T0, T_amb=T_amb, tau=tau, factor_compresion=factor, ruido_std=0.3, semilla=3
     )
-    tw = TriggerWorker(modo="temperatura", temp_worker=doble, t_inicial=60.0, t_final=30.0, paso=5.0)
+    tw = TriggerWorker(
+        modo="temperatura", temp_worker=doble, t_inicial=60.0, t_final=30.0, paso=5.0
+    )
     colector = ColectorSenales(tw, doble)
     tw.iniciar()
     colector.imprimir_tabla()
@@ -398,19 +430,33 @@ def caso_4_desconexion_breve() -> ResultadoCaso:
     total_real = duracion_real_total_estimada(T0, T_amb, tau, factor, 30.0, margen)
     t_ini = total_real * 0.4
     doble = DobleTemperaturaSimulada(
-        T0=T0, T_amb=T_amb, tau=tau, factor_compresion=factor,
-        fallo_real=(t_ini, t_ini + 45.0), semilla=4,
+        T0=T0,
+        T_amb=T_amb,
+        tau=tau,
+        factor_compresion=factor,
+        fallo_real=(t_ini, t_ini + 45.0),
+        semilla=4,
     )
-    tw = TriggerWorker(modo="temperatura", temp_worker=doble, t_inicial=60.0, t_final=30.0, paso=5.0)
+    tw = TriggerWorker(
+        modo="temperatura", temp_worker=doble, t_inicial=60.0, t_final=30.0, paso=5.0
+    )
     colector = ColectorSenales(tw, doble)
     tw.iniciar()
     colector.imprimir_tabla()
     for a in colector.advertencias:
         print(f"  [advertencia] {a}")
 
-    idx_interrumpida = next((i for i, a in enumerate(colector.advertencias) if "interrumpida" in a), None)
-    idx_restablecida = next((i for i, a in enumerate(colector.advertencias) if "restablecida" in a), None)
-    orden_ok = idx_interrumpida is not None and idx_restablecida is not None and idx_interrumpida < idx_restablecida
+    idx_interrumpida = next(
+        (i for i, a in enumerate(colector.advertencias) if "interrumpida" in a), None
+    )
+    idx_restablecida = next(
+        (i for i, a in enumerate(colector.advertencias) if "restablecida" in a), None
+    )
+    orden_ok = (
+        idx_interrumpida is not None
+        and idx_restablecida is not None
+        and idx_interrumpida < idx_restablecida
+    )
 
     # Con la corrección de trigger.py, un objetivo cuya ventana ya se rebasó
     # durante el corte se descarta con advertencia en vez de abrir una
@@ -421,11 +467,14 @@ def caso_4_desconexion_breve() -> ResultadoCaso:
         "se perdió" in a or "Se omiten además" in a for a in colector.advertencias
     )
     sin_ventanas_degeneradas = all(
-        v["temp_apertura"] is not None and abs(v["temp_apertura"] - (v["objetivo"] + margen)) < 2.0
+        v["temp_apertura"] is not None
+        and abs(v["temp_apertura"] - (v["objetivo"] + margen)) < 2.0
         for v in colector.ventanas
     )
 
-    aprobado = orden_ok and hubo_descarte and sin_ventanas_degeneradas and colector.terminada
+    aprobado = (
+        orden_ok and hubo_descarte and sin_ventanas_degeneradas and colector.terminada
+    )
     detalle = (
         f"orden_ok={orden_ok} hubo_descarte={hubo_descarte} "
         f"sin_ventanas_degeneradas={sin_ventanas_degeneradas} "
@@ -442,10 +491,20 @@ def caso_5_desconexion_permanente() -> ResultadoCaso:
     trigger.TIMEOUT_ABORTO_S = 6.0
     try:
         doble = DobleTemperaturaSimulada(
-            T0=62.0, T_amb=21.0, tau=10800.0, factor_compresion=100.0,
-            fallo_real=(0.0, None), semilla=5,
+            T0=62.0,
+            T_amb=21.0,
+            tau=10800.0,
+            factor_compresion=100.0,
+            fallo_real=(0.0, None),
+            semilla=5,
         )
-        tw = TriggerWorker(modo="temperatura", temp_worker=doble, t_inicial=60.0, t_final=30.0, paso=5.0)
+        tw = TriggerWorker(
+            modo="temperatura",
+            temp_worker=doble,
+            t_inicial=60.0,
+            t_final=30.0,
+            paso=5.0,
+        )
         colector = ColectorSenales(tw, doble)
         t_ini = time.monotonic()
         tw.iniciar()
@@ -482,18 +541,29 @@ def caso_6_rebote_termico() -> ResultadoCaso:
     # señal iniciar_acumulacion del objetivo, usando su instante real de
     # apertura como referencia — el mismo criterio, pero anclado al evento
     # real en lugar de a una predicción analítica desde el arranque.
-    duracion_esperada_real = duracion_esperada_sim(T_amb, tau, objetivo_rebote, margen) / factor
+    duracion_esperada_real = (
+        duracion_esperada_sim(T_amb, tau, objetivo_rebote, margen) / factor
+    )
 
     doble = DobleTemperaturaSimulada(
-        T0=T0, T_amb=T_amb, tau=tau, factor_compresion=factor, semilla=6,
+        T0=T0,
+        T_amb=T_amb,
+        tau=tau,
+        factor_compresion=factor,
+        semilla=6,
     )
-    tw = TriggerWorker(modo="temperatura", temp_worker=doble, t_inicial=60.0, t_final=30.0, paso=5.0)
+    tw = TriggerWorker(
+        modo="temperatura", temp_worker=doble, t_inicial=60.0, t_final=30.0, paso=5.0
+    )
     colector = ColectorSenales(tw, doble)
 
     rebote_armado = {"t_ini_real": None}
 
     def _armar_rebote():
-        if colector._actual is not None and colector._actual["objetivo"] == objetivo_rebote:
+        if (
+            colector._actual is not None
+            and colector._actual["objetivo"] == objetivo_rebote
+        ):
             t_apertura_real = colector._actual["t_real_ini"]
             t_ini_real = t_apertura_real + duracion_esperada_real - duracion_rebote / 2
             doble.rebote_real = (t_ini_real, duracion_rebote, magnitud_rebote)
@@ -519,7 +589,10 @@ def caso_6_rebote_termico() -> ResultadoCaso:
     comparable_ok = False
     if v is not None and vecinos:
         promedio_vecinos = sum(vecinos) / len(vecinos)
-        comparable_ok = promedio_vecinos > 0 and 0.1 <= (v["duracion_sim"] / promedio_vecinos) <= 10.0
+        comparable_ok = (
+            promedio_vecinos > 0
+            and 0.1 <= (v["duracion_sim"] / promedio_vecinos) <= 10.0
+        )
 
     aprobado = n == 7 and no_cierra_durante_rebote and comparable_ok
     detalle = (
@@ -534,7 +607,9 @@ def caso_7_bajo_todos_los_objetivos() -> ResultadoCaso:
     doble = DobleTemperaturaSimulada(
         T0=25.0, T_amb=21.0, tau=10800.0, factor_compresion=100.0, semilla=7
     )
-    tw = TriggerWorker(modo="temperatura", temp_worker=doble, t_inicial=60.0, t_final=30.0, paso=5.0)
+    tw = TriggerWorker(
+        modo="temperatura", temp_worker=doble, t_inicial=60.0, t_final=30.0, paso=5.0
+    )
     colector = ColectorSenales(tw, doble)
     tw.iniciar()
     colector.imprimir_tabla()
@@ -549,7 +624,9 @@ def caso_7_bajo_todos_los_objetivos() -> ResultadoCaso:
 
     aprobado = advertencia_ok and sin_ventanas and colector.terminada
     detalle = f"advertencia_ok={advertencia_ok} ventanas={len(colector.ventanas)} terminada={colector.terminada}"
-    return ResultadoCaso("Caso 7 — Muestra por debajo de todos los objetivos", aprobado, detalle)
+    return ResultadoCaso(
+        "Caso 7 — Muestra por debajo de todos los objetivos", aprobado, detalle
+    )
 
 
 def caso_8_perdida_por_reconexion() -> ResultadoCaso:
@@ -580,10 +657,20 @@ def caso_8_perdida_por_reconexion() -> ResultadoCaso:
     trigger.TIMEOUT_ADVERTENCIA_S = 2.0
     try:
         doble = DobleTemperaturaSimulada(
-            T0=T0, T_amb=T_amb, tau=tau, factor_compresion=factor,
-            fallo_real=(t_ini_real, t_fin_real), semilla=8,
+            T0=T0,
+            T_amb=T_amb,
+            tau=tau,
+            factor_compresion=factor,
+            fallo_real=(t_ini_real, t_fin_real),
+            semilla=8,
         )
-        tw = TriggerWorker(modo="temperatura", temp_worker=doble, t_inicial=60.0, t_final=30.0, paso=5.0)
+        tw = TriggerWorker(
+            modo="temperatura",
+            temp_worker=doble,
+            t_inicial=60.0,
+            t_final=30.0,
+            paso=5.0,
+        )
         colector = ColectorSenales(tw, doble)
         tw.iniciar()
     finally:
@@ -597,7 +684,9 @@ def caso_8_perdida_por_reconexion() -> ResultadoCaso:
         f"El objetivo {objetivo_perdido:.1f}" in a and "se perdió" in a
         for a in colector.advertencias
     )
-    sin_ventana_degenerada = not any(v["objetivo"] == objetivo_perdido for v in colector.ventanas)
+    sin_ventana_degenerada = not any(
+        v["objetivo"] == objetivo_perdido for v in colector.ventanas
+    )
     objetivos_medidos = [v["objetivo"] for v in colector.ventanas]
     resto_ok = objetivos_medidos == [60.0, 55.0, 50.0, 40.0, 35.0, 30.0]
 
@@ -607,7 +696,9 @@ def caso_8_perdida_por_reconexion() -> ResultadoCaso:
         f"resto_ok={resto_ok} objetivos_medidos={objetivos_medidos}"
     )
     return ResultadoCaso(
-        "Caso 8 — Objetivo perdido por reconexión durante la apertura", aprobado, detalle
+        "Caso 8 — Objetivo perdido por reconexión durante la apertura",
+        aprobado,
+        detalle,
     )
 
 
@@ -617,7 +708,9 @@ def caso_8_perdida_por_reconexion() -> ResultadoCaso:
 
 
 def nivel_dos_cadena_completa() -> ResultadoCaso:
-    print("\n=== Nivel 2 — Cadena completa (Medicion + dobles + Almacenamiento real) ===")
+    print(
+        "\n=== Nivel 2 — Cadena completa (Medicion + dobles + Almacenamiento real) ==="
+    )
 
     from app.almacenamiento.almacenamiento import Almacenamiento
     from app.medicion.medicion import Medicion
@@ -635,7 +728,11 @@ def nivel_dos_cadena_completa() -> ResultadoCaso:
 
         store = Almacenamiento()
         if not store.nueva_sesion(nombre="nivel2", carpeta_base=Path(tmp)):
-            return ResultadoCaso("Nivel 2 — Cadena completa", False, "No se pudo crear la sesión temporal.")
+            return ResultadoCaso(
+                "Nivel 2 — Cadena completa",
+                False,
+                "No se pudo crear la sesión temporal.",
+            )
 
         medicion = Medicion(
             laser_ctrl=doble_laser,
@@ -680,18 +777,27 @@ def nivel_dos_cadena_completa() -> ResultadoCaso:
 
         for th in (medicion._worker_thread, medicion._trigger_thread):
             if th is not None:
+                th.quit()
                 th.wait(3000)
 
         if estado["timeout"]:
-            return ResultadoCaso("Nivel 2 — Cadena completa", False, "Timeout esperando la secuencia.")
+            return ResultadoCaso(
+                "Nivel 2 — Cadena completa", False, "Timeout esperando la secuencia."
+            )
         if estado["abortada"] is not None:
             return ResultadoCaso(
-                "Nivel 2 — Cadena completa", False, f"Secuencia abortada: {estado['abortada']}"
+                "Nivel 2 — Cadena completa",
+                False,
+                f"Secuencia abortada: {estado['abortada']}",
             )
 
         filas = store.cargar_csv()
         if not filas:
-            return ResultadoCaso("Nivel 2 — Cadena completa", False, "No se pudo leer el CSV de la sesión.")
+            return ResultadoCaso(
+                "Nivel 2 — Cadena completa",
+                False,
+                "No se pudo leer el CSV de la sesión.",
+            )
 
         n_filas = len(filas)
         pulsos_ok = all(float(f["pulsos_estimados"] or 0) > 0 for f in filas)
@@ -747,7 +853,10 @@ def imprimir_resumen(resultados: list[ResultadoCaso]):
 def main():
     parser = argparse.ArgumentParser(description="Simulador de barrido de temperatura.")
     parser.add_argument(
-        "caso", nargs="?", type=int, default=None,
+        "caso",
+        nargs="?",
+        type=int,
+        default=None,
         help="Número de caso a correr (1-8). Sin argumento corre los 8 casos más el nivel dos.",
     )
     args = parser.parse_args()
