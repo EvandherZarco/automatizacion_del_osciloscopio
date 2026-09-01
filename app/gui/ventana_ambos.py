@@ -1036,15 +1036,25 @@ class VentanaAmbos(QMainWindow):
                 QMessageBox.critical(self, "Error", "No se pudo crear la sesión.")
                 return
 
-        temp, _, _ = self._temp.consultar()
+        temp, _, temp_fresca = self._temp.consultar()
         params = self._laser.leer_parametros()
+
+        errores: list[str] = []
+        if self._monitor.error_flag:
+            errores.append("conexión con error al momento de guardar")
+        if not temp_fresca:
+            errores.append("temperatura no detectada")
+        if self._ultima_captura.error_flag:
+            errores.append("captura con advertencia")
+
         paquete = PaqueteMedicion(
             timestamp   = datetime.now().strftime("%Y-%m-%dT%H:%M:%S"),
-            temperatura = temp if temp is not None else 0.0,
+            temperatura = temp if temp is not None and temp_fresca else 0.0,
             modo        = "manual",
             wfmpre      = self._ultima_captura.wfmpre,
             raw_data    = self._ultima_captura.raw_data,
-            error_flag  = 1 if self._monitor.error_flag else self._ultima_captura.error_flag,
+            error_flag  = 1 if errores else 0,
+            error_desc  = "; ".join(errores),
             output_level = params.get("output_level"),
             eo_delay_us  = params.get("eo_delay_us"),
             burst_mode   = params.get("burst_mode"),
