@@ -1,0 +1,230 @@
+% =========================================================
+\section{Sistema de automatización desarrollado}
+\label{sec:sistema}
+% =========================================================
+
+El software se desarrolló como una aplicación de escritorio en
+Python~3.11 con interfaz gráfica basada en \texttt{PySide6}~6.11, el
+enlace oficial de Qt~6 para Python. La arquitectura sigue un patrón
+modular en el que cada subsistema de hardware corresponde a un paquete
+independiente, y la interfaz gráfica actúa como coordinador de alto
+nivel.
+
+\subsection{Arquitectura modular}
+\label{sec:arquitectura}
+
+El proyecto se organiza en torno a un paquete principal \texttt{app/}
+que agrupa los siguientes módulos:
+
+\begin{itemize}
+    \item \texttt{app/laser/control\_laser.py} — gestión de la conexión
+    con el láser mediante la biblioteca de enlace dinámico
+    \texttt{REMOTECONTROL64.dll}. Expone una interfaz pública de lectura
+    (\texttt{read\_output\_level}, \texttt{read\_eo\_delay},
+    \texttt{read\_burst\_mode}, \texttt{leer\_parametros}) y de
+    escritura (\texttt{set\_output\_level}, \texttt{set\_eo\_delay},
+    \texttt{set\_burst\_mode}); el acceso directo a registros queda
+    encapsulado y no se invoca desde la interfaz gráfica.
+
+    \item \texttt{app/osciloscopio/control\_osciloscopio.py} —
+    comunicación VXI-11 con el osciloscopio; implementa la consulta de
+    parámetros de adquisición, la transferencia binaria de forma de onda
+    y la lectura del preámbulo necesario para la conversión a unidades
+    físicas.
+
+    \item \texttt{app/temperatura/temperatura.py} — hilo de lectura
+    continua de los cuatro sensores DS18B20 conectados al módulo
+    ESP32~WROOM-32; mantiene la última lectura en memoria, indica si el
+    valor es reciente y emite señales Qt cuando se actualiza.
+
+    \item \texttt{app/medicion/medicion.py} — fachada de hardware y
+    orquestador de la secuencia de medición automática; coordina el
+    láser, el osciloscopio y el módulo de temperatura según el modo de
+    operación seleccionado, y emite advertencias sin interrumpir la
+    secuencia.
+
+    \item \texttt{app/medicion/trigger.py} — lógica de disparo; evalúa
+    la condición de inicio y fin de adquisición en función de la
+    temperatura o del tiempo según el modo activo.
+
+    \item \texttt{app/almacenamiento/almacenamiento.py} — persistencia
+    de datos; guarda las muestras crudas en archivos \texttt{.npy} y los
+    metadatos de cada medición en un registro \texttt{.csv} de sesión.
+
+    \item \texttt{app/conexion/monitoreo.py} — hilo de monitoreo de
+    conexión; verifica periódicamente la disponibilidad de cada
+    dispositivo y actualiza el indicador de estado en la interfaz.
+
+    \item \texttt{app/modo\_seguro/modo\_seguro.py} — procedimiento de
+    seguridad descrito en la \cref{sec:auto_laser}; desactiva el láser
+    de forma controlada ante una parada de emergencia, un fallo de
+    comunicación o la conclusión de la secuencia.
+
+    \item \texttt{app/exportacion/exportar\_mat.py} — conversión de una
+    sesión completa al formato \texttt{.mat} para su análisis
+    posterior en MATLAB.
+
+    \item \texttt{app/gui/} — conjunto de ventanas y componentes
+    gráficos.
+\end{itemize}
+
+El punto de entrada de la aplicación es \texttt{main.py}, ubicado en la
+raíz del proyecto, que instancia la ventana de bienvenida y entrega el
+control al ciclo de eventos de Qt.
+
+\subsection{Decisiones de diseño}
+\label{sec:decisiones}
+
+La elección de \texttt{PySide6} frente a otras bibliotecas gráficas
+responde a tres criterios: compatibilidad nativa con Qt~6, soporte
+activo de largo plazo por parte de The Qt Company, y disponibilidad del
+módulo \texttt{pyqtgraph} para visualización en tiempo real sin pérdida
+de rendimiento.
+
+Todas las operaciones de hardware se ejecutan en hilos secundarios
+(\texttt{QThread}) independientes del hilo principal de la interfaz.
+Esta separación es obligatoria en aplicaciones Qt: bloquear el hilo
+principal durante una transferencia de forma de onda o una espera de
+conexión provoca que la ventana quede sin respuesta. Cada hilo comunica
+su resultado al hilo principal mediante señales Qt (\texttt{Signal}),
+que Qt entrega de forma segura entre hilos.
+
+El control del láser mediante \texttt{ctypes} directo, en lugar de un
+subproceso separado o una capa intermedia, obedece a la restricción de
+arquitectura de la \texttt{DLL}: la biblioteca
+\texttt{REMOTECONTROL64.dll} es exclusivamente de 64~bits y debe
+cargarse en el mismo espacio de proceso que el intérprete de Python. El
+uso de \texttt{ctypes.WinDLL} desde Python~3.11 de 64~bits satisface
+esta condición sin dependencias adicionales.
+
+El osciloscopio se opera en modo de solo lectura desde la aplicación.
+Las escalas vertical y horizontal, el acoplamiento, el nivel de disparo
+y la longitud de registro se configuran físicamente en el instrumento y
+el programa únicamente los consulta y los registra junto con cada
+medición. Esta decisión responde a un criterio de trazabilidad: si el
+programa pudiera modificar la configuración del instrumento, los
+metadatos guardados describirían lo que el programa creyó haber
+establecido y no necesariamente lo que el instrumento aplicó. Al
+consultar en lugar de escribir, el osciloscopio es la única fuente de
+verdad sobre su propio estado. En la \cref{sec:trabajo_futuro} se
+discute la reincorporación del control de escalas como mejora
+propuesta.
+
+La automatización utiliza únicamente los canales CH1 y CH2, por lo que
+las diferencias entre los modelos de la serie TDS5000B disponibles en
+el laboratorio no afectan su operación. La respuesta a la consulta
+\texttt{*IDN?} se guarda en el registro de cada sesión, de modo que el
+instrumento empleado queda documentado en los propios datos.
+
+\subsection{Interfaz gráfica}
+\label{sec:gui}
+
+La interfaz ofrece tres modos de operación seleccionables desde una
+ventana de bienvenida: control exclusivo del láser, control exclusivo
+del osciloscopio, y modo combinado que habilita la secuencia de
+medición automática. Cada modo abre una ventana independiente; al
+cerrarla, la aplicación regresa a la bienvenida sin necesidad de
+reiniciar el proceso.
+
+La ventana principal del modo combinado
+(\texttt{app/gui/ventana\_ambos.py}) se organiza en tres pestañas:
+
+\begin{itemize}
+    \item \textbf{Parámetros} — configura los parámetros del láser
+    (nivel de energía, modo de disparo, longitud de ráfaga,
+    \textit{EO delay}) y muestra, en modo de solo lectura, la
+    configuración vigente del osciloscopio consultada al instrumento.
+
+    \item \textbf{Medición} — expone los controles de la secuencia
+    automática (modo de operación, temperatura objetivo o duración,
+    botones de inicio y parada de emergencia) y muestra el estado en
+    tiempo real de cada dispositivo mediante indicadores de color.
+
+    \item \textbf{Visualizar datos} — presenta la forma de onda
+    adquirida en un gráfico interactivo de \texttt{pyqtgraph} con ejes
+    calibrados en tiempo (\si{\micro\second}) y voltaje
+    (\si{\milli\volt}), y permite exportar la sesión a formato
+    \texttt{.mat}.
+\end{itemize}
+
+La barra superior muestra el estado de conexión de cada dispositivo
+(láser, osciloscopio, ESP32) mediante indicadores de color: verde para
+conexión activa, rojo para desconectado, y un botón de reconexión
+disponible en todo momento. Las lecturas de los cuatro sensores de
+temperatura se actualizan cada segundo en la barra superior derecha.
+
+% FIGURAS: capturas de las tres pestañas y de la ventana de bienvenida.
+
+\subsection{Secuencia de medición automática}
+\label{sec:secuencia}
+
+El sistema implementa dos modos de medición automática. En ambos, el
+láser opera de forma continua durante toda la secuencia; su activación
+y desactivación forman parte del flujo de inicio y del procedimiento de
+modo seguro, respectivamente.
+
+En \textbf{modo tiempo}, el osciloscopio adquiere durante un intervalo
+fijo especificado por el operador. En \textbf{modo temperatura}, el
+osciloscopio actúa como integrador: inicia la adquisición
+(\texttt{ACQ:STATE RUN}) cuando la temperatura de la muestra supera el
+umbral objetivo en \SI{0.1}{\celsius} y la detiene
+(\texttt{ACQ:STATE STOP}) cuando cae \SI{0.1}{\celsius} por debajo del
+objetivo durante el enfriamiento. El número estimado de pulsos
+integrados en la ventana se calcula como
+
+\begin{equation}
+    n_\text{pulsos} = (t_\text{fin} - t_\text{inicio}) \times
+    \SI{10}{\hertz}
+    \label{eq:pulsos_estimados}
+\end{equation}
+
+y se almacena junto con los metadatos de la medición.
+
+La secuencia en modo temperatura sigue los pasos descritos a
+continuación:
+
+\begin{enumerate}
+    \item El operador configura los parámetros en la pestaña
+    \textbf{Parámetros} y presiona \textit{Iniciar} en la pestaña
+    \textbf{Medición}.
+    \item \texttt{medicion.py} envía los parámetros al láser mediante la
+    interfaz de \texttt{control\_laser.py} y consulta la configuración
+    vigente del osciloscopio.
+    \item El láser inicia el disparo.
+    \item El hilo \texttt{TriggerWorker} supervisa la temperatura
+    reportada por el módulo de temperatura; cuando
+    $T \geq T_\text{obj} + \SI{0.1}{\celsius}$, envía
+    \texttt{ACQ:STATE RUN} y registra $t_\text{inicio}$.
+    \item Cuando $T \leq T_\text{obj} - \SI{0.1}{\celsius}$, envía
+    \texttt{ACQ:STATE STOP} y registra $t_\text{fin}$.
+    \item \texttt{medicion.py} transfiere la forma de onda mediante
+    \texttt{CURVE?} junto con su preámbulo, y entrega las muestras
+    crudas y los metadatos al módulo de almacenamiento. La conversión a
+    unidades físicas se realiza en el análisis posterior con las
+    \cref{eq:conv_voltaje,eq:conv_tiempo}.
+    \item El procedimiento de modo seguro desactiva el láser.
+    \item La interfaz muestra la señal adquirida y habilita el botón de
+    nueva medición.
+\end{enumerate}
+
+\subsection{Formato de datos de sesión}
+\label{sec:formato_datos}
+
+Cada sesión genera una carpeta identificada por marca de tiempo que
+contiene las muestras crudas de cada captura en archivos \texttt{.npy},
+un registro \texttt{.csv} con los metadatos de todas las mediciones, un
+archivo \texttt{metadatos\_sesion.txt} con las condiciones generales de
+la sesión, y un archivo \texttt{advertencias.log} con los avisos
+emitidos durante la ejecución.
+
+La separación entre muestras crudas y metadatos es deliberada: el
+archivo \texttt{.npy} conserva los valores enteros tal como los entrega
+el osciloscopio, y las columnas del preámbulo (\texttt{XINCR},
+\texttt{YMULT}, \texttt{YOFF}, \texttt{YZERO}, \texttt{PT\_OFF},
+\texttt{NR\_PT}) permiten reconstruir la señal en unidades físicas en
+cualquier momento posterior. El registro incluye además los parámetros
+del láser (\texttt{output\_level}, \texttt{eo\_delay\_us},
+\texttt{burst\_mode}), las escalas consultadas al osciloscopio
+(\texttt{CH\_SCALE}, \texttt{HOR\_SCALE}) y los campos
+\texttt{error\_flag} y \texttt{error\_desc}, que señalan si la medición
+se registró en condiciones anómalas y cuál fue la anomalía.

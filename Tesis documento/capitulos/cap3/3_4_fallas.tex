@@ -1,0 +1,357 @@
+% =========================================================
+\section{Modos de falla y niveles de detección}
+\label{sec:fallas}
+% =========================================================
+
+Un sistema de automatización no se evalúa únicamente por su
+comportamiento en condiciones nominales. Durante el desarrollo se
+presentaron fallas de distinta naturaleza, y el criterio que se adoptó
+para juzgarlas no fue su ausencia --- inevitable en un sistema que
+integra tres instrumentos independientes --- sino la capacidad del
+sistema para dejar constancia de ellas en lugar de aparentar
+normalidad.
+
+Esta sección documenta tres fallas ocurridas en sesiones reales,
+ordenadas según el nivel al que fue posible detectarlas: durante la
+ejecución, mediante la verificación posterior de los datos, y mediante
+la auditoría del código. Los tres casos provienen de registros que
+existen en el repositorio y pueden reconstruirse.
+
+\subsection{Falla detectada durante la ejecución: pérdida de la lectura
+de temperatura}
+\label{sec:falla_temperatura}
+
+La sesión \texttt{20260825\_192627} fue la primera realizada con el
+módulo de temperatura ya integrado a la aplicación. Consta de
+diecisiete capturas repartidas en dos series, separadas por una
+reprogramación del microcontrolador ESP32 a mitad de sesión.
+
+En la primera serie (\texttt{m0002}--\texttt{m0006}) la lectura de
+temperatura descendió de forma monótona de \SI{37.27}{\celsius} a
+\SI{36.97}{\celsius}, consistente con el enfriamiento de la muestra, y
+las cinco capturas se registraron con \texttt{error\_flag = 0}.
+
+Entre esa serie y la siguiente transcurrieron doce minutos, durante los
+cuales se reprogramó el firmware del ESP32 y se modificó el \textit{EO
+delay} del láser. Al reprogramarse, el microcontrolador se reinició y el
+hilo de lectura de temperatura terminó sin que la aplicación pudiera
+reactivarlo: el método de reconexión disponible verifica la frescura de
+la última lectura, pero no reinicia el hilo, operación que en esa
+versión requería intervención desde la interfaz. A partir de
+\texttt{m0007} el campo \texttt{temperatura} conserva el valor
+\SI{36.06}{\celsius} en las once capturas restantes, y el campo
+\texttt{error\_flag} se establece en 1.
+
+El comportamiento del sistema ante esta condición fue el previsto: en
+lugar de interrumpir la secuencia o de registrar un valor nulo que
+después resultaría indistinguible de una medición válida, la aplicación
+conservó la última lectura conocida, marcó cada registro afectado y
+mostró en la interfaz el indicador de advertencia. La secuencia
+continuó porque la señal fotoacústica adquirida por el osciloscopio no
+depende del módulo de temperatura; lo que se perdió fue la variable de
+contexto, no la medición. La decisión de no abortar fue del operador, y
+las capturas posteriores quedaron marcadas de modo que cualquier
+análisis que las emplee sepa que su campo de temperatura no es
+confiable.
+
+La limitación que este episodio expone no es del registro sino de la
+recuperación: el sistema supo que había perdido la lectura y lo dijo,
+pero no supo recobrarla por sí mismo. La reconexión automática del
+módulo de temperatura se discute en el \cref{cap:conclusiones} como
+mejora pendiente.
+
+\begin{table}[H]
+  \centering
+  \caption{Registro de la sesión \texttt{20260825\_192627}. Se muestran
+           las capturas representativas de cada serie y la transición
+           entre ellas.}
+  \label{tab:sesion_25ago}
+  \begin{tabular}{llrcl}
+    \toprule
+    \textbf{Captura} & \textbf{Modo} & \textbf{$T$ [\si{\celsius}]} &
+    \textbf{\texttt{error\_flag}} & \textbf{\texttt{error\_desc}} \\
+    \midrule
+    \texttt{m0001} & manual & 37.39 & 1 & --- \\
+    \texttt{m0002} & tiempo & 37.27 & 0 & --- \\
+    \texttt{m0006} & tiempo & 36.97 & 0 & --- \\
+    \midrule
+    \texttt{m0007} & manual & 36.06 & 1 & --- \\
+    \texttt{m0008} & tiempo & 36.06 & 1 & temperatura no detectada \\
+    \texttt{m0017} & tiempo & 36.06 & 1 & temperatura no detectada \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\subsubsection*{Un segundo hallazgo en el mismo registro}
+
+La revisión posterior del archivo reveló una anomalía que no era
+visible durante la sesión. De las doce capturas con
+\texttt{error\_flag = 1}, solo diez llevan descripción del error.
+Las dos restantes, \texttt{m0001} y \texttt{m0007}, tienen la bandera
+levantada y el campo \texttt{error\_desc} vacío.
+
+La coincidencia no es casual: son las dos únicas capturas de la sesión
+guardadas en modo manual. El manejador correspondiente de la interfaz
+recibía de la consulta al módulo de temperatura tanto el estado de
+error como su descripción, pero solo propagaba el primero al registro.
+El resultado es una fila que declara una anomalía sin decir cuál, lo
+que obliga a inferirla del contexto.
+
+El defecto no era observable durante la ejecución --- la interfaz
+mostró correctamente la advertencia en ambos casos --- ni afectaba a
+las capturas automáticas, que constituyen el modo de operación
+habitual. Se detectó al auditar el registro completo, y se corrigió
+haciendo que el manejador propague ambos campos. La corrección no
+puede aplicarse retroactivamente a los datos del 25 de agosto: las dos
+filas permanecen como testimonio del defecto.
+
+Este hallazgo ilustra el argumento central de la sección desde un
+ángulo inesperado. El sistema registró suficiente información para que
+su propio defecto de registro resultara detectable. Una fila con
+bandera levantada y sin explicación es anómala a simple vista; una fila
+sin bandera habría pasado inadvertida.
+
+\subsection{Falla detectada en la verificación posterior: buffer
+duplicado tras un cambio de escala}
+\label{sec:falla_buffer}
+
+La falla anterior fue visible mientras ocurría. La que se describe a
+continuación no lo fue: transcurrió sin señal alguna en la interfaz, sin
+excepción registrada y sin marca en el archivo de sesión. Se encontró al
+someter los datos a una verificación independiente, semanas después.
+
+En la sesión \texttt{20260818\_190223}, de cuatro capturas, las
+mediciones \texttt{m0003} y \texttt{m0004} resultaron idénticas bit a
+bit: mismo resumen MD5 sobre las mismas 25\,000 muestras. El registro,
+sin embargo, les asigna parámetros temporales distintos. A
+\texttt{m0003} le corresponde un \texttt{XINCR} de \SI{80}{\nano\second}
+y a \texttt{m0004} uno de \SI{4}{\nano\second}: un factor de veinte en
+la escala del eje temporal, declarado sobre exactamente el mismo
+arreglo de datos.
+
+La explicación es una condición de carrera entre la configuración del
+instrumento y la transferencia. Se modificó la escala horizontal desde
+el panel del osciloscopio, el sistema consultó y registró el preámbulo
+ya actualizado, pero la consulta \texttt{CURVE?} devolvió la
+adquisición anterior, tomada con la escala previa. El resultado es un
+registro internamente inconsistente: metadatos nuevos describiendo
+datos viejos.
+
+\subsubsection*{Consecuencia sobre la reconstrucción}
+
+La inconsistencia no es cosmética. La reconstrucción del eje temporal a
+partir de \texttt{XINCR}, \texttt{XZERO} y \texttt{PT\_OFF} sitúa el
+máximo de \texttt{m0003} en \SI{128.64}{\micro\second} y el de
+\texttt{m0004} en \SI{6.43}{\micro\second}. Se trata del mismo arreglo
+de muestras interpretado sobre dos ejes distintos, de modo que al menos
+una de las dos reconstrucciones es falsa, y ninguna de las dos anuncia
+serlo.
+
+Ninguna bandera lo señaló. Las cuatro capturas de esa sesión llevan
+\texttt{error\_flag = 1}, pero por una razón ajena: la sesión corrió sin
+el módulo de temperatura conectado y el monitor mantuvo la bandera
+levantada de principio a fin. La bandera estaba encendida por el motivo
+equivocado, y por lo tanto no distinguía las capturas corruptas de las
+sanas. Una bandera que se enciende siempre no informa nada.
+
+\subsubsection*{El criterio que la detecta}
+
+La herramienta de verificación compara las capturas crudas entre sí,
+sin recurrir a los metadatos. El criterio se apoya en una propiedad del
+fenómeno: dos adquisiciones consecutivas de una señal real nunca
+coinciden muestra por muestra, porque el ruido de fondo difiere en cada
+una. En esa misma sesión, los demás pares de capturas difieren en
+alrededor de 24\,000 de sus 25\,000 muestras. Una coincidencia exacta no
+es un resultado improbable: es imposible, y por lo tanto delata una
+transferencia que no ocurrió.
+
+Conviene subrayar que este criterio es independiente de los metadatos
+que se pretende validar. Verificar la consistencia del preámbulo consigo
+mismo habría resultado satisfactorio en ambas capturas, porque cada una
+es internamente coherente. Lo que revela el defecto es la comparación
+entre capturas, no la inspección de cada una por separado.
+
+\subsubsection*{Contraste: la reconstrucción cuando los metadatos son
+correctos}
+
+El caso anterior podría sugerir que la fórmula de reconstrucción es
+poco confiable. La sesión del 25 de agosto demuestra lo contrario.
+
+Sus diecisiete capturas se tomaron con dos escalas horizontales
+distintas, y el máximo de la señal aparece en índices de muestra muy
+diferentes según la serie: alrededor de la muestra 13\,641 en la
+primera y de la 6\,729 en la segunda. Reconstruidas con sus respectivos
+parámetros, las diecisiete sitúan el máximo en \SI{69.1}{\micro\second}
+con una dispersión de \SI{0.1}{\micro\second}. Dos muestreos distintos
+convergen al mismo instante físico.
+
+Los dos casos delimitan con precisión el alcance de la reconstrucción.
+La fórmula es correcta y se sostiene entre escalas; lo que puede fallar
+es la correspondencia entre el arreglo de muestras y los parámetros que
+se le adjuntan. Ese emparejamiento no se valida solo, y es el objeto de
+la comparación descrita arriba.
+
+\subsection{Falla detectada en la auditoría del código: regresión
+silenciosa en el registro de escalas}
+\label{sec:falla_regresion}
+
+Los dos casos anteriores dejaron rastro en los datos: una advertencia en
+la interfaz, un par de arreglos idénticos. El tercero no dejó ninguno.
+No produjo error, no levantó bandera y no alteró ninguna medición. Su
+única manifestación fue la ausencia de dos valores que el propio archivo
+declaraba contener.
+
+Las columnas \texttt{CH\_SCALE} y \texttt{HOR\_SCALE} del registro de
+sesión almacenan las escalas vertical y horizontal vigentes en el
+osciloscopio al momento de cada captura. Se incorporaron el 15 de junio
+de 2026, junto con las consultas \texttt{\{canal\}:SCALE?} y
+\texttt{HORizontal:SCAle?} que las alimentan, situadas dentro de la
+rutina de lectura del preámbulo.
+
+Ocho días después, un cambio dedicado a incorporar la selección de
+longitud de registro revirtió, sobre ese mismo archivo, la totalidad de
+lo que el cambio anterior había introducido: las dos consultas de
+escala, la actualización de la longitud de registro en memoria, y un
+método auxiliar de estimación de tiempos. El mensaje del cambio no
+menciona ninguna de las tres supresiones.
+
+\subsubsection*{Por qué una de las tres pérdidas fue visible y dos no}
+
+La supresión del método auxiliar se manifestó de inmediato: la primera
+llamada produjo una excepción por atributo inexistente, quedó registrada
+como defecto y se corrigió. Las dos consultas de escala no produjeron
+nada. La rutina de lectura siguió devolviendo su diccionario de
+parámetros, ahora sin esas dos claves; el módulo de almacenamiento las
+solicitó con un valor por omisión y escribió la cadena vacía. Ninguna
+excepción, ningún registro, ninguna diferencia perceptible durante la
+operación.
+
+La distinción es instructiva. Un valor que alguien consume falla
+ruidosamente cuando desaparece, porque su consumidor protesta. Un valor
+que solo se escribe y nunca se lee se degrada en silencio: el encabezado
+del archivo lo sigue anunciando, la columna se sigue escribiendo, y lo
+único que cambia es su contenido. Entre el 23 de junio y el 31 de agosto
+las diecisiete capturas del 25 de agosto y las cuatro del 18 se
+registraron con ambas columnas vacías.
+
+Vale la pena señalar un detalle del código original que descarta la
+explicación más cómoda. Las dos consultas estaban protegidas por
+manejadores de excepción que, ante un fallo de comunicación, asignaban
+el valor \num{0.0}. Un osciloscopio que no respondiera habría producido
+ceros, no celdas vacías. El vacío observado no indica un instrumento que
+no contestó, sino un código que no preguntó.
+
+\subsubsection*{Detección y corrección}
+
+El defecto se encontró al contrastar el encabezado declarado del archivo
+de sesión contra su contenido efectivo, columna por columna, y rastrear
+después el historial del archivo fuente para ubicar el punto de
+supresión. Ninguno de los dos niveles anteriores podía alcanzarlo: en
+ejecución no hay nada que observar, y la verificación de los datos
+compara capturas entre sí, no el archivo contra su propia promesa.
+
+La corrección restituyó ambas consultas dentro de la rutina de lectura
+del preámbulo, de modo que las escalas se obtengan en la misma operación
+que el resto de los parámetros de la captura y no en una llamada
+separada susceptible de quedar desincronizada. Su verificación contra
+hardware quedó pendiente de la siguiente sesión de laboratorio.
+
+\subsection{La herramienta de verificación como fuente de artefacto}
+\label{sec:falla_umbral}
+
+Los tres casos anteriores describen fallas del sistema de adquisición
+detectadas por medios independientes. Corresponde examinar el último de
+esos medios con el mismo criterio, porque también puede equivocarse, y
+en esta sesión lo hizo.
+
+Entre las magnitudes que reporta la herramienta de verificación se
+encuentra el instante de inicio de la señal, definido como el primer
+punto cuyo valor absoluto supera un umbral. Sobre la sesión del 25 de
+agosto ese instante resultó ser de \SI{31.4}{\micro\second} en la
+primera serie y de \SI{1.5}{\micro\second} en la segunda: una
+diferencia de treinta microsegundos entre dos series tomadas sobre la
+misma muestra con quince minutos de separación.
+
+La discrepancia es un artefacto del criterio, no un desplazamiento de la
+señal. El umbral empleado es relativo: ocho veces la desviación estándar
+del ruido medido en la porción inicial de cada registro. El ruido de la
+segunda serie resultó ser aproximadamente un tercio del de la primera
+---\SI{0.0056}{\milli\volt} contra \SI{0.0171}{\milli\volt}---, de modo
+que el mismo criterio produjo umbrales de \SI{0.045} y
+\SI{0.137}{\milli\volt} respectivamente. El umbral más bajo cruza antes,
+y lo hace sobre fluctuaciones que en la primera serie quedaban por
+debajo del suyo.
+
+Aplicando a las diecisiete capturas un umbral fijo de
+\SI{0.137}{\milli\volt}, el inicio se sitúa en \SI{31.4} y
+\SI{31.6}{\micro\second} para las dos series. Corroborando el resultado
+por una vía distinta, el instante del máximo ---que no depende de umbral
+alguno, pues se obtiene del índice de mayor amplitud--- coincide en
+\SI{69.13} y \SI{69.16}{\micro\second}. La señal no se movió.
+
+El episodio deja dos observaciones sobre la herramienta y una sobre el
+conjunto. Sobre la herramienta: un criterio relativo produce magnitudes
+que no son comparables entre capturas de distinta relación señal a
+ruido, y el chequeo de deriva del inicio, que agrupa las capturas por
+escala antes de compararlas, no puede detectar por construcción una
+discrepancia que ocurre precisamente entre grupos de escala distinta.
+Ambas limitaciones subsisten; como medida provisional, la herramienta
+imprime hoy el umbral efectivo de cada captura, de modo que una
+diferencia como la descrita resulta legible en la tabla en lugar de
+tener que deducirse.
+
+Sobre el conjunto: ninguno de los tres niveles de detección basta por sí
+solo. La verificación posterior encontró lo que la ejecución no vio, la
+auditoría encontró lo que la verificación no podía ver, y la
+verificación misma requirió ser contrastada contra una magnitud
+independiente para distinguir un hallazgo de un artefacto de su propio
+criterio.
+
+\subsection{Balance}
+\label{sec:fallas_balance}
+
+\begin{table}[H]
+  \centering
+  \caption{Anomalías documentadas, nivel al que fueron detectadas y
+           estado actual.}
+  \label{tab:resumen_fallas}
+  \small
+  \begin{tabular}{p{3.6cm}p{2.6cm}p{3.4cm}p{3.2cm}}
+    \toprule
+    \textbf{Anomalía} & \textbf{Nivel de detección} &
+    \textbf{Evidencia} & \textbf{Estado} \\
+    \midrule
+    Pérdida de la lectura de temperatura & Ejecución &
+    Doce capturas marcadas y advertencia en la interfaz &
+    Registrada; reconexión automática pendiente \\
+    \addlinespace
+    Descripción de error omitida en el guardado manual &
+    Auditoría del registro &
+    Dos capturas con bandera y sin descripción & Corregida \\
+    \addlinespace
+    Buffer duplicado tras un cambio de escala &
+    Verificación posterior &
+    Arreglos idénticos con parámetros distintos &
+    Detectada; sin corrección en el instrumento \\
+    \addlinespace
+    Regresión en el registro de escalas & Auditoría del código &
+    Veintiuna capturas con las columnas vacías &
+    Corregida; pendiente de verificar en hardware \\
+    \addlinespace
+    Artefacto del umbral relativo & Contraste entre métricas &
+    \SI{30}{\micro\second} de diferencia aparente &
+    Documentada; criterio vigente \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+Tres de las cinco anomalías no eran observables durante la operación.
+Dos de ellas tampoco lo eran en los datos: solo aparecieron al
+contrastar el archivo con lo que declaraba contener y el código con su
+propia historia. Ninguna produjo una excepción ni interrumpió una
+secuencia.
+
+El sistema no evita fallar. Lo que hace es conservar información
+suficiente para que sus fallas sean reconstruibles después, y esa
+propiedad es la que permitió documentar esta sección. Las mejoras que se
+desprenden de cada caso se recogen en el \cref{cap:conclusiones}.
