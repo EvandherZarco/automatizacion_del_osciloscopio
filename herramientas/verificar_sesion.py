@@ -215,20 +215,36 @@ def chequeos(capturas: list[Captura]) -> list[str]:
     if con_flag:
         alertas.append(f"Capturas con error_flag=1: {', '.join(con_flag)}")
 
+    for (t, escala), vpps in agrupar_por_temperatura_y_escala(capturas).items():
+        v = np.array(vpps)
+        if v.mean() == 0:
+            continue
+        disp = 100 * v.std() / v.mean()
+        if disp > DISPERSION_ACEPTABLE_PCT:
+            etiqueta_escala = f"XINCR={escala[0]:g} YMULT={escala[1]:g} NR_PT={escala[2]:g}"
+            alertas.append(
+                f"Dispersión de Vpp alta a {t:.1f} °C ({etiqueta_escala}): "
+                f"{disp:.2f}% (límite {DISPERSION_ACEPTABLE_PCT:.0f}%)."
+            )
+
     return alertas
 
 
-def resumen_por_temperatura(capturas: list[Captura]) -> None:
+def agrupar_por_temperatura_y_escala(capturas: list[Captura]) -> dict[tuple[float, tuple], list[float]]:
     validas = [
         c for c in capturas
         if c.voltaje_mv is not None and not np.isnan(c.temperatura)
     ]
-    if not validas:
-        return
-
     grupos: dict[tuple[float, tuple], list[float]] = {}
     for c in validas:
         grupos.setdefault((round(c.temperatura, 1), c.escala), []).append(c.vpp_mv)
+    return grupos
+
+
+def resumen_por_temperatura(capturas: list[Captura]) -> None:
+    grupos = agrupar_por_temperatura_y_escala(capturas)
+    if not grupos:
+        return
 
     print(f"\n{'T °C':>7}  {'escala':>32}  {'n':>3}  {'Vpp medio mV':>13}  {'σ mV':>8}  {'disp %':>7}")
     print("-" * 82)

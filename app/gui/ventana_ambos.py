@@ -1139,20 +1139,21 @@ class VentanaAmbos(QMainWindow):
     @Slot(str)
     def _on_advertencia(self, mensaje: str):
         marca = datetime.now().strftime("%H:%M:%S")
-        self._advertencias.append(f"[{marca}] {mensaje}")
+        linea = f"[{marca}] {mensaje}"
+        self._advertencias.append(linea)
         self._set_log(f"⚠ {mensaje}")
         self._lbl_progreso.setStyleSheet("color: #d29922; font-size: 11px;")
         self._lbl_progreso.setText(
             f"Secuencia en curso…  |  ⚠ advertencias: {len(self._advertencias)}")
-        self._registrar_advertencias_en_sesion()
+        self._registrar_advertencias_en_sesion(linea)
 
-    def _registrar_advertencias_en_sesion(self) -> None:
+    def _registrar_advertencias_en_sesion(self, linea: str) -> None:
         ruta_csv = self._store.csv_path
         if ruta_csv is None:
             return
         try:
-            (ruta_csv.parent / "advertencias.log").write_text(
-                "\n".join(self._advertencias) + "\n", encoding="utf-8")
+            with open(ruta_csv.parent / "advertencias.log", "a", encoding="utf-8") as f:
+                f.write(linea + "\n")
         except OSError:
             pass
 
