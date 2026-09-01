@@ -17,11 +17,11 @@ from __future__ import annotations
 import argparse
 import csv
 import sys
+from itertools import combinations
 from pathlib import Path
 
 import numpy as np
 
-SATURACION_ADC = 32767
 MARGEN_SATURACION = 0.98
 UMBRAL_ONSET_SIGMA = 8.0
 DISPERSION_ACEPTABLE_PCT = 5.0
@@ -94,7 +94,8 @@ class Captura:
     def saturada(self) -> bool:
         if self.raw is None:
             return False
-        limite = MARGEN_SATURACION * SATURACION_ADC
+        saturacion_adc = np.iinfo(self.raw.dtype).max
+        limite = MARGEN_SATURACION * saturacion_adc
         return bool(np.abs(self.raw.astype(float)).max() >= limite)
 
     @property
@@ -160,14 +161,21 @@ def chequeos(capturas: list[Captura]) -> list[str]:
             "está recortado y no es comparable."
         )
 
-    for i in range(len(validas) - 1):
-        a, b = validas[i], validas[i + 1]
+    for a, b in combinations(validas, 2):
         if a.raw is not None and b.raw is not None and np.array_equal(a.raw, b.raw):
-            alertas.append(
-                f"{a.etiqueta} y {b.etiqueta} tienen datos crudos idénticos bit a bit. "
-                "El osciloscopio devolvió el buffer anterior: la segunda captura "
-                "no es una adquisición nueva."
-            )
+            if a.escala != b.escala:
+                alertas.append(
+                    f"{a.etiqueta} y {b.etiqueta} tienen datos crudos idénticos bit a bit "
+                    "y además escalas distintas. El osciloscopio devolvió el buffer "
+                    "anterior sin adquirir de nuevo: el eje temporal reconstruido de "
+                    "la segunda captura tampoco es válido."
+                )
+            else:
+                alertas.append(
+                    f"{a.etiqueta} y {b.etiqueta} tienen datos crudos idénticos bit a bit. "
+                    "El osciloscopio devolvió el buffer anterior: la segunda captura "
+                    "no es una adquisición nueva."
+                )
 
     grupos = agrupar_por_escala(validas)
     if len(grupos) > 1:
@@ -217,17 +225,18 @@ def resumen_por_temperatura(capturas: list[Captura]) -> None:
     if not validas:
         return
 
-    grupos: dict[float, list[float]] = {}
+    grupos: dict[tuple[float, tuple], list[float]] = {}
     for c in validas:
-        grupos.setdefault(round(c.temperatura, 1), []).append(c.vpp_mv)
+        grupos.setdefault((round(c.temperatura, 1), c.escala), []).append(c.vpp_mv)
 
-    print(f"\n{'T °C':>7}  {'n':>3}  {'Vpp medio mV':>13}  {'σ mV':>8}  {'disp %':>7}")
-    print("-" * 48)
-    for t in sorted(grupos, reverse=True):
-        v = np.array(grupos[t])
+    print(f"\n{'T °C':>7}  {'escala':>32}  {'n':>3}  {'Vpp medio mV':>13}  {'σ mV':>8}  {'disp %':>7}")
+    print("-" * 82)
+    for t, escala in sorted(grupos, key=lambda k: (-k[0], k[1])):
+        v = np.array(grupos[(t, escala)])
         disp = 100 * v.std() / v.mean() if v.mean() else float("nan")
         marca = "  <-- revisar" if disp > DISPERSION_ACEPTABLE_PCT else ""
-        print(f"{t:>7.1f}  {len(v):>3}  {v.mean():>13.3f}  {v.std():>8.4f}  "
+        etiqueta_escala = f"XINCR={escala[0]:g} YMULT={escala[1]:g} NR_PT={escala[2]:g}"
+        print(f"{t:>7.1f}  {etiqueta_escala:>32}  {len(v):>3}  {v.mean():>13.3f}  {v.std():>8.4f}  "
               f"{disp:>7.2f}{marca}")
 
 
@@ -255,7 +264,7 @@ def graficar(capturas: list[Captura], sesion_dir: Path) -> None:
     for k, grupo in grupos.items():
         t = [c.temperatura for c in grupo]
         v = [c.vpp_mv for c in grupo]
-        etiqueta = f"XINCR={k[0]:g} s, NR_PT={k[2]:g}"
+        etiqueta = f"XINCR={k[0]:g} s, YMULT={k[1]:g}, NR_PT={k[2]:g}"
         ax1.plot(t, v, "o", label=etiqueta)
 
     ax1.set_xlabel("Temperatura (°C)")
@@ -284,6 +293,11 @@ def graficar(capturas: list[Captura], sesion_dir: Path) -> None:
 
 
 def main() -> int:
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    except AttributeError:
+        pass
+
     parser = argparse.ArgumentParser(
         description="Verifica una sesión de medición y grafica Vpp contra temperatura."
     )
