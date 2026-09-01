@@ -259,6 +259,30 @@ def set_btn_activo(btn: QPushButton, activo: bool, estilo: str = "azul") -> None
     btn.style().polish(btn)
 
 
+def formatear_tdiv(segundos: float | None) -> str:
+    """Formatea una base de tiempo en s a la notación 'X ns/µs/ms/div'."""
+    if segundos is None:
+        return ""
+    if abs(segundos) < 1e-6:
+        valor, unidad = segundos * 1e9, "ns"
+    elif abs(segundos) < 1e-3:
+        valor, unidad = segundos * 1e6, "µs"
+    else:
+        valor, unidad = segundos * 1e3, "ms"
+    return f"{valor:.3g} {unidad}/div"
+
+
+def formatear_vdiv(voltios: float | None) -> str:
+    """Formatea una escala vertical en V a la notación 'X mV/V/div'."""
+    if voltios is None:
+        return ""
+    if abs(voltios) < 1:
+        valor, unidad = voltios * 1e3, "mV"
+    else:
+        valor, unidad = voltios, "V"
+    return f"{valor:.3g} {unidad}/div"
+
+
 def chip_log(texto: str = "") -> QLabel:
     """Crea un chip de texto para la barra inferior de log."""
     lbl = QLabel(texto)

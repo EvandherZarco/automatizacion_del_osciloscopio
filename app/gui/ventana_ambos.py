@@ -24,7 +24,7 @@ import pyqtgraph as pg
 from PySide6.QtCore import Qt, QThread, QTimer, Signal, Slot, QObject, QEvent
 from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QGroupBox,
-    QLabel, QPushButton, QComboBox, QSpinBox, QDoubleSpinBox,
+    QLabel, QPushButton, QSpinBox, QDoubleSpinBox,
     QTabWidget, QFrame, QFileDialog, QMessageBox, QApplication, QTextEdit,
 )
 
@@ -41,7 +41,7 @@ from app.medicion.medicion import Medicion
 from app.gui.visualizacion import VisualizacionWidget
 from app.gui.theme import (
     APP_STYLESHEET, LED_VERDE, LED_AMARILLO, LED_ROJO, LED_GRIS,
-    make_led, set_led, set_btn_activo, chip_log,
+    make_led, set_led, set_btn_activo, chip_log, formatear_tdiv,
 )
 
 INACTIVIDAD_AVISO_MS   = 60_000
@@ -121,7 +121,6 @@ class VentanaAmbos(QMainWindow):
         self._canal_sel: str | None = None
         self._output_sel        = "E Adjust"
         self._burst_sel         = "Continuous"
-        self._acoplamiento      = "DC"
         self._adquisicion       = "Sample"
         self._cerrado           = False
 
@@ -386,45 +385,6 @@ class VentanaAmbos(QMainWindow):
             btn.setFixedHeight(32)
             fila_c.addWidget(btn)
         lay.addLayout(fila_c)
-
-        lay.addWidget(self._sep_lbl("Escala vertical"))
-        self._combo_p_vdiv = QComboBox()
-        self._combo_p_vdiv.addItems(list(OsciloscopioController.VDIV_OPCIONES.keys()))
-        self._combo_p_vdiv.setCurrentText("100 mV/div")
-        lay.addWidget(self._combo_p_vdiv)
-
-        lay.addWidget(self._sep_lbl("Escala horizontal"))
-        self._combo_p_tdiv = QComboBox()
-        self._combo_p_tdiv.addItems(list(OsciloscopioController.TDIV_OPCIONES.keys()))
-        self._combo_p_tdiv.setCurrentText("1 µs/div")
-        lay.addWidget(self._combo_p_tdiv)
-
-        lay.addWidget(self._sep_lbl("Record length (puntos)"))
-        self._combo_p_rec_length = QComboBox()
-        self._combo_p_rec_length.addItems(list(OsciloscopioController.REC_LENGTH_OPCIONES.keys()))
-        self._combo_p_rec_length.setCurrentText("25 000")
-        lay.addWidget(self._combo_p_rec_length)
-
-        lay.addWidget(self._sep_lbl("Acoplamiento"))
-        fila_ac = QHBoxLayout()
-        fila_ac.setSpacing(6)
-        self._btn_p_dc = QPushButton("DC")
-        self._btn_p_ac = QPushButton("AC")
-        for btn in (self._btn_p_dc, self._btn_p_ac):
-            btn.setFixedHeight(32)
-            fila_ac.addWidget(btn)
-        lay.addLayout(fila_ac)
-
-        lay.addWidget(self._sep_lbl("Trigger level"))
-        self._spin_p_trigger = QDoubleSpinBox()
-        self._spin_p_trigger.setRange(-10.0, 10.0)
-        self._spin_p_trigger.setSingleStep(0.001)
-        self._spin_p_trigger.setDecimals(3)
-        self._spin_p_trigger.setValue(0.010)
-        lbl_tr_h = QLabel("Voltios")
-        lbl_tr_h.setStyleSheet("color: #555; font-size: 10px;")
-        lay.addWidget(self._spin_p_trigger)
-        lay.addWidget(lbl_tr_h)
 
         lay.addWidget(self._sep_lbl("Adquisición"))
         fila_aq = QHBoxLayout()
@@ -711,8 +671,6 @@ class VentanaAmbos(QMainWindow):
         # Parámetros — oscil
         self._btn_p_ch1.clicked.connect(lambda: self._sel_canal("CH1"))
         self._btn_p_ch2.clicked.connect(lambda: self._sel_canal("CH2"))
-        self._btn_p_dc.clicked.connect(lambda: self._sel_acoplamiento("DC"))
-        self._btn_p_ac.clicked.connect(lambda: self._sel_acoplamiento("AC"))
         self._btn_p_sample.clicked.connect(lambda: self._sel_adquisicion("Sample"))
         self._btn_p_average.clicked.connect(lambda: self._sel_adquisicion("Average"))
         self._btn_p_aplicar_oscil.clicked.connect(self._on_aplicar_oscil)
@@ -731,7 +689,6 @@ class VentanaAmbos(QMainWindow):
         # Estado inicial de selectores
         self._sel_output("E Adjust")
         self._sel_burst("Continuous")
-        self._sel_acoplamiento("DC")
         self._sel_adquisicion("Sample")
         self._sel_modo_auto("tiempo")
 
@@ -907,11 +864,6 @@ class VentanaAmbos(QMainWindow):
         if self._oscil.conectado:
             self._btn_capturar.setEnabled(True)
 
-    def _sel_acoplamiento(self, modo: str):
-        self._acoplamiento = modo
-        set_btn_activo(self._btn_p_dc, modo == "DC", "azul")
-        set_btn_activo(self._btn_p_ac, modo == "AC", "azul")
-
     def _sel_adquisicion(self, modo: str):
         self._adquisicion = modo
         set_btn_activo(self._btn_p_sample,  modo == "Sample",  "azul")
@@ -923,15 +875,9 @@ class VentanaAmbos(QMainWindow):
 
     @Slot()
     def _on_aplicar_oscil(self):
-        self._oscil.set_rec_length(self._combo_p_rec_length.currentText())
-        self._oscil.aplicar_parametros(
-            vdiv      = self._combo_p_vdiv.currentText(),
-            tdiv      = self._combo_p_tdiv.currentText(),
-            coupling  = self._acoplamiento,
-            trigger_v = self._spin_p_trigger.value(),
-            acq_mode  = "AVERAGE" if self._adquisicion == "Average" else "SAMPLE",
-            numavg    = self._spin_p_numavg.value(),
-        )
+        self._oscil.set_acq_mode("AVERAGE" if self._adquisicion == "Average" else "SAMPLE")
+        if self._adquisicion == "Average":
+            self._oscil.set_numavg(self._spin_p_numavg.value())
 
     # ══════════════════════════════════════════════════════════════════════════
     # SLOTS — MEDICIÓN MANUAL
@@ -1002,7 +948,7 @@ class VentanaAmbos(QMainWindow):
         self._lbl_canal_m.setPos(xr[0], yr[1])
         self._lbl_canal_m.setText(self._canal_sel or "")
         self._lbl_tdiv_m.setPos((xr[0] + xr[1]) / 2, yr[0])
-        self._lbl_tdiv_m.setText(self._combo_p_tdiv.currentText())
+        self._lbl_tdiv_m.setText(formatear_tdiv(escala["tdiv_s"]) if escala is not None else "")
 
     def _metadatos_instrumental(self) -> dict:
         """
