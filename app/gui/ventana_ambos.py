@@ -227,6 +227,18 @@ class VentanaAmbos(QMainWindow):
         self._lbl_temp_live.setStyleSheet(
             "font-size: 15px; font-weight: bold; color: #00bfff;")
         lay.addWidget(self._lbl_temp_live)
+
+        sep3 = QFrame()
+        sep3.setFrameShape(QFrame.VLine)
+        sep3.setStyleSheet("color: #2e2e2e;")
+        lay.addWidget(sep3)
+
+        self._btn_stop_emergencia = QPushButton("⚠  Stop emergencia")
+        self._btn_stop_emergencia.setFixedHeight(32)
+        self._btn_stop_emergencia.setProperty("peligro", True)
+        self._btn_stop_emergencia.style().unpolish(self._btn_stop_emergencia)
+        self._btn_stop_emergencia.style().polish(self._btn_stop_emergencia)
+        lay.addWidget(self._btn_stop_emergencia)
         return bar
 
     # ── Pestaña Parámetros ────────────────────────────────────────────────────
@@ -404,12 +416,12 @@ class VentanaAmbos(QMainWindow):
         self._spin_p_numavg.setEnabled(False)
         lay.addWidget(self._spin_p_numavg)
 
-        lay.addStretch()
-
         self._btn_p_aplicar_oscil = QPushButton("Aplicar parámetros")
         self._btn_p_aplicar_oscil.setFixedHeight(34)
         self._btn_p_aplicar_oscil.setEnabled(False)
         lay.addWidget(self._btn_p_aplicar_oscil)
+
+        lay.addStretch()
         return g
 
     # ── Pestaña Medición ──────────────────────────────────────────────────────
@@ -570,12 +582,6 @@ class VentanaAmbos(QMainWindow):
         lay.setSpacing(10)
         self._lbl_log = chip_log("—")
         lay.addWidget(self._lbl_log, 1)
-        self._btn_stop_emergencia = QPushButton("⚠  Stop emergencia")
-        self._btn_stop_emergencia.setFixedHeight(32)
-        self._btn_stop_emergencia.setProperty("peligro", True)
-        self._btn_stop_emergencia.style().unpolish(self._btn_stop_emergencia)
-        self._btn_stop_emergencia.style().polish(self._btn_stop_emergencia)
-        lay.addWidget(self._btn_stop_emergencia)
         return bar
 
     # ── Helpers UI ────────────────────────────────────────────────────────────

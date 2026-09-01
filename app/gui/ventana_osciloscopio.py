@@ -139,6 +139,18 @@ class VentanaOsciloscopio(QMainWindow):
         self._btn_conectar.setFixedHeight(30)
         self._btn_conectar.setMinimumWidth(110)
         lay.addWidget(self._btn_conectar)
+
+        sep2 = QFrame()
+        sep2.setFrameShape(QFrame.VLine)
+        sep2.setStyleSheet("color: #333;")
+        lay.addWidget(sep2)
+
+        self._btn_stop_emergencia = QPushButton("⚠  Stop emergencia")
+        self._btn_stop_emergencia.setFixedHeight(32)
+        self._btn_stop_emergencia.setProperty("peligro", True)
+        self._btn_stop_emergencia.style().unpolish(self._btn_stop_emergencia)
+        self._btn_stop_emergencia.style().polish(self._btn_stop_emergencia)
+        lay.addWidget(self._btn_stop_emergencia)
         return bar
 
     def _area_senal(self) -> QWidget:
@@ -223,12 +235,12 @@ class VentanaOsciloscopio(QMainWindow):
         self._spin_numavg.setEnabled(False)
         lay.addWidget(self._spin_numavg)
 
-        lay.addStretch()
-
         self._btn_aplicar = QPushButton("Aplicar parámetros")
         self._btn_aplicar.setFixedHeight(36)
         self._btn_aplicar.setEnabled(False)
         lay.addWidget(self._btn_aplicar)
+
+        lay.addStretch()
         return w
 
     def _bottombar(self) -> QWidget:
@@ -247,16 +259,9 @@ class VentanaOsciloscopio(QMainWindow):
         self._btn_guardar.setFixedHeight(32)
         self._btn_guardar.setEnabled(False)
 
-        self._btn_stop_emergencia = QPushButton("⚠  Stop emergencia")
-        self._btn_stop_emergencia.setFixedHeight(32)
-        self._btn_stop_emergencia.setProperty("peligro", True)
-        self._btn_stop_emergencia.style().unpolish(self._btn_stop_emergencia)
-        self._btn_stop_emergencia.style().polish(self._btn_stop_emergencia)
-
         lay.addWidget(self._btn_capturar)
         lay.addWidget(self._btn_guardar)
         lay.addStretch()
-        lay.addWidget(self._btn_stop_emergencia)
         return bar
 
     # ══════════════════════════════════════════════════════════════════════════
