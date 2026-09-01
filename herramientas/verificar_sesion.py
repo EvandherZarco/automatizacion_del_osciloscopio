@@ -129,16 +129,17 @@ def agrupar_por_escala(capturas: list[Captura]) -> dict[tuple, list[Captura]]:
 
 
 def tabla(capturas: list[Captura]) -> None:
-    print(f"\n{'ID':>6}  {'T °C':>7}  {'Vpp mV':>9}  {'onset µs':>9}  "
-          f"{'pico µs':>9}  {'ruido mV':>9}  {'modo':>11}  flag")
-    print("-" * 84)
+    print(f"\n{'ID':>6}  {'T °C':>7}  {'Vpp mV':>9}  {'onset µs':>9}  {'umbral mV':>9}  "
+          f"{'pico µs':>9}  {'ruido mV':>9}  {'modo':>8}  flag")
+    print("-" * 86)
     for c in capturas:
         if c.problema:
             print(f"{c.etiqueta:>6}  {'—':>7}  {c.problema}")
             continue
+        umbral_mv = UMBRAL_ONSET_SIGMA * c.ruido_mv
         print(f"{c.etiqueta:>6}  {c.temperatura:>7.2f}  {c.vpp_mv:>9.3f}  "
-              f"{c.onset_us:>9.2f}  {c.pico_us:>9.2f}  {c.ruido_mv:>9.4f}  "
-              f"{c.modo:>11}  {c.error_flag}")
+              f"{c.onset_us:>9.2f}  {umbral_mv:>9.4f}  {c.pico_us:>9.2f}  {c.ruido_mv:>9.4f}  "
+              f"{c.modo:>8}  {c.error_flag}")
 
 
 def chequeos(capturas: list[Captura]) -> list[str]:
