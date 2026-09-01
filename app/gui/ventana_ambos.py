@@ -1041,7 +1041,11 @@ class VentanaAmbos(QMainWindow):
 
         errores: list[str] = []
         if self._monitor.error_flag:
-            errores.append("conexión con error al momento de guardar")
+            dispositivos = self._monitor.dispositivos_con_error
+            if dispositivos:
+                errores.append(f"sin conexión: {', '.join(dispositivos)}")
+            else:
+                errores.append("conexión con error al momento de guardar")
         if not temp_fresca:
             errores.append("temperatura no detectada")
         if self._ultima_captura.error_flag:
