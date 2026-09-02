@@ -144,6 +144,34 @@ Por eso se reimplementó por separado. Consecuencia: si `_escribir_metadatos` ca
 - `EspecCaptura.modo`, `.output_level`, `.eo_delay_us`, `.burst_mode` se escriben al CSV en todos los casos pero ningún caso los varía respecto a su valor por defecto — no hay ninguna condición de alerta de `verificar_sesion.py` que dependa de ellos (confirmado en el inventario: `self.eo_delay`, `self.output_level` y `self.modo` se leen en `Captura.__init__` pero no participan en `chequeos()`).
 - `CH_SCALE` está clavado en `0.005` dentro de `generar()` (no es campo de `EspecCaptura`); ningún caso, ni la variante `nuevo`/`viejo`, puede variarlo — a diferencia de `HOR_SCALE`, que sí se deriva por captura (`spec.xincr * spec.nr_pt / 10`).
 
+### Prueba de mutación sobre `ALERTAS_ESPERADAS`
+
+Corrida el 2026-09-01 contra el commit `c8af5ba37bdd833f0acec5579984b83a7847d3cb`, para descartar que `ALERTAS_ESPERADAS` (en `probar_verificacion.py`) se hubiera derivado de la salida observada de `verificar_sesion.py` en vez del comportamiento pretendido — si fuera así, el corredor pasaría igual con el verificador roto y el 11/11 no valdría nada.
+
+Método: por cada una de las 10 condiciones de `chequeos()`, se comentó únicamente el `alertas.append(...)` de esa condición (dejando intacta cualquier estructura de control que otras condiciones necesiten, p. ej. el `return` de `sin_reconstruibles`), se corrió `probar_verificacion.py`, se anotó qué casos cayeron, y se restauró el archivo con `git checkout -- herramientas/verificar_sesion.py` antes de mutar la siguiente condición.
+
+| Chequeo desactivado | Casos que fallaron |
+|---|---|
+| `npy_ausente` (líneas 149-151) | `npy_ausente`, `sin_reconstruibles` |
+| `sin_reconstruibles` (línea 154) | `sin_reconstruibles` |
+| `saturacion` (líneas 157-163) | `saturacion` |
+| `buffer_repetido_misma_escala` (líneas 174-179) | `buffer_repetido_misma_escala` |
+| `buffer_repetido_escala_distinta` (líneas 167-173) | `buffer_repetido_escala_distinta` |
+| `mezcla_escalas` (líneas 182-190) | `mezcla_escalas`, `buffer_repetido_escala_distinta` |
+| `deriva_onset` (líneas 199-205) | `deriva_onset` |
+| `temperatura_estancada` (líneas 208-212) | `temperatura_estancada` |
+| `error_flag` (líneas 214-216) | `error_flag` |
+| `dispersion_vpp` (líneas 223-228) | `dispersion_vpp` |
+
+Las 10 mutaciones matan al menos el caso correspondiente; ninguna dejó los 11 casos en verde.
+
+Dos observaciones:
+
+- **La mutación de `sin_reconstruibles` deja el código de salida en 1.** Sin la comparación de conjuntos de `probar_verificacion.py` (que exige que la alerta esperada aparezca, no solo que el exit code sea el correcto), ese caso habría pasado en verde con el chequeo desactivado: el `return alertas` temprano de la línea 154 sigue devolviendo una lista no vacía porque `npy_ausente` (línea 151) ya puso algo ahí antes. Un corredor que solo comparara `exit_code` contra 0/1 no habría detectado esta mutación.
+- **Las dos filas con dos casos caídos reproducen exactamente los acoplamientos ya documentados por análisis del código** en "Acoplamientos entre condiciones" más arriba (`buffer_repetido_escala_distinta` ↔ `mezcla_escalas`, `npy_ausente` ↔ `sin_reconstruibles`) — no son un hallazgo nuevo de la mutación, son la misma estructura ya prevista, confirmada empíricamente.
+
+**Esta prueba fue manual y puntual, no automatizada ni repetible.** No hay un script de mutación en el repositorio; los 10 cambios se aplicaron y revirtieron a mano sobre `verificar_sesion.py` en una sesión de trabajo. Si `verificar_sesion.py` cambia (nueva condición, chequeo reescrito, líneas movidas), esta tabla queda desactualizada y hay que volver a correr la mutación a mano — nada la vuelve a ejecutar automáticamente.
+
 ---
 
 ## `probar_advertencias_gui.py`
