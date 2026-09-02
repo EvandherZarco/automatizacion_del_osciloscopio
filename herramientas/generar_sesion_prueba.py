@@ -61,6 +61,7 @@ def _senal_sintetica(
     xincr: float = XINCR,
     ymult: float = YMULT,
     t_arribo: float = T_ARRIBO_S,
+    ruido_frac: float = 0.04,
 ) -> np.ndarray:
     """
     Pulso acústico sobre línea base ruidosa, en cuentas del ADC. Con el ancho
@@ -69,6 +70,9 @@ def _senal_sintetica(
     único pulso de un lóbulo, no una oscilación amortiguada de varios ciclos.
     El resultado se recorta al rango de un ADC de 16 bits, como haría el
     instrumento real, para poder simular saturación sin desbordar el int16.
+    ruido_frac es la desviación estándar del ruido como fracción de la
+    amplitud del pulso; se puede variar por captura para simular niveles de
+    ruido de piso distintos con la misma amplitud de señal.
     """
     rng = np.random.default_rng(semilla)
     t = np.arange(n_puntos) * xincr
@@ -76,7 +80,7 @@ def _senal_sintetica(
     envolvente = np.exp(-(((t - t_arribo) / ANCHO_S) ** 2))
     oscilacion = np.sin(2 * np.pi * FRECUENCIA_HZ * (t - t_arribo))
     señal_v = (amplitud_mv * 1e-3) * envolvente * oscilacion
-    ruido_v = rng.normal(0.0, amplitud_mv * 1e-3 * 0.04, n_puntos)
+    ruido_v = rng.normal(0.0, amplitud_mv * 1e-3 * ruido_frac, n_puntos)
 
     cuentas = (señal_v + ruido_v) / ymult
     cuentas = np.clip(cuentas, -32768, 32767)
@@ -97,6 +101,7 @@ class EspecCaptura:
     yzero: float = 0.0
     nr_pt: int = N_PUNTOS
     t_arribo: float = T_ARRIBO_S
+    ruido_frac: float = 0.04
     error_flag: int = 0
     error_desc: str = ""
     escribir_npy: bool = True
@@ -157,6 +162,7 @@ def generar(
                     xincr=spec.xincr,
                     ymult=spec.ymult,
                     t_arribo=spec.t_arribo,
+                    ruido_frac=spec.ruido_frac,
                 )
             crudos[spec.etiqueta] = raw
 

@@ -47,6 +47,16 @@ antes de que existiera el generador de casos de esta sección).
 - Ninguna constante del módulo queda sin usar: `MARGEN_SATURACION`, `UMBRAL_ONSET_SIGMA`, `DISPERSION_ACEPTABLE_PCT` y `TOLERANCIA_ONSET_FRAC` se leen todas dentro de `chequeos()`, `tabla()` o `resumen_por_temperatura()`.
 - Campos leídos del CSV pero no usados en ningún chequeo de `chequeos()`: `self.pulsos` (`pulsos_estimados`), `self.eo_delay`, `self.output_level`, `self.timestamp`, `self.modo` (se imprime en `tabla()` pero no participa en ninguna alerta), `self.pico_us` (se imprime en `tabla()` pero no se usa en `chequeos()`).
 
+### Prueba de hipótesis: ¿el umbral relativo de `deriva_onset` puede generar una deriva espuria?
+
+Probada el 2026-09-01 con `generar_sesion_prueba.py` (parámetro `EspecCaptura.ruido_frac`, agregado para esta prueba y conservado en el generador). Hipótesis: que `UMBRAL_ONSET_SIGMA=8.0` (umbral relativo al ruido de cada captura, no absoluto) pudiera hacer que dos capturas con el mismo instante de arribo físico pero niveles de ruido muy distintos produjeran onsets muy distintos, disparando `deriva_onset` sin que exista una deriva real.
+
+**No se reproduce.** Con capturas de la misma escala y el mismo `t_arribo`, variando solo `ruido_frac` (0.001 a 0.058, un ratio de **57x**, muy por encima del ~3x observado entre las series A y B de la sesión 20260825), la deriva de onset resultante fue de **~0.86 µs como máximo** — por debajo del umbral de 1 µs (`TOLERANCIA_ONSET_FRAC=0.02` × 50 µs de span). El corrimiento del cruce de umbral está acotado por el ancho de la envolvente del pulso, no crece indefinidamente con el ruido.
+
+**Limitación de la prueba, no del hallazgo:** el pulso sintético de `_senal_sintetica` es de un solo lóbulo angosto (~0.6 µs de envolvente), muy por debajo de lo que ocuparía una señal fotoacústica real de varios ciclos. La prueba acota el efecto *en el generador*, no lo descarta en datos reales — una señal con más recorrido temporal podría comportarse distinto. (La deriva real observada entre las series A y B de la sesión 20260825, del orden de 30 µs, no la explica este mecanismo de todas formas: el pulso completo dura menos que eso. La explicación más probable es un origen temporal distinto entre series — otro `XZERO`/`PT_OFF`, es decir la posición horizontal del disparo — no el umbral relativo de ruido.)
+
+**Hallazgo colateral, con números concretos:** con amplitud 9 mV y `ruido_frac=0.12` (12%), el umbral de 8σ (8.64 mV) supera el pico real de la señal sintética (4.20 mV), así que `onset_us` queda en `NaN` para esa captura. Basta con que dos capturas de un mismo grupo de escala caigan en ese régimen para que `onsets.size < 3` (línea 195) y el chequeo de deriva se salte entero, en silencio — sin alerta, sin mención en la tabla, sin rastro de que se omitió la comparación. Es un modo de evasión real de `deriva_onset`: ruido suficientemente alto no dispara una alerta de más, apaga la que debería evaluarse.
+
 ---
 
 ## `simular_barrido.py`
