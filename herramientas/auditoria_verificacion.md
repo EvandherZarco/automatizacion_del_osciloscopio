@@ -7,12 +7,13 @@ Solo inventario de qué validan realmente estas herramientas y qué queda fuera 
 alcance. No incluye estilo, nombres ni nada bajo `app/` salvo como referencia para
 entender qué se está verificando.
 
-Auditado contra el commit `ee475041a218a3985b9b3886a9ecda74a55c662a` (2026-09-01).
+Auditado contra el commit `774cf8e397ce96e0586b2f88e1a5895690d10444` (2026-09-01).
 Es una fotografía de ese estado del código, no una garantía permanente: si
 `verificar_sesion.py`, `simular_barrido.py`, `generar_sesion_prueba.py` o
 `probar_advertencias_gui.py` cambian después de ese commit, este documento puede
 quedar desactualizado sin que nada lo señale — como ya le pasó a la fila de
-dispersión de Vpp más abajo.
+dispersión de Vpp más abajo (auditada contra el commit anterior, `ee475041a218a3985b9b3886a9ecda74a55c662a`,
+antes de que existiera el generador de casos de esta sección).
 
 ---
 
@@ -141,6 +142,7 @@ Por eso se reimplementó por separado. Consecuencia: si `_escribir_metadatos` ca
 - `T_ARRIBO_S`, `ANCHO_S`, `FRECUENCIA_HZ`, `N_PUNTOS`, `XINCR`, `YMULT` se usan todas, como valores por defecto de `EspecCaptura` y dentro de `_senal_sintetica`.
 - Header `HEADER_VIEJO` sigue sin incluir `output_level`, `eo_delay_us`, `burst_mode`; `_fila()` las sigue descartando silenciosamente vía `valores.get(col, "")` filtrando por el header — mismo comportamiento que antes del refactor, ahora además compartido por los 10+1 casos nuevos (todos usan `HEADER_NUEVO`, así que en la práctica el formato viejo solo lo ejercitan `generar_variante`/`nuevo`/`viejo`).
 - `EspecCaptura.modo`, `.output_level`, `.eo_delay_us`, `.burst_mode` se escriben al CSV en todos los casos pero ningún caso los varía respecto a su valor por defecto — no hay ninguna condición de alerta de `verificar_sesion.py` que dependa de ellos (confirmado en el inventario: `self.eo_delay`, `self.output_level` y `self.modo` se leen en `Captura.__init__` pero no participan en `chequeos()`).
+- `CH_SCALE` está clavado en `0.005` dentro de `generar()` (no es campo de `EspecCaptura`); ningún caso, ni la variante `nuevo`/`viejo`, puede variarlo — a diferencia de `HOR_SCALE`, que sí se deriva por captura (`spec.xincr * spec.nr_pt / 10`).
 
 ---
 
