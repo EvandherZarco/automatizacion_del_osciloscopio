@@ -11,11 +11,12 @@ integra tres instrumentos independientes --- sino la capacidad del
 sistema para dejar constancia de ellas en lugar de aparentar
 normalidad.
 
-Esta sección documenta tres fallas ocurridas en sesiones reales,
+Esta sección documenta las anomalías observadas en sesiones reales,
 ordenadas según el nivel al que fue posible detectarlas: durante la
 ejecución, mediante la verificación posterior de los datos, y mediante
-la auditoría del código. Los tres casos provienen de registros que
-existen en el repositorio y pueden reconstruirse.
+la auditoría del código. Se cierra examinando con el mismo criterio a
+la propia herramienta de verificación. Todos los casos provienen de
+registros conservados y pueden reconstruirse a partir de ellos.
 
 \subsection{Falla detectada durante la ejecución: pérdida de la lectura
 de temperatura}
@@ -111,8 +112,8 @@ su propio defecto de registro resultara detectable. Una fila con
 bandera levantada y sin explicación es anómala a simple vista; una fila
 sin bandera habría pasado inadvertida.
 
-\subsection{Falla detectada en la verificación posterior: buffer
-duplicado tras un cambio de escala}
+\subsection{Falla detectada en la verificación posterior: duplicación
+de la adquisición transferida}
 \label{sec:falla_buffer}
 
 La falla anterior fue visible mientras ocurría. La que se describe a
@@ -170,6 +171,41 @@ que se pretende validar. Verificar la consistencia del preámbulo consigo
 mismo habría resultado satisfactorio en ambas capturas, porque cada una
 es internamente coherente. Lo que revela el defecto es la comparación
 entre capturas, no la inspección de cada una por separado.
+
+\subsubsection*{Un antecedente en las sesiones preliminares}
+
+El mismo criterio, aplicado a los registros de junio de 2026 ---
+anteriores a la integración del módulo de temperatura y conservados
+como material de desarrollo ---, revela que el defecto no fue un
+incidente aislado.
+
+En la sesión \texttt{20260623\_171412} las cuatro primeras capturas
+registran una señal de aproximadamente \SI{2.9}{\milli\volt} de
+amplitud pico a pico. Las cuatro siguientes son idénticas entre sí bit
+a bit, con una amplitud de \SI{0.078}{\milli\volt}. En la sesión
+\texttt{20260623\_173432}, tomada dieciocho minutos después, la
+repetición abarca diez capturas consecutivas, desde \texttt{m0004}
+hasta \texttt{m0013}, separadas por intervalos de noventa segundos a lo
+largo de doce minutos.
+
+Podría objetarse que un registro de amplitud tan baja corresponde
+simplemente a la ausencia de señal en la entrada del osciloscopio, lo
+que en una sesión de desarrollo sería esperable. La objeción no explica
+lo observado. Esos registros no son constantes: presentan una
+desviación estándar de \SI{0.0095}{\milli\volt}, es decir, ruido de
+fondo. Dos adquisiciones sucesivas de ruido separadas por noventa
+segundos no pueden coincidir muestra por muestra. La coincidencia
+exacta indica que no hubo adquisición, con independencia de lo que
+estuviera conectado a la entrada.
+
+Estas sesiones no forman parte de los resultados del sistema: se
+realizaron con una versión anterior del programa, sin módulo de
+temperatura y con un formato de registro que aún no incluía la
+descripción de errores. Se citan aquí por lo que aportan al alcance de
+la falla: la duplicación de la adquisición ocurrió al menos en tres
+sesiones distintas a lo largo de dos meses, y en ninguna de ellas
+levantó bandera alguna. El caso del 18 de agosto no es una anomalía
+puntual, sino la manifestación más breve de una condición recurrente.
 
 \subsubsection*{Contraste: la reconstrucción cuando los metadatos son
 correctos}
@@ -329,9 +365,9 @@ criterio.
     Auditoría del registro &
     Dos capturas con bandera y sin descripción & Corregida \\
     \addlinespace
-    Buffer duplicado tras un cambio de escala &
+    Buffer duplicado en la transferencia &
     Verificación posterior &
-    Arreglos idénticos con parámetros distintos &
+    Arreglos idénticos entre capturas sucesivas, en tres sesiones &
     Detectada; sin corrección en el instrumento \\
     \addlinespace
     Regresión en el registro de escalas & Auditoría del código &
@@ -345,11 +381,13 @@ criterio.
   \end{tabular}
 \end{table}
 
-Tres de las cinco anomalías no eran observables durante la operación.
-Dos de ellas tampoco lo eran en los datos: solo aparecieron al
-contrastar el archivo con lo que declaraba contener y el código con su
-propia historia. Ninguna produjo una excepción ni interrumpió una
-secuencia.
+Cuatro de las cinco anomalías no eran observables durante la
+operación. Dos de ellas tampoco lo eran en los datos tomados uno a
+uno: solo aparecieron al contrastar el archivo con lo que declaraba
+contener y el código con su propia historia. Ninguna produjo una
+excepción ni interrumpió una secuencia. La más prolongada ---diez
+capturas consecutivas sin adquisición--- transcurrió durante doce
+minutos frente a un operador atento.
 
 El sistema no evita fallar. Lo que hace es conservar información
 suficiente para que sus fallas sean reconstruibles después, y esa

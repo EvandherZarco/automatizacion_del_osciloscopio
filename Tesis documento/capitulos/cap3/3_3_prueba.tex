@@ -3,15 +3,54 @@
 \label{sec:prueba_integrada}
 % =========================================================
 
-% CONTENIDO PENDIENTE.
+% CONTENIDO PENDIENTE — redactar tras la sesión del 7 de septiembre.
 %
-% Sesiones disponibles:
-%   - 20260623_182323: 11 capturas de agua destilada, modo tiempo,
-%     3.2 por ciento de variación en Vpp. Repetibilidad base.
-%   - 20260818_190223: verificada con verificar_sesion.py.
-%   - 20260825_192627: serie A (m0002-m0006, EO delay 3800 us,
-%     Vpp ~9.87 mV) y serie B (m0008-m0017, EO delay 3700 us,
-%     Vpp ~9.07 mV). Hidrófono de Rangel Mendieta (2023).
+% ARGUMENTO CENTRAL: repetibilidad de la herramienta, no
+% caracterización del líquido. Lo que se demuestra es que dos capturas
+% tomadas bajo los mismos parámetros producen el mismo resultado dentro
+% de una dispersión acotada, y que el sistema deja constancia de los
+% parámetros bajo los cuales cada una fue tomada.
 %
-% Argumento central: repetibilidad de la herramienta, no
-% caracterización del líquido.
+% SESIONES QUE SÍ ENTRAN:
+%
+%   - 20260818_190223: verificada con verificar_sesion.py. Sesión de
+%     referencia previa a la integración del módulo de temperatura en
+%     la secuencia automática.
+%
+%   - 20260825_192627: primera sesión con módulo de temperatura
+%     integrado. Diecisiete capturas en dos series separadas por una
+%     reprogramación del ESP32.
+%       Serie A: m0002-m0006, EO delay 3800 us.
+%       Serie B: m0008-m0017, EO delay 3700 us.
+%     Métrica válida de Vpp: traza completa, 0.77 por ciento de
+%     dispersión. NO usar ventana temporal fija.
+%     Tiempo de arribo: ~31.4 us en ambas series con umbral fijo de
+%     0.137 mV. La diferencia aparente de 30 us entre series es
+%     artefacto del umbral relativo de 8 sigma; ver seccion 3.4.4.
+%
+%   - Sesión del 7 de septiembre, cuando exista.
+%
+% SESIONES QUE NO ENTRAN AQUÍ:
+%
+%   Las de junio de 2026 (20260623_171412, 173432, 175524, 182323)
+%   pertenecen al sistema predecesor, sin módulo de temperatura y con
+%   registro de 15 y 16 columnas. Se mencionan únicamente en 3.4 como
+%   antecedente del defecto de duplicación. No sostienen ninguna
+%   afirmación de repetibilidad en esta sección.
+%
+% CIFRA RETIRADA:
+%
+%   El 3.2 por ciento de variación en Vpp atribuido a 20260623_182323
+%   NO debe citarse. Su origen no pudo confirmarse. Sobre el
+%   subconjunto de 8 capturas automáticas de esa sesión, la desviación
+%   estándar real es 1.24 por ciento y el rango sobre la media es
+%   3.79 por ciento; además el hidrófono fue movido deliberadamente
+%   durante la sesión, de modo que ninguna de las tres cifras describe
+%   la repetibilidad del sistema.
+%
+% ADVERTENCIA DE MEDICIÓN:
+%
+%   El tiempo de arribo absoluto no es una constante del sistema:
+%   depende de la posición horizontal fijada por el operador. Cualquier
+%   afirmación numérica sobre las señales debe medirse sobre los
+%   archivos .npy antes de escribirse.
