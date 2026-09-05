@@ -24,7 +24,7 @@ import pyqtgraph as pg
 from PySide6.QtCore import Qt, QThread, QTimer, Signal, Slot, QObject, QEvent
 from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QGroupBox,
-    QLabel, QPushButton, QSpinBox, QDoubleSpinBox,
+    QLabel, QPushButton, QSpinBox, QDoubleSpinBox, QLineEdit,
     QTabWidget, QFrame, QFileDialog, QMessageBox, QApplication, QTextEdit,
 )
 
@@ -245,12 +245,42 @@ class VentanaAmbos(QMainWindow):
 
     def _tab_parametros(self) -> QWidget:
         w = QWidget()
-        lay = QHBoxLayout(w)
+        lay = QVBoxLayout(w)
         lay.setContentsMargins(8, 8, 8, 8)
         lay.setSpacing(12)
-        lay.addWidget(self._panel_laser_params(), 1)
-        lay.addWidget(self._panel_oscil_params(), 1)
+        fila = QHBoxLayout()
+        fila.setSpacing(12)
+        fila.addWidget(self._panel_laser_params(), 1)
+        fila.addWidget(self._panel_oscil_params(), 1)
+        lay.addLayout(fila)
+        lay.addWidget(self._panel_geometria())
         return w
+
+    def _panel_geometria(self) -> QGroupBox:
+        g = QGroupBox()
+        lay = QHBoxLayout(g)
+        lay.setSpacing(12)
+
+        hdr = QLabel("📐  Geometría de la sesión")
+        hdr.setStyleSheet("font-weight: bold; font-size: 14px;")
+        lay.addWidget(hdr)
+
+        col_hidrofono = QVBoxLayout()
+        col_hidrofono.addWidget(self._sep_lbl("Separación hidrófono–haz (mm)"))
+        self._edit_hidrofono_mm = QLineEdit()
+        self._edit_hidrofono_mm.setPlaceholderText("opcional")
+        col_hidrofono.addWidget(self._edit_hidrofono_mm)
+        lay.addLayout(col_hidrofono, 1)
+
+        col_volumen = QVBoxLayout()
+        col_volumen.addWidget(self._sep_lbl("Volumen vertido (mL)"))
+        self._edit_volumen_ml = QLineEdit()
+        self._edit_volumen_ml.setPlaceholderText("opcional")
+        col_volumen.addWidget(self._edit_volumen_ml)
+        lay.addLayout(col_volumen, 1)
+
+        lay.addStretch(2)
+        return g
 
     def _panel_laser_params(self) -> QGroupBox:
         g = QGroupBox()
@@ -970,6 +1000,8 @@ class VentanaAmbos(QMainWindow):
             "laser_output_level": params.get("output_level"),
             "laser_eo_delay_us": params.get("eo_delay_us"),
             "laser_burst_mode": params.get("burst_mode"),
+            "separacion_hidrofono_haz_mm": self._edit_hidrofono_mm.text().strip(),
+            "volumen_vertido_ml": self._edit_volumen_ml.text().strip(),
         }
 
     @Slot()

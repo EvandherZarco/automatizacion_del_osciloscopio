@@ -1,5 +1,5 @@
 % ============================================================
-%  CAPÍTULO 2: ARREGLO EXPERIMENTAL
+% CAPÍTULO 2: ARREGLO EXPERIMENTAL
 % ============================================================
 \chapter{Arreglo experimental}
 \label{cap:arreglo}
@@ -35,10 +35,9 @@ frontera del experimento y no un parámetro de diseño.
 
 La celda es un recipiente prismático de acrílico de \SI{3}{\milli\meter}
 de espesor, ensamblado mediante pestañas y ranuras y sellado con
-adhesivo. Dos de sus paredes incorporan ventanas de cuarzo que
-permiten el ingreso del haz láser sin las pérdidas ni la fluorescencia
-que introduciría el acrílico. La \cref{tab:piezas_celda} resume las
-piezas que la componen.
+adhesivo. Incorpora dos ventanas de cuarzo que permiten el paso del haz
+láser sin las pérdidas ni la fluorescencia que introduciría el
+acrílico. La \cref{tab:piezas_celda} resume las piezas que la componen.
 
 \begin{table}[H]
   \centering
@@ -50,26 +49,33 @@ piezas que la componen.
     & \textbf{Material} \\
     \midrule
     1 & Base con ranuras de ensamble & $220 \times 150 \times 3$ & Acrílico \\
-    2 & Paredes largas (dos piezas)  & $206 \times 70 \times 3$  & Acrílico \\
-    3 & Pared con barreno \diameter\,12 & $76 \times 76 \times 3$ & Acrílico \\
-    4 & Pared con barreno \diameter\,16 & $76 \times 76 \times 3$ & Acrílico \\
-    5 & Pared con barreno \diameter\,24 & $76 \times 76 \times 3$ & Acrílico \\
-    6 & Ventana rectangular          & $54 \times 16 \times 0.5$ & Cuarzo \\
-    7 & Ventana cuadrada             & $18 \times 18 \times 0.5$ & Cuarzo \\
+    2 & Paredes largas (dos piezas) & $206 \times 70 \times 3$ & Acrílico \\
+    3 & Placa de sujeción, barreno \diameter\,12 (cabezal) & $76 \times 76 \times 3$ & Acrílico \\
+    4 & Placa de sujeción, barreno \diameter\,16 (cuerpo) & $76 \times 76 \times 3$ & Acrílico \\
+    5 & Placa de sujeción, barreno \diameter\,24 (cable) & $76 \times 76 \times 3$ & Acrílico \\
+    6 & Ventana rectangular & $54 \times 16 \times 0.5$ & Cuarzo \\
+    7 & Ventana cuadrada & $18 \times 18 \times 0.5$ & Cuarzo \\
     \bottomrule
   \end{tabular}
 \end{table}
+
+La tabla reproduce las piezas reportadas por el autor de la celda y no
+constituye una lista exhaustiva de materiales: la pared transversal
+opuesta a la del hidrófono no aparece detallada por separado en esa
+fuente. De las dos ventanas de cuarzo, la rectangular es la que aloja
+el ingreso del haz en una de las paredes largas, según se describe en
+la \cref{sec:excitacion}.
 
 El ensamble resulta en una cavidad interna aproximada de
 $200 \times 70 \times \SI{70}{\milli\meter}$. El volumen de muestra
 empleado es de \SI{400}{\milli\liter} \cite{Rangel2023}, que
 corresponde a un tirante de líquido de
 \begin{equation}
-    h = \frac{V}{A_\text{base}}
-      = \frac{\SI{400}{\centi\meter\cubed}}
-             {\SI{20.0}{\centi\meter} \times \SI{7.0}{\centi\meter}}
-      \approx \SI{28.6}{\milli\meter}.
-    \label{eq:tirante}
+  h = \frac{V}{A_\text{base}}
+    = \frac{\SI{400}{\centi\meter\cubed}}
+           {\SI{20.0}{\centi\meter} \times \SI{7.0}{\centi\meter}}
+    \approx \SI{28.6}{\milli\meter}.
+  \label{eq:tirante}
 \end{equation}
 
 Este valor no es arbitrario. La ranura que aloja la ventana
@@ -90,14 +96,21 @@ aporta beneficio y aproxima la superficie libre al eje del haz.
 
 \subsection*{Montaje del hidrófono}
 
-Las tres paredes transversales de la celda incorporan barrenos de
+Una de las dos paredes transversales de la celda está formada por tres
+placas de acrílico dispuestas coaxialmente, con barrenos de
 \diameter\,12, \diameter\,16 y \diameter\,24\,\si{\milli\meter}
-respectivamente, cuya función es alojar y sostener el hidrófono en
-posición fija dentro del líquido. El hidrófono empleado es el
-desarrollado por Rangel Mendieta \cite{Rangel2023}, cuyas
-características se detallan en la \cref{sec:equipos}.
+que alojan sucesivamente el cabezal, el cuerpo y el cable del
+transductor. El hidrófono empleado es el desarrollado por Rangel
+Mendieta \cite{Rangel2023}, cuyas características se detallan en la
+\cref{sec:equipos}.
 
-El montaje mediante barrenos pasantes garantiza que la posición
+El escalonamiento de los tres diámetros no obedece únicamente a la
+sujeción: al apoyar el transductor en tres secciones separadas a lo
+largo de su eje, el conjunto restringe su inclinación y mantiene la
+cara sensora perpendicular al eje del haz. Esa perpendicularidad es la
+condición que permite tratar la separación entre el hidrófono y el haz
+como una distancia única, según se detalla en el
+\cref{ap:tiempos_arribo}. El montaje garantiza además que la posición
 relativa entre el hidrófono y la pared de la celda se conserve entre
 sesiones experimentales.
 
@@ -136,10 +149,10 @@ hipótesis geométricas empleadas, se presenta en el
     \textbf{Trayectoria} & \textbf{Distancia [\si{\milli\meter}]}
     & \textbf{Arribo [\si{\micro\second}]} \\
     \midrule
-    Señal directa                       & 10  & 6.8  \\
-    Reflexión en superficie libre       & 19  & 12.9 \\
-    Reflexión en el fondo               & 42  & 28.5 \\
-    Reflexión en paredes transversales  & 100 & 67.6 \\
+    Señal directa                      &  10 &  6.8 \\
+    Reflexión en superficie libre      &  19 & 12.9 \\
+    Reflexión en el fondo              &  42 & 28.5 \\
+    Reflexión en paredes transversales & 100 & 67.6 \\
     \bottomrule
   \end{tabular}
 \end{table}
@@ -157,13 +170,43 @@ interés y complican su interpretación \cite{Quan1994}; la
 \cref{tab:tiempos_celda} cuantifica ese efecto para la celda
 particular empleada en este trabajo.
 
+\subsection*{Naturaleza de los tiempos de la tabla \ref{tab:tiempos_celda}}
+\label{sec:origen_tiempos}
+
+Los valores de la \cref{tab:tiempos_celda} son tiempos de vuelo:
+miden el trayecto acústico desde la columna iluminada hasta el
+transductor, y su origen es el instante de emisión del pulso láser. No
+deben confundirse con las posiciones que esos mismos eventos ocupan
+dentro de un registro adquirido, y la distinción importa porque el
+\cref{cap:resultados} reporta instantes que difieren de ellos en varias
+decenas de microsegundos.
+
+La razón es instrumental. El eje temporal reconstruido mediante la
+\cref{eq:conv_tiempo} tiene su cero en el evento de disparo, y la
+posición de ese evento dentro del registro la fija el operador con el
+control de posición horizontal del osciloscopio al preparar la sesión.
+Ese control no se opera desde la aplicación, según la decisión de
+diseño expuesta en la \cref{sec:decisiones}, y su ajuste no queda
+registrado como un desplazamiento conocido. En consecuencia, el
+instante absoluto en que aparece la señal dentro de un registro
+depende del montaje del día y no es comparable entre sesiones.
+
+Lo que sí es comparable, y lo que la \cref{tab:tiempos_celda} predice,
+son las \emph{diferencias} entre arribos: el intervalo de
+aproximadamente \SI{6}{\micro\second} que separa la señal directa de
+la primera reflexión se conserva con independencia de dónde caiga el
+conjunto dentro del registro. Por esa razón, las magnitudes que el
+\cref{cap:resultados} emplea para juzgar la repetibilidad del sistema
+son intervalos y dispersiones, y no posiciones absolutas sobre el eje
+de tiempos.
+
+\subsection*{Condiciones de operación y limitaciones identificadas}
+
 Debe señalarse que la primera reflexión que limita la ventana útil es
 la de la superficie libre, cuya posición depende del volumen vertido
 según la \cref{eq:tirante}. Una variación en el llenado desplaza este
 tiempo de arribo, por lo que el volumen de muestra constituye un
 parámetro experimental que debe controlarse y registrarse.
-
-\subsection*{Condiciones de operación y limitaciones identificadas}
 
 El láser de excitación es un recurso compartido entre varios usuarios
 del laboratorio. En consecuencia, ni la celda ni el cabezal del láser
@@ -230,7 +273,7 @@ aprovechamiento se describen en la \cref{sec:auto_osci}.
 El transductor acústico es el hidrófono diseñado, manufacturado y
 caracterizado por Rangel Mendieta \cite{Rangel2023}. Su elemento
 sensor es una cerámica piezoeléctrica de composición KNLNS-BaCaZr de
-\diameter\,10.5\,\si{\milli\meter} y \SI{1.00}{\milli\meter} de
+\diameter\,10.71\,\si{\milli\meter} y \SI{1.06}{\milli\meter} de
 espesor, alojada en una carcasa de uretano de
 \diameter\,23\,\si{\milli\meter} exterior. El uretano fue
 seleccionado por su impedancia acústica próxima a la del agua, lo que
@@ -249,15 +292,15 @@ resumidos en la \cref{tab:hidrofono}.
     \toprule
     \textbf{Parámetro} & \textbf{Valor} \\
     \midrule
-    Material del elemento sensor      & Cerámica KNLNS-BaCaZr \\
-    Dimensiones del elemento sensor   & \diameter\,10.5 $\times$ \SI{1.00}{\milli\meter} \\
-    Material de la carcasa            & Uretano \\
+    Material del elemento sensor & Cerámica KNLNS-BaCaZr \\
+    Dimensiones del elemento sensor & \diameter\,10.71 $\times$ \SI{1.06}{\milli\meter} \\
+    Material de la carcasa & Uretano \\
     Respuesta en frecuencia de la cerámica aislada
-                                      & \SIrange{320}{1582}{\kilo\hertz} \\
+      & \SIrange{320}{1582}{\kilo\hertz} \\
     Respuesta en frecuencia del hidrófono ensamblado
-                                      & \SIrange{41}{797.5}{\kilo\hertz} \\
-    Frecuencia dominante en agua      & \SI{41}{\kilo\hertz} \\
-    Resonancias secundarias en agua   & \SI{323}{\kilo\hertz}, \SI{797.5}{\kilo\hertz} \\
+      & \SIrange{41}{797.5}{\kilo\hertz} \\
+    Frecuencia dominante en agua & \SI{41}{\kilo\hertz} \\
+    Resonancias secundarias en agua & \SI{323}{\kilo\hertz}, \SI{797.5}{\kilo\hertz} \\
     Amplitud máxima en agua tridestilada & \SI{50}{\milli\volt} \\
     \bottomrule
   \end{tabular}
@@ -349,14 +392,14 @@ características relevantes se resumen en la \cref{tab:laser}.
     \toprule
     \textbf{Parámetro} & \textbf{Valor} \\
     \midrule
-    Modelo                    & EKSPLA NL303HT-10-SH \\
-    Medio activo              & Nd:YAG \\
-    Longitudes de onda        & \SI{1064}{\nano\meter} (fundamental),
-                                \SI{532}{\nano\meter} (segundo armónico) \\
+    Modelo & EKSPLA NL303HT-10-SH \\
+    Medio activo & Nd:YAG \\
+    Longitudes de onda & \SI{1064}{\nano\meter} (fundamental),
+                         \SI{532}{\nano\meter} (segundo armónico) \\
     Longitud de onda empleada & \SI{1064}{\nano\meter} \\
-    Duración de pulso         & \SI{7}{\nano\second} \\
-    Frecuencia de repetición  & \SI{10}{\hertz} \\
-    Interfaz de control       & RS-232 \\
+    Duración de pulso & \SI{7}{\nano\second} \\
+    Frecuencia de repetición & \SI{10}{\hertz} \\
+    Interfaz de control & RS-232 \\
     \bottomrule
   \end{tabular}
 \end{table}
@@ -445,9 +488,9 @@ onda, mediante la secuencia de comandos SCPI de la
 \cref{lst:config_base}.
 
 \begin{lstlisting}[caption={Configuración base de la transferencia de
-                            forma de onda.},
-                   label={lst:config_base},
-                   language={}]
+    forma de onda.},
+    label={lst:config_base},
+    language={}]
 DATA:SOURCE CH1
 DATA:ENCDG RIBINARY
 DATA:WIDTH 2
@@ -482,16 +525,16 @@ del preámbulo \texttt{WFMPRE}: \texttt{YMULT}, \texttt{YOFF},
 
 El voltaje correspondiente a la muestra $i$-ésima se obtiene como
 \begin{equation}
-    V_i = \left(D_i - \texttt{YOFF}\right)\cdot \texttt{YMULT}
-          + \texttt{YZERO},
-    \label{eq:conv_voltaje}
+  V_i = \left(D_i - \texttt{YOFF}\right)\cdot \texttt{YMULT}
+        + \texttt{YZERO},
+  \label{eq:conv_voltaje}
 \end{equation}
 donde $D_i$ es el valor entero transferido. El instante asociado a esa
 misma muestra es
 \begin{equation}
-    t_i = \left(i - \texttt{PT\_OFF}\right)\cdot \texttt{XINCR}
-          + \texttt{XZERO},
-    \label{eq:conv_tiempo}
+  t_i = \left(i - \texttt{PT\_OFF}\right)\cdot \texttt{XINCR}
+        + \texttt{XZERO},
+  \label{eq:conv_tiempo}
 \end{equation}
 en la que \texttt{PT\_OFF} representa el índice de la muestra que
 coincide con el evento de disparo, de modo que los instantes
@@ -501,20 +544,30 @@ Ambas conversiones se aplican de forma vectorizada sobre el arreglo
 completo mediante \texttt{numpy}, lo que evita iterar sobre registros
 que pueden alcanzar varios millones de muestras.
 
-\subsection*{Parámetros configurables}
+\subsection*{Parámetros de adquisición: lectura y escritura}
 
-El módulo expone como parámetros ajustables desde la interfaz gráfica
-la longitud de registro (\texttt{HOR:RECLENGTH}), la escala vertical
+El módulo distingue dos grupos de parámetros según quién los
+establece.
+
+El primer grupo describe cómo el instrumento digitaliza la señal: la
+longitud de registro (\texttt{HOR:RECLENGTH}), la escala vertical
 (\texttt{CH$n$:SCALE}), la escala horizontal
 (\texttt{HORizontal:SCAle}), el acoplamiento de entrada
-(\texttt{CH$n$:COUPling}), el nivel de disparo
-(\texttt{TRIGger:MAIn:LEVel}), el modo de adquisición
-(\texttt{ACQ:MODE}) y el número de promedios (\texttt{ACQ:NUMAVG}).
+(\texttt{CH$n$:COUPling}) y el nivel de disparo
+(\texttt{TRIGger:MAIn:LEVel}). Estos parámetros se configuran
+físicamente en el panel del osciloscopio y el módulo únicamente los
+consulta, sin escribirlos en ningún momento. Los valores leídos se
+muestran en la interfaz en modo de solo lectura y se guardan junto con
+cada captura. La justificación de esta decisión, que es de
+trazabilidad y no de comodidad, se desarrolla en la
+\cref{sec:decisiones}.
 
-La longitud de registro admite únicamente un conjunto discreto de
-valores determinado por el instrumento, por lo que la interfaz
-presenta dichos valores como opciones cerradas en lugar de aceptar
-entrada numérica libre.
+El segundo grupo gobierna el modo de acumulación y sí se escribe desde
+la aplicación: el modo de adquisición (\texttt{ACQ:MODE}), el número
+de promedios (\texttt{ACQ:NUMAVG}) y las órdenes de inicio y detención
+descritas a continuación. Son los parámetros que la secuencia
+automática necesita manipular para operar, y ninguno de ellos altera
+la calibración de los ejes con la que se reconstruye la señal.
 
 \subsection*{Modos de adquisición}
 
@@ -593,25 +646,25 @@ registros empleados en este trabajo se listan en la
   \centering
   \caption{Registros del láser empleados por el sistema de control.}
   \label{tab:registros_laser}
-  \begin{tabular}{lll}
+  \begin{tabularx}{\textwidth}{lXl}
     \toprule
     \textbf{Registro} & \textbf{Función} & \textbf{Acceso} \\
     \midrule
-    \texttt{State}                  & Inicio y detención de la emisión & Lectura/escritura \\
-    \texttt{Output level}           & Nivel de energía de salida       & Lectura/escritura \\
+    \texttt{State} & Inicio y detención de la emisión & Lectura/escritura \\
+    \texttt{Output level} & Nivel de energía de salida & Lectura/escritura \\
     \texttt{Continuous / Burst mode / Trigger burst}
-                                    & Modo de disparo                  & Lectura/escritura \\
-    \texttt{Burst length, pulses}   & Pulsos por ráfaga                & Lectura/escritura \\
-    \texttt{Adjustment EO delay}    & Retardo del conmutador electro-óptico
-                                                                       & Lectura/escritura \\
+      & Modo de disparo & Lectura/escritura \\
+    \texttt{Burst length, pulses} & Pulsos por ráfaga & Lectura/escritura \\
+    \texttt{Adjustment EO delay} & Retardo del conmutador electro-óptico
+      & Lectura/escritura \\
     \texttt{Set cooling temperature}& Temperatura objetivo del refrigerante
-                                                                       & Lectura/escritura \\
+      & Lectura/escritura \\
     \texttt{Read cooling temperature}
-                                    & Temperatura actual del refrigerante
-                                                                       & Solo lectura \\
-    \texttt{Lamp pulse counter}     & Contador acumulado de disparos   & Solo lectura \\
+      & Temperatura actual del refrigerante
+      & Solo lectura \\
+    \texttt{Lamp pulse counter} & Contador acumulado de disparos & Solo lectura \\
     \bottomrule
-  \end{tabular}
+  \end{tabularx}
 \end{table}
 
 El módulo encapsula el acceso a estos registros tras una interfaz de
@@ -641,11 +694,11 @@ El procedimiento ejecuta en orden los cuatro comandos de la
     \toprule
     \textbf{Orden} & \textbf{Acción} & \textbf{Registro} \\
     \midrule
-    1 & Detener la emisión                 & \texttt{State $\rightarrow$ STOP} \\
-    2 & Establecer el retardo EO en 3800   & \texttt{Adjustment EO delay} \\
-    3 & Anular el nivel de salida          & \texttt{Output level $\rightarrow$ OFF} \\
+    1 & Detener la emisión & \texttt{State $\rightarrow$ STOP} \\
+    2 & Establecer el retardo EO en 3800 & \texttt{Adjustment EO delay} \\
+    3 & Anular el nivel de salida & \texttt{Output level $\rightarrow$ OFF} \\
     4 & Restituir el modo de disparo continuo
-                                           & \texttt{Continuous / Burst mode} \\
+      & \texttt{Continuous / Burst mode} \\
     \bottomrule
   \end{tabular}
 \end{table}
@@ -682,21 +735,30 @@ variaciones observadas.
 
 El módulo se compone de un microcontrolador ESP32 WROOM-32 y cuatro
 sensores digitales de temperatura DS18B20 en encapsulado sumergible.
-Los sensores se conectan a un bus 1-Wire compartido sobre una única
-línea de datos, con alimentación externa explícita y una resistencia
-de polarización de \SI{4.7}{\kilo\ohm}.
+Cada sensor se conecta a un bus 1-Wire independiente, sobre las líneas
+de entrada y salida de propósito general 16, 17, 18 y 19 del
+microcontrolador, con alimentación externa explícita y una resistencia
+de polarización de \SI{4.7}{\kilo\ohm} por bus. La alternativa
+habitual ---un único bus compartido por los cuatro sensores--- reduce
+el cableado, pero hace que el fallo de un dispositivo o de su conexión
+degrade la lectura de los cuatro. Con buses separados, la pérdida de un
+sensor deja intactos a los restantes y resulta además localizable, pues
+la línea afectada identifica al dispositivo.
 
 La comunicación con la computadora de control se realiza por enlace
 serial a \SI{115200}{baud}. El microcontrolador transmite
-periódicamente una trama de texto delimitada por comas que contiene
-la temperatura promedio y el estado de presencia de cada uno de los
-cuatro sensores, y acepta un conjunto reducido de comandos que
-permiten verificar la comunicación y suspender o reanudar la
-transmisión.
+periódicamente una trama de texto delimitada por comas con cinco
+campos: el promedio de las lecturas válidas, seguido de la temperatura
+individual de cada uno de los cuatro sensores. Un sensor que no
+responde no se omite de la trama ni conserva su último valor: su campo
+se transmite como no numérico, de modo que la aplicación distingue la
+pérdida de un sensor de una lectura legítima. El microcontrolador
+acepta además un conjunto reducido de comandos que permiten verificar
+la comunicación y suspender o reanudar la transmisión.
 
 \subsection*{Consideraciones de firmware}
 
-La adquisición de los cuatro sensores incorpora tres decisiones que
+La adquisición de los cuatro sensores incorpora cuatro decisiones que
 merecen mención.
 
 La primera es el filtrado del valor de \SI{85}{\celsius}. Los
@@ -705,16 +767,25 @@ encendido, antes de completar su primera conversión. Una lectura de
 \SI{85}{\celsius} se descarta por corresponder a una conversión no
 concluida y no a una medición válida.
 
-La segunda es el direccionamiento de los sensores. La enumeración por
-índice sobre el bus 1-Wire obliga a repetir el recorrido completo de
-identificación en cada lectura, lo que introduce latencia y hace que
-la correspondencia entre índice y sensor físico dependa del orden de
-respuesta en el bus. El firmware emplea en su lugar las direcciones
-únicas de cada sensor, obtenidas en una enumeración inicial, lo que
-garantiza que cada lectura corresponda invariablemente al mismo
-sensor físico.
+La segunda es la detección de desconexión. Un sensor que deja de
+responder produciría, con la implementación más directa, la repetición
+indefinida de su última lectura válida, que es la peor forma de fallar:
+el dato sigue pareciendo bueno. El firmware lleva por ello un contador
+de fallos consecutivos por bus y, superado su umbral, emite un valor no
+numérico en lugar de repetir el anterior. La recuperación es automática
+en cuanto el sensor vuelve a responder.
 
-La tercera es el manejo del tiempo de conversión. A resolución de
+La tercera es la identificación de los sensores. En un bus compartido,
+la correspondencia entre el índice de lectura y el sensor físico
+depende del orden de respuesta en el bus, de modo que una misma
+posición del arreglo puede referirse a dispositivos distintos en
+lecturas sucesivas. La topología de un sensor por bus elimina esa
+ambigüedad sin necesidad de direccionamiento explícito: cada objeto de
+lectura interroga una única línea, y el índice cero de esa línea
+corresponde invariablemente al mismo dispositivo. La identificación
+queda así resuelta por el cableado y no por el firmware.
+
+La cuarta es el manejo del tiempo de conversión. A resolución de
 \SI{12}{bits} la conversión de temperatura requiere aproximadamente
 \SI{750}{\milli\second}. Bloquear el ciclo de ejecución durante ese
 intervalo impide atender los comandos entrantes, por lo que la
@@ -760,7 +831,9 @@ unidades que, para el conjunto empleado, alcanza
 automática descrito en el \cref{cap:resultados} opera sobre un umbral
 de \SI{0.1}{\celsius} en torno a la temperatura objetivo, una
 dispersión de esa magnitud excede el propio criterio de decisión y
-debe corregirse.
+debe corregirse. Se describe a continuación el procedimiento definido
+para hacerlo, cuya aplicación quedó pendiente al cierre de este
+trabajo.
 
 La corrección adoptada es de carácter relativo y no absoluto. El
 experimento no requiere que las lecturas coincidan con un patrón
@@ -774,9 +847,22 @@ indispensable, pues sin ella se mide la estratificación del líquido y
 no la dispersión entre sensores --- y registrar sus lecturas en
 varios puntos a lo largo del intervalo de operación. Se designa un
 sensor como referencia y se calcula el desplazamiento medio de cada
-uno de los tres restantes respecto de él. Las constantes de
-corrección resultantes se incorporan al firmware, de modo que la
-compensación se aplique antes del promediado.
+uno de los tres restantes respecto de él. Las constantes de corrección
+resultantes se incorporarían al firmware, de modo que la compensación
+se aplicara antes del promediado.
+
+Debe hacerse explícito que esta corrección no se encuentra implementada
+en la versión del firmware empleada para las mediciones reportadas: los
+cuatro sensores se promedian sin compensación entre unidades. En
+consecuencia, el valor de temperatura registrado en cada captura
+arrastra la dispersión de fábrica del conjunto, y el umbral de
+\SI{0.1}{\celsius} que gobierna el criterio de disparo opera sobre
+lecturas que no han sido igualadas entre sí. La consecuencia práctica
+es acotada, pues dicho criterio se evalúa sobre el descenso monótono
+del promedio y no sobre la concordancia entre sensores, pero conviene
+tenerla presente al comparar lecturas individuales. La aplicación del
+procedimiento se recoge en el \cref{cap:conclusiones} como tarea
+pendiente.
 
 % \begin{figure}[H]
 %   \centering
@@ -789,6 +875,7 @@ compensación se aplique antes del promediado.
 % \begin{figure}[H]
 %   \centering
 %   \includegraphics[width=0.75\textwidth]{diagrama_temperatura}
-%   \caption{Diagrama de conexión del bus 1-Wire y los cuatro sensores.}
+%   \caption{Diagrama de conexión de los cuatro buses 1-Wire
+%            independientes y sus sensores.}
 %   \label{fig:diagrama_temperatura}
 % \end{figure}

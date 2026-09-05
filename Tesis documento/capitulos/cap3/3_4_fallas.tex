@@ -22,10 +22,11 @@ registros conservados y pueden reconstruirse a partir de ellos.
 de temperatura}
 \label{sec:falla_temperatura}
 
-La sesión \texttt{20260825\_192627} fue la primera realizada con el
-módulo de temperatura ya integrado a la aplicación. Consta de
-diecisiete capturas repartidas en dos series, separadas por una
-reprogramación del microcontrolador ESP32 a mitad de sesión.
+La sesión \texttt{20260825\_192627}, descrita en la
+\cref{sec:sesion_referencia}, quedó partida en dos series por una
+reprogramación del microcontrolador ESP32 a mitad de sesión. Ese corte,
+que allí sirvió para contrastar dos configuraciones del láser, tuvo
+además una consecuencia sobre el registro de temperatura.
 
 En la primera serie (\texttt{m0002}--\texttt{m0006}) la lectura de
 temperatura descendió de forma monótona de \SI{37.27}{\celsius} a
@@ -211,15 +212,10 @@ puntual, sino la manifestación más breve de una condición recurrente.
 correctos}
 
 El caso anterior podría sugerir que la fórmula de reconstrucción es
-poco confiable. La sesión del 25 de agosto demuestra lo contrario.
-
-Sus diecisiete capturas se tomaron con dos escalas horizontales
-distintas, y el máximo de la señal aparece en índices de muestra muy
-diferentes según la serie: alrededor de la muestra 13\,641 en la
-primera y de la 6\,729 en la segunda. Reconstruidas con sus respectivos
-parámetros, las diecisiete sitúan el máximo en \SI{69.1}{\micro\second}
-con una dispersión de \SI{0.1}{\micro\second}. Dos muestreos distintos
-convergen al mismo instante físico.
+poco confiable. La \cref{sec:reconstruccion_escalas} demuestra lo
+contrario: en la sesión del 25 de agosto, dos muestreos con
+resoluciones distintas convergen tras la reconstrucción al mismo
+instante físico.
 
 Los dos casos delimitan con precisión el alcance de la reconstrucción.
 La fórmula es correcta y se sostiene entre escalas; lo que puede fallar

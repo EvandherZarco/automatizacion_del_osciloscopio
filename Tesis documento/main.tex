@@ -1,8 +1,8 @@
 % ============================================================
 %  TESIS: Automatización de un sistema fotoacústico
 %         para la caracterización de líquidos
-%  Autor  : [Tu nombre completo]
-%  Asesor : Dr. Arturo [Apellidos]
+%  Autor  : Zarco Hernández Evandher Joel
+%  Asesor : Dr. Arturo Ronquillo Arvizu
 %  UNAM - Facultad de Ingeniería / ICAT
 % ============================================================
 
@@ -32,7 +32,7 @@
 % ── Gráficas e imágenes ──────────────────────────────────────
 \usepackage{graphicx}
 \usepackage{float}
-\graphicspath{{./figuras/}}    % carpeta de imágenes
+\graphicspath{{./figuras/}{./figuras/celda/}}
 
 % ── Matemáticas ──────────────────────────────────────────────
 \usepackage{amsmath, amssymb, amsfonts}
@@ -60,6 +60,7 @@
 % ── Tablas ───────────────────────────────────────────────────
 \usepackage{booktabs}          % líneas profesionales
 \usepackage{multirow}
+\usepackage{tabularx}
 \usepackage{array}
 
 % ── Hipervínculos y referencias ──────────────────────────────
@@ -70,6 +71,16 @@
   urlcolor   = blue
 ]{hyperref}
 \usepackage[spanish]{cleveref} % \cref{fig:x} → "figura 1"
+\crefname{table}{tabla}{tablas}
+\Crefname{table}{Tabla}{Tablas}
+\crefname{section}{sección}{secciones}
+\Crefname{section}{Sección}{Secciones}
+\crefname{lstlisting}{listado}{listados}
+\Crefname{lstlisting}{Listado}{Listados}
+\crefname{chapter}{capítulo}{capítulos}
+\Crefname{chapter}{Capítulo}{Capítulos}
+\crefname{appendix}{apéndice}{apéndices}
+\Crefname{appendix}{Apéndice}{Apéndices}
 
 % ── Bibliografía ─────────────────────────────────────────────
 \usepackage{csquotes}          % requerido por biblatex con babel
@@ -135,17 +146,19 @@
 \pagestyle{fancy}
 
 % ── CAPÍTULOS ────────────────────────────────────────────────
-\input{capitulos/cap1_fundamentos}
-\input{capitulos/cap2_arreglo_experimental}
-\input{capitulos/cap3_resultados}
-\input{capitulos/cap4_conclusiones}
+\input{capitulos/cap1_introduccion}
+\input{capitulos/cap2_fundamentos}
+\input{capitulos/cap3_arreglo_experimental}
+\input{capitulos/cap4_resultados}
+\input{capitulos/cap5_conclusiones}
 
 % ── REFERENCIAS ──────────────────────────────────────────────
 \newpage
 \printbibliography[heading=bibintoc, title={Referencias}]
 
-% ── APÉNDICES (si aplica) ────────────────────────────────────
-% \appendix
-% \input{capitulos/apendice_a}
+% ── APÉNDICES ────────────────────────────────────────────────
+\appendix
+\crefalias{chapter}{appendix}
+\input{capitulos/ap_tiempos_arribo}
 
 \end{document}

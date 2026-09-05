@@ -1,0 +1,84 @@
+% =========================================================
+% REEMPLAZO de la subsección \label{sec:val_verificador} en
+% 3_2_validacion.tex. Sustituir el bloque completo, desde
+% \subsection{Verificación de sesiones...} hasta el comentario
+% "% PENDIENTE: incorporar el resultado de la prueba de mutación."
+% inclusive.
+% =========================================================
+
+\subsection{Verificación de sesiones y validación de la herramienta}
+\label{sec:val_verificador}
+
+La herramienta \texttt{verificar\_sesion.py} recorre una sesión ya
+guardada y evalúa diez condiciones anómalas: ausencia de archivos de
+muestras (\texttt{npy\_ausente}), imposibilidad de reconstruir captura
+alguna (\texttt{sin\_reconstruibles}), saturación de la señal
+(\texttt{saturacion}), repetición de un mismo contenido binario bajo
+la misma escala o bajo escalas distintas
+(\texttt{buffer\_repetido\_misma\_escala} y
+\texttt{buffer\_repetido\_escala\_distinta}), coexistencia de escalas
+diferentes en una misma serie (\texttt{mezcla\_escalas}), deriva del
+tiempo de arribo (\texttt{deriva\_onset}), estancamiento de la lectura
+de temperatura (\texttt{temperatura\_estancada}), presencia de
+capturas marcadas con error (\texttt{error\_flag}) y dispersión
+excesiva de la amplitud pico a pico (\texttt{dispersion\_vpp}). Es la
+herramienta con la que se detectaron las anomalías descritas en la
+\cref{sec:falla_buffer} y en la \cref{sec:falla_regresion}.
+
+Una herramienta de auditoría que nunca se ha visto fallar no es una
+herramienta verificada, sino una herramienta afortunada. Su validación
+se realizó en dos etapas.
+
+La primera consistió en fabricar, mediante
+\texttt{generar\_sesion\_prueba.py}, once sesiones sintéticas: diez
+diseñadas para provocar cada una de las condiciones anteriores, y una
+undécima deliberadamente limpia. Esta última no es un caso menor. Un
+verificador que declarara anomalías en toda sesión que examina
+detectaría las diez condiciones sin dificultad y sería inútil; la
+sesión limpia es la que exige que no las declare cuando no las hay. El
+verificador identifica las diez condiciones y no emite alerta alguna
+sobre la sesión limpia.
+
+La segunda etapa responde a una objeción que la primera deja abierta.
+El corredor compara las alertas obtenidas contra un conjunto esperado,
+y ese conjunto podría haberse derivado de la salida observada del
+verificador en lugar del comportamiento pretendido; de ser así, la
+prueba pasaría igual con el verificador averiado. Para descartarlo se
+realizó una prueba de mutación: se desactivó la emisión de cada una de
+las diez condiciones, una a la vez, restaurando el archivo entre
+mutaciones, y se registró qué casos dejaban de detectarse.
+
+Las diez mutaciones provocaron la caída del caso correspondiente.
+Ninguna sobrevivió, y en ningún caso el conjunto completo quedó en
+verde con un chequeo desactivado. Dos de ellas arrastraron además un
+caso ajeno: al desactivar \texttt{npy\_ausente} cae también
+\texttt{sin\_reconstruibles}, y al desactivar \texttt{mezcla\_escalas}
+cae \texttt{buffer\_repetido\_escala\_distinta}. Ambas muertes
+cruzadas corresponden a relaciones de implicación entre las
+condiciones --- una sesión sin capturas reconstruibles es
+necesariamente una sesión a la que le faltan archivos de muestras, y
+la repetición de contenido bajo escalas distintas presupone escalas
+distintas ---, previstas por análisis del código antes de la prueba y
+confirmadas empíricamente por ella.
+
+La mutación dejó un hallazgo que no se buscaba. Al desactivar
+\texttt{sin\_reconstruibles}, el código de salida del verificador
+permanece en 1: la instrucción de retorno anticipada devuelve una lista
+que \texttt{npy\_ausente} ya había poblado en la condición anterior. Un
+corredor que juzgara el resultado por el código de salida habría dado
+ese caso por aprobado con el chequeo apagado. Lo que impidió el falso
+aprobado fue la decisión de comparar el conjunto de alertas emitidas
+contra el esperado, y no únicamente el código de salida. La
+observación no es anecdótica: reaparece en
+\cref{sec:val_advertencias}, donde una comprobación distinta calcula su
+código de retorno antes del paso que pretende verificar. En ambos
+casos, el código de salida resultó ser el indicador menos informativo
+disponible.
+
+Queda una limitación que conviene declarar. La prueba de mutación se
+aplicó manualmente y no existe en el repositorio como procedimiento
+automatizado: si \texttt{verificar\_sesion.py} incorpora una condición
+nueva o reescribe una existente, el resultado anterior deja de ser
+válido y nada lo advierte. La herramienta que somete al sistema a
+verificación continua está, ella misma, verificada por una prueba de
+un solo momento.

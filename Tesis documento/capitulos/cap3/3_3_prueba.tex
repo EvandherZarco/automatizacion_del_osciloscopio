@@ -3,54 +3,126 @@
 \label{sec:prueba_integrada}
 % =========================================================
 
-% CONTENIDO PENDIENTE — redactar tras la sesión del 7 de septiembre.
-%
-% ARGUMENTO CENTRAL: repetibilidad de la herramienta, no
-% caracterización del líquido. Lo que se demuestra es que dos capturas
-% tomadas bajo los mismos parámetros producen el mismo resultado dentro
-% de una dispersión acotada, y que el sistema deja constancia de los
-% parámetros bajo los cuales cada una fue tomada.
-%
-% SESIONES QUE SÍ ENTRAN:
-%
-%   - 20260818_190223: verificada con verificar_sesion.py. Sesión de
-%     referencia previa a la integración del módulo de temperatura en
-%     la secuencia automática.
-%
-%   - 20260825_192627: primera sesión con módulo de temperatura
-%     integrado. Diecisiete capturas en dos series separadas por una
-%     reprogramación del ESP32.
-%       Serie A: m0002-m0006, EO delay 3800 us.
-%       Serie B: m0008-m0017, EO delay 3700 us.
-%     Métrica válida de Vpp: traza completa, 0.77 por ciento de
-%     dispersión. NO usar ventana temporal fija.
-%     Tiempo de arribo: ~31.4 us en ambas series con umbral fijo de
-%     0.137 mV. La diferencia aparente de 30 us entre series es
-%     artefacto del umbral relativo de 8 sigma; ver seccion 3.4.4.
-%
-%   - Sesión del 7 de septiembre, cuando exista.
-%
-% SESIONES QUE NO ENTRAN AQUÍ:
-%
-%   Las de junio de 2026 (20260623_171412, 173432, 175524, 182323)
-%   pertenecen al sistema predecesor, sin módulo de temperatura y con
-%   registro de 15 y 16 columnas. Se mencionan únicamente en 3.4 como
-%   antecedente del defecto de duplicación. No sostienen ninguna
-%   afirmación de repetibilidad en esta sección.
-%
-% CIFRA RETIRADA:
-%
-%   El 3.2 por ciento de variación en Vpp atribuido a 20260623_182323
-%   NO debe citarse. Su origen no pudo confirmarse. Sobre el
-%   subconjunto de 8 capturas automáticas de esa sesión, la desviación
-%   estándar real es 1.24 por ciento y el rango sobre la media es
-%   3.79 por ciento; además el hidrófono fue movido deliberadamente
-%   durante la sesión, de modo que ninguna de las tres cifras describe
-%   la repetibilidad del sistema.
-%
-% ADVERTENCIA DE MEDICIÓN:
-%
-%   El tiempo de arribo absoluto no es una constante del sistema:
-%   depende de la posición horizontal fijada por el operador. Cualquier
-%   afirmación numérica sobre las señales debe medirse sobre los
-%   archivos .npy antes de escribirse.
+Las pruebas de la \cref{sec:validacion} ejercitan cada subsistema por
+separado y sin instrumentos. Esta sección examina el comportamiento del
+sistema completo en sesiones reales de laboratorio, con el láser
+emitiendo, el osciloscopio adquiriendo y el módulo de temperatura
+operando de forma simultánea.
+
+Conviene precisar de entrada qué se pretende demostrar. La sesión no
+caracteriza el agua: el arreglo no normaliza por la energía del pulso,
+según se estableció en la \cref{sec:equipos}, y la señal registrada
+lleva impresa la respuesta del transductor. Lo que se evalúa es la
+herramienta. Si dos capturas tomadas bajo los mismos parámetros
+producen resultados equivalentes dentro de una dispersión acotada, si
+un cambio deliberado en un parámetro del láser se distingue de esa
+dispersión, y si el registro de sesión conserva la información
+necesaria para afirmar ambas cosas después, sin recurrir a la memoria
+del operador.
+
+\subsection{Sesión de referencia}
+\label{sec:sesion_referencia}
+
+La sesión \texttt{20260825\_192627} fue la primera realizada con el
+módulo de temperatura ya integrado a la secuencia automática, y
+constituye el material principal de esta sección. Consta de diecisiete
+capturas de \num{50000} muestras cada una, repartidas en dos series
+separadas por una interrupción a mitad de sesión durante la cual se
+reprogramó el microcontrolador y se modificó el retardo del conmutador
+electro-óptico del láser.
+
+La primera serie (\texttt{m0002}--\texttt{m0006}) se tomó con un
+\textit{EO delay} de \SI{3800}{\micro\second} y con la lectura de
+temperatura activa, que descendió de forma monótona de
+\SI{37.27}{\celsius} a \SI{36.97}{\celsius} a lo largo de la serie,
+consistente con el enfriamiento pasivo de la muestra. La segunda
+(\texttt{m0008}--\texttt{m0017}) se tomó con un \textit{EO delay} de
+\SI{3700}{\micro\second} y sin lectura de temperatura, por la pérdida
+del módulo que se documenta en la \cref{sec:falla_temperatura}.
+
+La interrupción, que en su momento fue un contratiempo, resulta útil
+aquí: la sesión contiene dos conjuntos de capturas tomados bajo
+parámetros deliberadamente distintos y por lo demás en las mismas
+condiciones de montaje, lo que permite contrastar la dispersión interna
+de cada serie contra la diferencia entre ellas.
+
+\subsection{Reconstrucción temporal entre escalas distintas}
+\label{sec:reconstruccion_escalas}
+
+Las dos series se adquirieron con bases de tiempo diferentes, de modo
+que el máximo de la señal aparece en índices de muestra muy distintos
+según la serie: alrededor de la muestra \num{13641} en la primera y de
+la \num{6729} en la segunda. Reconstruidos los ejes con sus respectivos
+valores de \texttt{XINCR}, \texttt{XZERO} y \texttt{PT\_OFF} mediante la
+\cref{eq:conv_tiempo}, las diecisiete capturas sitúan el máximo en
+\SI{69.1}{\micro\second} con una dispersión de \SI{0.1}{\micro\second}.
+
+El resultado es más fuerte que una simple comprobación de consistencia.
+Dos muestreos con resoluciones distintas, aplicados a la misma señal
+física, convergen al mismo instante tras la reconstrucción. Eso valida
+simultáneamente tres cosas: que el preámbulo se consulta de forma
+atómica con la transferencia de la forma de onda, que sus valores se
+escriben correctamente en el registro de sesión, y que la fórmula de
+conversión los interpreta como corresponde. Ninguna de las tres podía
+darse por supuesta. La \cref{sec:falla_buffer} documenta un caso en el
+que ese emparejamiento entre muestras y metadatos falló y produjo una
+reconstrucción falsa que no se anunciaba como tal.
+
+\subsection{Repetibilidad dentro de una serie}
+\label{sec:repetibilidad}
+
+La métrica empleada para la amplitud es el valor pico a pico calculado
+sobre la traza completa. No se utiliza una ventana temporal fija,
+porque el origen del eje de tiempos lo fija el operador con el control
+de posición horizontal del osciloscopio y no es reproducible entre
+sesiones, según se discute en la \cref{sec:celda}; una ventana definida
+en tiempo absoluto mediría intervalos distintos en sesiones distintas.
+
+Sobre la traza completa, la dispersión relativa del valor pico a pico
+dentro de una misma serie es de \SI{0.77}{\percent}. Esa cifra acota lo
+que el sistema entrega como repetibilidad bajo parámetros constantes, y
+es la referencia contra la cual debe juzgarse cualquier variación que se
+pretenda atribuir a un cambio en las condiciones del experimento.
+
+\subsection{Discriminación de un cambio controlado}
+\label{sec:discriminacion}
+
+Entre las dos series solo se modificó un parámetro del láser de forma
+deliberada. La amplitud pico a pico media pasa de \SI{9.87}{\milli\volt}
+en la primera serie a \SI{9.07}{\milli\volt} en la segunda, una
+diferencia cercana al \SI{8}{\percent}: un orden de magnitud por encima
+de la dispersión interna de cada serie.
+
+La comparación tiene valor por lo que documenta sobre el sistema, no por
+lo que dice del agua. Un cambio introducido a propósito en un parámetro
+del instrumento produce en los datos una diferencia claramente separable
+del ruido de repetición, y el registro de sesión guarda el valor de ese
+parámetro en cada fila, de modo que la diferencia resulta atribuible a
+su causa sin depender de que alguien la haya anotado aparte. Esa
+trazabilidad es precisamente lo que la operación manual no garantizaba.
+
+Debe subrayarse que no se afirma una relación cuantitativa entre el
+retardo del conmutador electro-óptico y la amplitud fotoacústica. El
+arreglo no mide la energía del pulso, y dos puntos no sostienen una
+curva. Lo que se afirma es que el sistema distingue el cambio y
+conserva su causa.
+
+\subsection{Alcance de la prueba y verificaciones restantes}
+\label{sec:alcance_prueba}
+
+La sesión descrita valida la cadena completa en modo de adquisición por
+tiempo. Quedan dos asuntos que conviene declarar para acotar el alcance
+de esta sección.
+
+El primero es el modo de adquisición gobernado por temperatura descrito
+en la \cref{sec:secuencia}. Su lógica se ejercitó de forma exhaustiva
+por simulación, según la \cref{sec:val_simulador}, pero un barrido
+térmico completo contra los tres instrumentos reales ---con el
+osciloscopio abriendo y cerrando la integración según el descenso
+efectivo de la muestra--- no formó parte de la sesión aquí reportada.
+
+El segundo es la sesión \texttt{20260818\_190223}, de cuatro capturas,
+anterior a la integración del módulo de temperatura. Se conserva como
+material de referencia y se examina en la \cref{sec:falla_buffer}, donde
+documenta una anomalía; no sostiene afirmaciones de repetibilidad del
+sistema en su configuración actual.

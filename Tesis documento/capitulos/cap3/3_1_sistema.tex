@@ -17,7 +17,7 @@ El proyecto se organiza en torno a un paquete principal \texttt{app/}
 que agrupa los siguientes módulos:
 
 \begin{itemize}
-    \item \texttt{app/laser/control\_laser.py} — gestión de la conexión
+  \item \texttt{app/laser/control\_laser.py} — gestión de la conexión
     con el láser mediante la biblioteca de enlace dinámico
     \texttt{REMOTECONTROL64.dll}. Expone una interfaz pública de lectura
     (\texttt{read\_output\_level}, \texttt{read\_eo\_delay},
@@ -26,45 +26,45 @@ que agrupa los siguientes módulos:
     \texttt{set\_burst\_mode}); el acceso directo a registros queda
     encapsulado y no se invoca desde la interfaz gráfica.
 
-    \item \texttt{app/osciloscopio/control\_osciloscopio.py} —
+  \item \texttt{app/osciloscopio/control\_osciloscopio.py} —
     comunicación VXI-11 con el osciloscopio; implementa la consulta de
     parámetros de adquisición, la transferencia binaria de forma de onda
     y la lectura del preámbulo necesario para la conversión a unidades
     físicas.
 
-    \item \texttt{app/temperatura/temperatura.py} — hilo de lectura
+  \item \texttt{app/temperatura/temperatura.py} — hilo de lectura
     continua de los cuatro sensores DS18B20 conectados al módulo
     ESP32~WROOM-32; mantiene la última lectura en memoria, indica si el
     valor es reciente y emite señales Qt cuando se actualiza.
 
-    \item \texttt{app/medicion/medicion.py} — fachada de hardware y
+  \item \texttt{app/medicion/medicion.py} — fachada de hardware y
     orquestador de la secuencia de medición automática; coordina el
     láser, el osciloscopio y el módulo de temperatura según el modo de
     operación seleccionado, y emite advertencias sin interrumpir la
     secuencia.
 
-    \item \texttt{app/medicion/trigger.py} — lógica de disparo; evalúa
+  \item \texttt{app/medicion/trigger.py} — lógica de disparo; evalúa
     la condición de inicio y fin de adquisición en función de la
     temperatura o del tiempo según el modo activo.
 
-    \item \texttt{app/almacenamiento/almacenamiento.py} — persistencia
+  \item \texttt{app/almacenamiento/almacenamiento.py} — persistencia
     de datos; guarda las muestras crudas en archivos \texttt{.npy} y los
     metadatos de cada medición en un registro \texttt{.csv} de sesión.
 
-    \item \texttt{app/conexion/monitoreo.py} — hilo de monitoreo de
+  \item \texttt{app/conexion/monitoreo.py} — hilo de monitoreo de
     conexión; verifica periódicamente la disponibilidad de cada
     dispositivo y actualiza el indicador de estado en la interfaz.
 
-    \item \texttt{app/modo\_seguro/modo\_seguro.py} — procedimiento de
+  \item \texttt{app/modo\_seguro/modo\_seguro.py} — procedimiento de
     seguridad descrito en la \cref{sec:auto_laser}; desactiva el láser
     de forma controlada ante una parada de emergencia, un fallo de
     comunicación o la conclusión de la secuencia.
 
-    \item \texttt{app/exportacion/exportar\_mat.py} — conversión de una
+  \item \texttt{app/exportacion/exportar\_mat.py} — conversión de una
     sesión completa al formato \texttt{.mat} para su análisis
     posterior en MATLAB.
 
-    \item \texttt{app/gui/} — conjunto de ventanas y componentes
+  \item \texttt{app/gui/} — conjunto de ventanas y componentes
     gráficos.
 \end{itemize}
 
@@ -126,34 +126,94 @@ medición automática. Cada modo abre una ventana independiente; al
 cerrarla, la aplicación regresa a la bienvenida sin necesidad de
 reiniciar el proceso.
 
+Las ventanas de control individual, mostradas en la
+\cref{fig:ventanas_individuales}, sirven para la puesta a punto previa
+a una secuencia: alineación del arreglo, ajuste del nivel de salida del
+láser y verificación de que el osciloscopio dispara y transfiere. Ambas
+comparten con la ventana principal la barra de estado de conexión y el
+botón de parada de emergencia.
+
+\begin{figure}[H]
+  \centering
+  \begin{subfigure}[t]{0.48\textwidth}
+    \centering
+    \includegraphics[width=\textwidth]{ventana_laser}
+    \caption{Control del láser.}
+    \label{fig:ventana_laser}
+  \end{subfigure}
+  \hfill
+  \begin{subfigure}[t]{0.48\textwidth}
+    \centering
+    \includegraphics[width=\textwidth]{ventana_osciloscopio}
+    \caption{Control del osciloscopio.}
+    \label{fig:ventana_osciloscopio}
+  \end{subfigure}
+  \caption{Ventanas de control individual. La de la derecha muestra el
+           bloque de solo lectura con la configuración consultada al
+           instrumento, que la aplicación nunca escribe.}
+  \label{fig:ventanas_individuales}
+\end{figure}
+
 La ventana principal del modo combinado
-(\texttt{app/gui/ventana\_ambos.py}) se organiza en tres pestañas:
+(\texttt{app/gui/ventana\_ambos.py}) se organiza en tres pestañas, que
+se muestran en la \cref{fig:ventana_ambos}:
 
 \begin{itemize}
-    \item \textbf{Parámetros} — configura los parámetros del láser
+  \item \textbf{Parámetros} — configura los parámetros del láser
     (nivel de energía, modo de disparo, longitud de ráfaga,
     \textit{EO delay}) y muestra, en modo de solo lectura, la
     configuración vigente del osciloscopio consultada al instrumento.
 
-    \item \textbf{Medición} — expone los controles de la secuencia
+  \item \textbf{Medición} — expone los controles de la secuencia
     automática (modo de operación, temperatura objetivo o duración,
     botones de inicio y parada de emergencia) y muestra el estado en
     tiempo real de cada dispositivo mediante indicadores de color.
 
-    \item \textbf{Visualizar datos} — presenta la forma de onda
+  \item \textbf{Visualizar datos} — presenta la forma de onda
     adquirida en un gráfico interactivo de \texttt{pyqtgraph} con ejes
     calibrados en tiempo (\si{\micro\second}) y voltaje
     (\si{\milli\volt}), y permite exportar la sesión a formato
     \texttt{.mat}.
 \end{itemize}
 
+\begin{figure}[H]
+  \centering
+  \begin{subfigure}[t]{0.9\textwidth}
+    \centering
+    \includegraphics[width=\textwidth]{ventana_auto_1}
+    \caption{Pestaña \textit{Parámetros}.}
+    \label{fig:ventana_ambos_parametros}
+  \end{subfigure}
+
+  \vspace{0.6em}
+
+  \begin{subfigure}[t]{0.9\textwidth}
+    \centering
+    \includegraphics[width=\textwidth]{ventana_auto_2}
+    \caption{Pestaña \textit{Medición}.}
+    \label{fig:ventana_ambos_medicion}
+  \end{subfigure}
+
+  \vspace{0.6em}
+
+  \begin{subfigure}[t]{0.9\textwidth}
+    \centering
+    \includegraphics[width=\textwidth]{ventana_auto_3}
+    \caption{Pestaña \textit{Visualizar datos}.}
+    \label{fig:ventana_ambos_visualizacion}
+  \end{subfigure}
+  \caption{Ventana principal del modo combinado. La barra superior
+           conserva en las tres pestañas los indicadores de conexión de
+           los tres dispositivos, las lecturas de los cuatro sensores de
+           temperatura y el botón de parada de emergencia.}
+  \label{fig:ventana_ambos}
+\end{figure}
+
 La barra superior muestra el estado de conexión de cada dispositivo
 (láser, osciloscopio, ESP32) mediante indicadores de color: verde para
 conexión activa, rojo para desconectado, y un botón de reconexión
 disponible en todo momento. Las lecturas de los cuatro sensores de
 temperatura se actualizan cada segundo en la barra superior derecha.
-
-% FIGURAS: capturas de las tres pestañas y de la ventana de bienvenida.
 
 \subsection{Secuencia de medición automática}
 \label{sec:secuencia}
@@ -173,9 +233,9 @@ objetivo durante el enfriamiento. El número estimado de pulsos
 integrados en la ventana se calcula como
 
 \begin{equation}
-    n_\text{pulsos} = (t_\text{fin} - t_\text{inicio}) \times
-    \SI{10}{\hertz}
-    \label{eq:pulsos_estimados}
+  n_\text{pulsos} = (t_\text{fin} - t_\text{inicio}) \times
+                    \SI{10}{\hertz}
+  \label{eq:pulsos_estimados}
 \end{equation}
 
 y se almacena junto con los metadatos de la medición.
@@ -184,26 +244,26 @@ La secuencia en modo temperatura sigue los pasos descritos a
 continuación:
 
 \begin{enumerate}
-    \item El operador configura los parámetros en la pestaña
+  \item El operador configura los parámetros en la pestaña
     \textbf{Parámetros} y presiona \textit{Iniciar} en la pestaña
     \textbf{Medición}.
-    \item \texttt{medicion.py} envía los parámetros al láser mediante la
+  \item \texttt{medicion.py} envía los parámetros al láser mediante la
     interfaz de \texttt{control\_laser.py} y consulta la configuración
     vigente del osciloscopio.
-    \item El láser inicia el disparo.
-    \item El hilo \texttt{TriggerWorker} supervisa la temperatura
+  \item El láser inicia el disparo.
+  \item El hilo \texttt{TriggerWorker} supervisa la temperatura
     reportada por el módulo de temperatura; cuando
     $T \geq T_\text{obj} + \SI{0.1}{\celsius}$, envía
     \texttt{ACQ:STATE RUN} y registra $t_\text{inicio}$.
-    \item Cuando $T \leq T_\text{obj} - \SI{0.1}{\celsius}$, envía
+  \item Cuando $T \leq T_\text{obj} - \SI{0.1}{\celsius}$, envía
     \texttt{ACQ:STATE STOP} y registra $t_\text{fin}$.
-    \item \texttt{medicion.py} transfiere la forma de onda mediante
+  \item \texttt{medicion.py} transfiere la forma de onda mediante
     \texttt{CURVE?} junto con su preámbulo, y entrega las muestras
     crudas y los metadatos al módulo de almacenamiento. La conversión a
     unidades físicas se realiza en el análisis posterior con las
     \cref{eq:conv_voltaje,eq:conv_tiempo}.
-    \item El procedimiento de modo seguro desactiva el láser.
-    \item La interfaz muestra la señal adquirida y habilita el botón de
+  \item El procedimiento de modo seguro desactiva el láser.
+  \item La interfaz muestra la señal adquirida y habilita el botón de
     nueva medición.
 \end{enumerate}
 
