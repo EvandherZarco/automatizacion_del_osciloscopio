@@ -199,6 +199,19 @@ segundos no pueden coincidir muestra por muestra. La coincidencia
 exacta indica que no hubo adquisición, con independencia de lo que
 estuviera conectado a la entrada.
 
+La coincidencia admite además una confirmación que no depende de la
+herramienta de verificación. Al incorporar los archivos de esa sesión
+al sistema de control de versiones, este calculó para cada uno un
+identificador derivado de su contenido: las diez capturas de
+\texttt{m0004} a \texttt{m0013} recibieron el mismo, mientras que las
+tres anteriores recibieron identificadores distintos entre sí. El
+resultado importa por su procedencia. El verificador compara las
+capturas porque fue escrito para buscar precisamente esta anomalía; el
+control de versiones no sabe qué es una forma de onda ni qué se espera
+de ella, y llegó al mismo agrupamiento por el solo hecho de indexar
+archivos. La duplicación queda así sostenida por dos vías
+independientes.
+
 Estas sesiones no forman parte de los resultados del sistema: se
 realizaron con una versión anterior del programa, sin módulo de
 temperatura y con un formato de registro que aún no incluía la
