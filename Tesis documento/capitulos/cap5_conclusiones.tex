@@ -71,7 +71,7 @@ verificada; está sin poner a prueba.
 
 \subsection*{Sobre las fallas documentadas}
 
-El capítulo 3 dedica su sección más extensa a cinco anomalías
+El \cref{cap:resultados} dedica su sección más extensa a cinco anomalías
 observadas durante el desarrollo. Esa elección fue deliberada, y
 conviene justificarla.
 
@@ -106,11 +106,11 @@ distinguir el hallazgo del artefacto.
 Tres limitaciones deben quedar declaradas.
 
 La primera es de alcance experimental: el modo de adquisición
-gobernado por temperatura se ejercitó exhaustivamente por simulación,
-pero su recorrido completo contra los tres instrumentos reales fue
-limitado. La lógica está verificada; su comportamiento frente al
-enfriamiento efectivo de una muestra real está verificado de forma
-parcial.
+gobernado por temperatura se ejercitó de forma exhaustiva por
+simulación, pero no llegó a ejecutarse de punta a punta contra los
+tres instrumentos reales. Su lógica está verificada; su
+comportamiento frente al enfriamiento efectivo de una muestra no lo
+está.
 
 La segunda es que la calibración relativa entre los cuatro sensores de
 temperatura quedó definida pero no aplicada, de modo que las lecturas
@@ -152,7 +152,8 @@ una conexión inalámbrica (Wi-Fi o Bluetooth) que elimine el cable
 entre el módulo y la computadora de control, simplificando el
 arreglo experimental. Adicionalmente, el diseño de la PCB podría
 incorporar un regulador de voltaje integrado que permita alimentar
-el módulo directamente desde el puerto USB del osciloscopio,
+el módulo directamente desde el puerto USB de la computadora de
+control,
 reduciendo el número de fuentes de alimentación independientes.
 
 La calibración relativa entre los cuatro sensores de temperatura,

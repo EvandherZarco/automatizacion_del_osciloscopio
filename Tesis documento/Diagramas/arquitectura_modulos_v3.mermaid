@@ -3,36 +3,36 @@ flowchart TD
     %% ─────────────────────────────
     %% CAPA DE PRESENTACIÓN
     %% ─────────────────────────────
-    GUI["🖥️ GUI / Interfaz\nPySide6 · eventos · pantalla"]
+    GUI["GUI / Interfaz\nPySide6 · eventos · pantalla"]
 
     %% ─────────────────────────────
     %% CAPA DE COORDINACIÓN
     %% ─────────────────────────────
-    CONN["🔌 Conexión y monitoreo\nLEDs · estado · reintentos"]
-    MED["⚙️ Medición\n×3 capturas promediadas"]
+    CONN["Conexión y monitoreo\nLEDs · estado · reintentos"]
+    MED["Medición\norquestación de la secuencia"]
 
     %% ─────────────────────────────
     %% CAPA DE LÓGICA
     %% ─────────────────────────────
-    TRIG["🎯 Trigger\ntiempo o temperatura"]
+    TRIG["Trigger\ntiempo o temperatura"]
 
     %% ─────────────────────────────
     %% CAPA DE HARDWARE
     %% ─────────────────────────────
-    LASER["🔴 Control del láser\nSCPI · RS-232"]
-    OSCIL["📡 Control del osciloscopio\nSCPI · VXI-11 · captura"]
-    TEMP["🌡️ Temperatura\nESP32 · DS18B20 ×4"]
+    LASER["Control del láser\nSCPI · RS-232"]
+    OSCIL["Control del osciloscopio\nSCPI · VXI-11 · captura"]
+    TEMP["Temperatura\nESP32 · DS18B20 ×4"]
 
     %% ─────────────────────────────
     %% CAPA DE DATOS
     %% ─────────────────────────────
-    STORE["💾 Almacenamiento\nCSV · sesiones · error_flag"]
-    VIZ["📊 Visualización\nlista · señal · exportar"]
+    STORE["Almacenamiento\nCSV · sesiones · error_flag"]
+    VIZ["Visualización\nlista · señal · exportar"]
 
     %% ─────────────────────────────
     %% SEGURIDAD
     %% ─────────────────────────────
-    SAFE["🔒 Modo seguro\nláser → mínimo · osciloscopio intacto"]
+    SAFE["Modo seguro\nláser → mínimo · osciloscopio intacto"]
 
     %% ─────────────────────────────
     %% CONEXIONES — GUI

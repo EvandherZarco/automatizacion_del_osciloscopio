@@ -17,8 +17,9 @@ herramienta. Si dos capturas tomadas bajo los mismos parámetros
 producen resultados equivalentes dentro de una dispersión acotada, si
 un cambio deliberado en un parámetro del láser se distingue de esa
 dispersión, y si el registro de sesión conserva la información
-necesaria para afirmar ambas cosas después, sin recurrir a la memoria
-del operador.
+necesaria para afirmar ambas cosas después sin recurrir a la memoria
+del operador, entonces el sistema entrega lo que declara entregar.
+Esas tres preguntas organizan el resto de la sección.
 
 \subsection{Sesión de referencia}
 \label{sec:sesion_referencia}
@@ -79,19 +80,38 @@ sesiones, según se discute en la \cref{sec:celda}; una ventana definida
 en tiempo absoluto mediría intervalos distintos en sesiones distintas.
 
 Sobre la traza completa, la dispersión relativa del valor pico a pico
-dentro de una misma serie es de \SI{0.77}{\percent}. Esa cifra acota lo
-que el sistema entrega como repetibilidad bajo parámetros constantes, y
-es la referencia contra la cual debe juzgarse cualquier variación que se
-pretenda atribuir a un cambio en las condiciones del experimento.
+dentro de una misma serie es de \SI{0.33}{\percent} en la primera y de
+\SI{0.64}{\percent} en la segunda, medidas como el coeficiente de
+variación de las cinco y diez capturas que las componen. Esas cifras
+acotan lo que el sistema entrega como repetibilidad bajo parámetros
+constantes, y son la referencia contra la cual debe juzgarse cualquier
+variación que se pretenda atribuir a un cambio en las condiciones del
+experimento.
+
+Que la segunda serie disperse cerca del doble que la primera no admite
+una explicación con los datos disponibles, y no se propone ninguna: las
+dos series difieren en el retardo del conmutador electro-óptico y en la
+disponibilidad de la lectura de temperatura, de modo que ninguna
+atribución sería concluyente. Se declara la diferencia porque la cifra
+que importa para lo que sigue es la mayor de las dos.
 
 \subsection{Discriminación de un cambio controlado}
 \label{sec:discriminacion}
 
-Entre las dos series solo se modificó un parámetro del láser de forma
-deliberada. La amplitud pico a pico media pasa de \SI{9.87}{\milli\volt}
+Entre las dos series se modificó de forma deliberada un solo parámetro
+del láser. La amplitud pico a pico media pasa de \SI{9.87}{\milli\volt}
 en la primera serie a \SI{9.07}{\milli\volt} en la segunda, una
-diferencia cercana al \SI{8}{\percent}: un orden de magnitud por encima
-de la dispersión interna de cada serie.
+diferencia cercana al \SI{8}{\percent}: más de diez veces la dispersión
+interna de cualquiera de las dos series.
+
+La palabra deliberada acota lo que puede afirmarse. Entre una serie y
+otra se perdió también la lectura del módulo de temperatura, según se
+documenta en la \cref{sec:falla_temperatura}, de modo que las dos series
+no difieren en un único aspecto. Esa segunda diferencia es de registro y
+no de excitación ---la temperatura no interviene en el cálculo de la
+amplitud, que se obtiene de la forma de onda---, pero conviene
+enunciarla antes que dejarla implícita: lo que se controló fue un
+parámetro; lo que cambió entre series fueron dos cosas.
 
 La comparación tiene valor por lo que documenta sobre el sistema, no por
 lo que dice del agua. Un cambio introducido a propósito en un parámetro

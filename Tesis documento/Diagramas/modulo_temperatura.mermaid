@@ -3,10 +3,10 @@ flowchart TD
     %% ─────────────────────────────
     %% SUB-FLUJO 1: CONEXIÓN INICIAL
     %% ─────────────────────────────
-    INIT([🌡️ Temperatura: Conexión inicial])
+    INIT([Temperatura: Conexión inicial])
     INIT --> CONNECT["Abre puerto serial\nESP32-C3 · USB · 9600 baud"]
     CONNECT --> CONNOK{¿Conexión OK?}
-    CONNOK --> |No| CONNERR[/"⚠️ ESP32 no encontrado\nVerifique cable USB y puerto"/]
+    CONNOK --> |No| CONNERR[/"ESP32 no encontrado\nVerifique cable USB y puerto"/]
     CONNERR --> CONNFAIL([Reporta error a\nConexión y monitoreo])
 
     CONNOK --> |Sí| WAITFIRST["Espera primer mensaje\ndel ESP32"]
@@ -16,25 +16,25 @@ flowchart TD
     formato: '25.3,1,1,0,1'"]
     PARSECHECK --> SENSORCHECK{¿Todos los sensores\nconectados?}
     SENSORCHECK --> |Sí| READY
-    SENSORCHECK --> |No| SENSORWARN[/"⚠️ Sensores desconectados: [lista]
+    SENSORCHECK --> |No| SENSORWARN[/"Sensores desconectados: [lista]
     Los datos faltantes se marcarán
     en el CSV con error_flag"/]
     SENSORWARN --> READY
 
-    READY(["✅ ESP32 conectado\nInicia loop de lectura"])
+    READY(["ESP32 conectado\nInicia loop de lectura"])
     READY --> LOOP
 
     %% ─────────────────────────────
     %% SUB-FLUJO 2: LOOP DE LECTURA
     %% (corre en background continuo)
     %% ─────────────────────────────
-    LOOP["🔄 Loop continuo\nen hilo separado"]
+    LOOP["Loop continuo\nen hilo separado"]
     LOOP --> READLINE["Espera línea serial\ndel ESP32 ~1 s"]
     READLINE --> LINEOK{¿Llegó dato?}
 
     LINEOK --> |No — timeout| TOCHECK{¿Timeout\n> 5 s?}
     TOCHECK --> |No| READLINE
-    TOCHECK --> |Sí — ESP32 no responde| DISCON[/"⚠️ ESP32 desconectado\nÚltima temp. conocida conservada"/]
+    TOCHECK --> |Sí — ESP32 no responde| DISCON[/"ESP32 desconectado\nÚltima temp. conocida conservada"/]
     DISCON --> NOTIFYCONN["Notifica a\nConexión y monitoreo"]
     NOTIFYCONN --> READLINE
 
@@ -58,9 +58,9 @@ flowchart TD
     %% SUB-FLUJO 3: CONSULTA
     %% (llamado por Trigger o Conexión y monitoreo)
     %% ─────────────────────────────
-    QUERY([🌡️ Temperatura: Consulta\nllamado por Trigger o Conexión])
+    QUERY([Temperatura: Consulta\nllamado por Trigger o Conexión])
     QUERY --> FRESHCHECK{¿Última lectura\n< 3 s de antigüedad?}
     FRESHCHECK --> |Sí| RETURN[/"Devuelve: ultima_temp\nestado_sensores"/]
-    FRESHCHECK --> |No — dato viejo| STALE[/"⚠️ Dato desactualizado\nDevuelve último valor + advertencia"/]
+    FRESHCHECK --> |No — dato viejo| STALE[/"Dato desactualizado\nDevuelve último valor + advertencia"/]
     RETURN --> CALLER([Regresa al módulo\nque consultó])
     STALE --> CALLER

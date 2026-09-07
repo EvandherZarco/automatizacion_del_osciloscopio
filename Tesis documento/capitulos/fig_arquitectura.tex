@@ -1,0 +1,95 @@
+% =========================================================
+% Figura: arquitectura de módulos del sistema de automatización
+% Requiere en el preámbulo:
+%   \usepackage{tikz}
+%   \usetikzlibrary{positioning,arrows.meta,fit,backgrounds}
+% =========================================================
+
+\begin{figure}[htbp]
+  \centering
+  \begin{tikzpicture}[
+      font=\footnotesize,
+      modulo/.style={
+        draw, rounded corners=2pt, align=center,
+        text width=30mm, minimum height=11mm, inner sep=2pt},
+      hw/.style={modulo, fill=black!6},
+      capa/.style={
+        draw=black!35, dashed, rounded corners=4pt, inner sep=4mm, inner ysep=5mm},
+      etiqueta/.style={font=\scriptsize\itshape, text=black!55},
+      flecha/.style={-{Stealth[length=2mm]}, thick},
+      pasiva/.style={-{Stealth[length=2mm]}, densely dashed, black!55},
+      node distance=8mm and 10mm
+    ]
+
+    % --- Presentación ---
+    \node[modulo] (gui) {Interfaz gráfica\\\scriptsize eventos y presentación};
+
+    % --- Coordinación ---
+    \node[modulo, below=14mm of gui] (med)
+      {Medición\\\scriptsize orquestación de la secuencia};
+    \node[modulo, left=of med] (conn)
+      {Conexión y monitoreo\\\scriptsize estado y reintentos};
+    \node[modulo, right=of med] (trig)
+      {Disparo\\\scriptsize por tiempo o temperatura};
+
+    % --- Hardware ---
+    \node[hw, below=14mm of med] (oscil)
+      {Osciloscopio\\\scriptsize VXI-11 sobre Ethernet};
+    \node[hw, left=of oscil] (laser)
+      {Láser\\\scriptsize RS-232};
+    \node[hw, right=of oscil] (temp)
+      {Temperatura\\\scriptsize ESP32 y sensores};
+
+    % --- Datos y seguridad ---
+    \node[modulo, below=14mm of oscil] (store)
+      {Almacenamiento\\\scriptsize registro de sesión};
+    \node[modulo, left=of store] (safe)
+      {Modo seguro\\\scriptsize solo actúa sobre el láser};
+    \node[modulo, right=of store] (viz)
+      {Visualización\\\scriptsize consulta y exportación};
+
+    % --- Cajas de capa ---
+    \begin{scope}[on background layer]
+      \node[capa, fit=(conn)(med)(trig)] (cap_coord) {};
+      \node[capa, fit=(laser)(oscil)(temp)] (cap_hw) {};
+      \node[capa, fit=(safe)(store)(viz)] (cap_datos) {};
+    \end{scope}
+
+    \node[etiqueta, anchor=north west] at ([xshift=1mm,yshift=-0.5mm]cap_coord.north west) {coordinación};
+    \node[etiqueta, anchor=north west] at ([xshift=1mm,yshift=-0.5mm]cap_hw.north west) {instrumentos};
+    \node[etiqueta, anchor=north west] at ([xshift=1mm,yshift=-0.5mm]cap_datos.north west) {datos};
+
+    % --- Flujo de control ---
+    \draw[flecha] (gui) -- node[right, font=\scriptsize] {modo automático} (med);
+    \draw[flecha] (gui.west) -- ++(-2.2,0) |- (conn.north);
+    \draw[flecha] (med) -- (trig);
+    \draw[flecha] (med) -- (oscil);
+    \draw[flecha] (med.south west) -- (laser.north east);
+    \draw[flecha] (med.south east) -- (temp.north west);
+    \draw[flecha] (trig.south) -- (temp.north);
+    \draw[flecha] (oscil) -- (store);
+    \draw[flecha] (med.north west) -- ++(-0.35,0) -- ++(0,-0.4)
+      -| ([xshift=-6mm]cap_hw.west) |- (safe.west);
+
+    % --- Vigilancia pasiva ---
+    \draw[pasiva] (conn.south) -- (laser.north);
+    \draw[pasiva] (conn.south east) -- (oscil.north west);
+    \draw[pasiva] (conn.east) -- ++(0.3,0) -- ++(0,-0.55)
+      -| ([xshift=6mm]temp.north east) -- ([xshift=6mm]temp.north east|-temp.east) -- (temp.east);
+
+    % --- Modo seguro ---
+    \draw[flecha] (safe) -- (laser);
+
+    % --- Consulta ---
+    \draw[flecha] (store) -- (viz);
+
+  \end{tikzpicture}
+  \caption[Arquitectura de módulos del sistema de automatización]{%
+    Arquitectura de módulos del sistema de automatización. Las flechas
+    continuas indican control o transferencia de datos; las discontinuas,
+    la vigilancia pasiva del estado de conexión. El módulo de medición
+    coordina la secuencia y es el único que escribe en el registro de
+    sesión. El modo seguro actúa exclusivamente sobre el láser: la
+    configuración del osciloscopio no se modifica desde el programa.}
+  \label{fig:arquitectura}
+\end{figure}

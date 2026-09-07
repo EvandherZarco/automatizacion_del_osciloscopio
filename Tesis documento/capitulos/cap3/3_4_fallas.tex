@@ -322,17 +322,33 @@ señal. El umbral empleado es relativo: ocho veces la desviación estándar
 del ruido medido en la porción inicial de cada registro. El ruido de la
 segunda serie resultó ser aproximadamente un tercio del de la primera
 ---\SI{0.0056}{\milli\volt} contra \SI{0.0171}{\milli\volt}---, de modo
-que el mismo criterio produjo umbrales de \SI{0.045} y
+que el mismo criterio produjo umbrales de \SI{0.045}{\milli\volt} y
 \SI{0.137}{\milli\volt} respectivamente. El umbral más bajo cruza antes,
 y lo hace sobre fluctuaciones que en la primera serie quedaban por
 debajo del suyo.
 
-Aplicando a las diecisiete capturas un umbral fijo de
-\SI{0.137}{\milli\volt}, el inicio se sitúa en \SI{31.4} y
-\SI{31.6}{\micro\second} para las dos series. Corroborando el resultado
-por una vía distinta, el instante del máximo ---que no depende de umbral
-alguno, pues se obtiene del índice de mayor amplitud--- coincide en
-\SI{69.13} y \SI{69.16}{\micro\second}. La señal no se movió.
+Aplicando un umbral fijo de \SI{0.137}{\milli\volt} a las quince
+capturas adquiridas en modo por tiempo, el inicio se sitúa en
+\SI{31.4}{\micro\second} y \SI{31.6}{\micro\second} para las dos series.
+Corroborando el resultado por una vía distinta, el instante del máximo
+---que no depende de umbral alguno, pues se obtiene del índice de mayor
+amplitud--- coincide en \SI{69.13}{\micro\second} y
+\SI{69.16}{\micro\second}. La señal no se movió.
+
+El umbral fijo no es, sin embargo, universalmente preferible, y el
+mismo cálculo lo muestra. Aplicado a las diecisiete capturas de la
+sesión, dos se apartan del valor común: la captura manual m0001 sitúa el
+inicio en \SI{1.8}{\micro\second}, porque contiene una fluctuación
+temprana que supera los \SI{0.137}{\milli\volt} antes del arribo real,
+y m0006 lo sitúa en \SI{30.7}{\micro\second}. En m0001 el criterio
+relativo acierta donde el fijo falla: como esa captura tiene un ruido
+mayor, su umbral propio queda por encima de la fluctuación y no la
+confunde con el inicio. Ninguno de los dos criterios es correcto en
+todos los casos. El fijo hace comparables entre sí capturas de distinta
+relación señal a ruido, que es lo que esta sección necesitaba, a costa
+de perder la protección que el criterio relativo ofrece frente a
+fluctuaciones tempranas de amplitud moderada. Se adopta el fijo por esa
+razón y se declara su costo.
 
 El episodio deja dos observaciones sobre la herramienta y una sobre el
 conjunto. Sobre la herramienta: un criterio relativo produce magnitudes

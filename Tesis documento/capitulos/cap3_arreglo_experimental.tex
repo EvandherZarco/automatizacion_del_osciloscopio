@@ -311,40 +311,22 @@ del hidrófono sumergido en agua supera al doble de la obtenida con el
 hidrófono en aire, lo que confirma un acoplamiento acústico adecuado
 con el medio en el que opera \cite{Rangel2023}.
 
-\subsection*{Consideración sobre la respuesta en frecuencia}
+\subsection*{Alcance de la caracterización del transductor}
 
-Los valores de la \cref{tab:hidrofono} imponen una restricción que
-debe hacerse explícita, pues condiciona la interpretación de las
-señales adquiridas.
+La caracterización del hidrófono, incluida su respuesta en
+frecuencia, corresponde al trabajo en el que fue desarrollado y se
+recoge aquí únicamente como condición de frontera del experimento
+\cite{Rangel2023}. Este trabajo no la reproduce ni la discute: el
+transductor es, como el osciloscopio, un instrumento
+intercambiable del arreglo, y su desempeño no condiciona la validez
+del sistema de automatización sino la interpretación de las señales
+que ese sistema registra.
 
-La ventana temporal libre de reflexiones establecida en la
-\cref{sec:celda} es de aproximadamente \SI{6}{\micro\second}. Un
-transitorio contenido en ese intervalo posee contenido espectral
-significativo por encima de \SI{170}{\kilo\hertz}, y el pulso de
-excitación empleado, de \SI{7}{\nano\second} de duración, es aún más
-rápido. Sin embargo, la respuesta dominante del hidrófono ensamblado
-se localiza en \SI{41}{\kilo\hertz}, cuyo periodo de
-\SI{24}{\micro\second} excede la ventana útil completa.
-
-Se concluye que la señal registrada no corresponde a la forma
-temporal del pulso fotoacústico, sino predominantemente a la
-respuesta propia del transductor excitada por dicho pulso. Es
-pertinente notar que la cerámica aislada exhibe una respuesta mucho
-más rápida (\SIrange{320}{1582}{\kilo\hertz}) que el conjunto
-ensamblado, lo que sugiere que el encapsulado de uretano es el
-elemento que limita el ancho de banda del sistema.
-
-Esta observación coincide con la advertencia de Quan \textit{et al.},
-quienes señalan que el tiempo de subida del detector queda
-determinado por el espesor del elemento piezoeléctrico y que un
-detector cuyas dimensiones excedan la longitud de onda del pulso
-degrada tanto la resolución espacial como la temporal de la forma de
-onda \cite{Quan1994}.
-
-La consecuencia metodológica es que el análisis espectral de las
-señales adquiridas caracteriza conjuntamente al líquido y al
-transductor, y que la comparación entre líquidos distintos solo es
-válida en tanto el transductor permanezca invariante. El desarrollo
+Interesa, eso sí, la consecuencia metodológica: el análisis
+espectral de las señales adquiridas caracteriza conjuntamente al
+líquido y al transductor, de modo que la comparación entre líquidos
+distintos solo es válida en tanto el transductor permanezca
+invariante. El desarrollo
 de un hidrófono de mayor ancho de banda constituye una línea de
 trabajo identificada y se aborda en el \cref{cap:conclusiones}.
 

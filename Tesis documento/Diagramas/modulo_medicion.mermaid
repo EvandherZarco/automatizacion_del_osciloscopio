@@ -3,7 +3,7 @@ flowchart TD
     %% ─────────────────────────────
     %% INICIO DE SECUENCIA
     %% ─────────────────────────────
-    INIT([⚙️ Medición: Secuencia iniciada por GUI])
+    INIT([Medición: Secuencia iniciada por GUI])
     INIT --> SETUPSEQ["Inicializa contadores:
     mini_count = 0
     mini_datos = lista vacía
@@ -93,7 +93,7 @@ flowchart TD
     Guarda fila en CSV
     Guarda archivo .npy"]
     SAVE --> SAVEOK{Guardado OK?}
-    SAVEOK --> |No| SAVEERR["⚠️ Error al guardar
+    SAVEOK --> |No| SAVEERR["Error al guardar
     Registra en log"]
     SAVEERR --> RESET
 

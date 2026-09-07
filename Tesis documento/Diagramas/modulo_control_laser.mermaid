@@ -13,13 +13,13 @@ flowchart TD
     %% ─────────────────────────────
     %% SUB-FLUJO 1: CONEXION INICIAL
     %% ─────────────────────────────
-    INIT([🔴 Control del láser: Conexión inicial])
+    INIT([Control del láser: Conexión inicial])
     INIT --> OPEN["Abre puerto serial
     COM10 · 19200 baud · 8N1"]
     OPEN --> OPENOK{Puerto abierto?}
-    OPENOK --> |No| OPENERR[/"⚠️ No se pudo abrir COM10
+    OPENOK --> |No| OPENERR[/"No se pudo abrir COM10
     Puerto ocupado o no existe"/]
-    OPENERR --> RLED["🔴 LED rojo en GUI
+    OPENERR --> RLED["LED rojo en GUI
     Láser desconectado"]
     RLED --> CONNFAIL([Reporta error a Conexión y monitoreo])
 
@@ -28,20 +28,20 @@ flowchart TD
     PING --> PINGOK{Respuesta READY?}
     PINGOK --> |No — timeout 2s| RETRYPING{Intentos menor a 3?}
     RETRYPING --> |Sí| PING
-    RETRYPING --> |No| PINGERR[/"⚠️ Láser no responde
+    RETRYPING --> |No| PINGERR[/"Láser no responde
     Verificar cable RS-232 y
     que el láser esté encendido"/]
     PINGERR --> RLED
 
-    PINGOK --> |Sí| GLED["🟢 LED verde en GUI
+    PINGOK --> |Sí| GLED["LED verde en GUI
     Láser conectado"]
-    GLED --> READY(["✅ Láser listo · COM10 · protocolo NL confirmado"])
+    GLED --> READY(["Láser listo · COM10 · protocolo NL confirmado"])
 
     %% ─────────────────────────────
     %% SUB-FLUJO 2: ENVIAR COMANDO
     %% Comandos: START, STOP, E0, E1, E2
     %% ─────────────────────────────
-    SEND([🔴 Control del láser: Enviar comando
+    SEND([Control del láser: Enviar comando
     llamado por GUI · Medición · Modo seguro])
     SEND --> CMDSREF["Comandos disponibles:
     SAY - ping, verificar estado
@@ -57,16 +57,16 @@ flowchart TD
 
     RESP --> |No — timeout| RETRY{Intentos menor a 3?}
     RETRY --> |Sí| WRITE
-    RETRY --> |No — 3 fallos| SENDERR[/"⚠️ Sin respuesta del láser
+    RETRY --> |No — 3 fallos| SENDERR[/"Sin respuesta del láser
     Comando no confirmado · error_flag = 1"/]
-    SENDERR --> YLED["🟡 LED amarillo en GUI"]
+    SENDERR --> YLED["LED amarillo en GUI"]
     YLED --> NOTIFYCONN["Notifica a Conexión y monitoreo"]
     NOTIFYCONN --> SENDCALLER([Regresa ERROR al módulo que llamó])
 
     RESP --> |Sí| CHECKRESP{Respuesta es ERROR?}
-    CHECKRESP --> |Sí| CMDERR[/"⚠️ Láser rechazó el comando
+    CHECKRESP --> |Sí| CMDERR[/"Láser rechazó el comando
     Posible estado incompatible"/]
     CMDERR --> SENDCALLER
 
-    CHECKRESP --> |No — OK| SENDOK[/"✅ Comando confirmado"/]
+    CHECKRESP --> |No — OK| SENDOK[/"Comando confirmado"/]
     SENDOK --> SENDCALLER

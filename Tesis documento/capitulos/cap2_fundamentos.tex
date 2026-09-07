@@ -113,9 +113,15 @@ De la \cref{eq:presion_general} se desprende la propiedad que
 sustenta el uso cuantitativo de la técnica: normalizando la señal
 detectada por la energía del pulso, la cantidad resultante es
 directamente proporcional al coeficiente de absorción óptica del
-medio \cite{PatelTam1981}. Esta es la razón por la que el arreglo
-experimental descrito en el \cref{cap:arreglo} incorpora un
-fotodiodo dedicado a monitorear la energía de cada disparo.
+medio \cite{PatelTam1981}.
+
+De ahí se sigue también lo que ocurre cuando esa normalización no
+está disponible: sin una medida de $E_0$, la amplitud registrada
+conserva el producto $E_0\,\alpha$ y no permite despejar el
+coeficiente de absorción. El arreglo descrito en el
+\cref{cap:arreglo} no incorpora un sensor calibrado de energía, de
+modo que el análisis de las señales se apoya en su forma temporal y
+en su contenido espectral y no en su amplitud absoluta.
 
 % ============================================================
 \section{El efecto fotoacústico en líquidos de baja absorción}
@@ -348,8 +354,7 @@ simple que el requerido por los métodos de detección óptica.
 
 Su principal desventaja es de naturaleza operativa: cada punto
 experimental exige coordinar el disparo del láser, la adquisición
-del osciloscopio, el monitoreo de la energía del pulso y el
-registro de la temperatura de la muestra. Realizada manualmente,
+del osciloscopio y el registro de la temperatura de la muestra. Realizada manualmente,
 esta coordinación es lenta, propensa a error e imposible de
 reproducir con exactitud entre sesiones. Es esta limitación la que
 el sistema de automatización descrito en los capítulos siguientes

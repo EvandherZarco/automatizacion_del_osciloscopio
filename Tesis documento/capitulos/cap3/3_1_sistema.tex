@@ -72,6 +72,16 @@ El punto de entrada de la aplicación es \texttt{main.py}, ubicado en la
 raíz del proyecto, que instancia la ventana de bienvenida y entrega el
 control al ciclo de eventos de Qt.
 
+La \cref{fig:arquitectura} resume esta organización y las relaciones
+entre los módulos. El de medición ocupa la posición central: coordina la
+secuencia, consulta a los tres instrumentos y es el único que escribe en
+el registro de sesión. El de conexión y monitoreo no participa en la
+secuencia; vigila el estado de los enlaces de forma continua y en
+paralelo, de modo que la pérdida de un dispositivo se detecta también
+fuera de una medición en curso.
+
+\input{capitulos/fig_arquitectura}
+
 \subsection{Decisiones de diseño}
 \label{sec:decisiones}
 
@@ -115,6 +125,20 @@ las diferencias entre los modelos de la serie TDS5000B disponibles en
 el laboratorio no afectan su operación. La respuesta a la consulta
 \texttt{*IDN?} se guarda en el registro de cada sesión, de modo que el
 instrumento empleado queda documentado en los propios datos.
+
+La última decisión de esta subsección no es de software, pero condiciona
+lo que el software puede informar. Los cuatro sensores de temperatura
+admiten compartir un mismo bus 1-Wire, que es su modo de empleo
+habitual; en este montaje cada uno ocupa un bus propio, según se muestra
+en la \cref{fig:modulo_temperatura}. La razón es de diagnóstico: sobre
+un bus compartido, la caída de un sensor se manifiesta como una lectura
+ausente entre varias y exige identificar cuál falló; con buses
+separados, la línea que deja de responder nombra al dispositivo sin
+ambigüedad. Esa correspondencia es la que permite que el registro de
+sesión consigne qué sensor se perdió y no solo que se perdió alguno,
+como se documenta en la \cref{sec:falla_temperatura}.
+
+\input{capitulos/fig_modulo_temperatura}
 
 \subsection{Interfaz gráfica}
 \label{sec:gui}
