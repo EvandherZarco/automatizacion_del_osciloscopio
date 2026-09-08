@@ -36,11 +36,29 @@ CSV_HEADER = [
     "NR_PT",
     "CH_SCALE",
     "HOR_SCALE",
+    "output_level",
+    "eo_delay_us",
+    "burst_mode",
     "pulsos_estimados",
     "archivo_npy",
 ]
 
-HEADER_VALIDACION = set(CSV_HEADER)
+# Subconjunto mínimo que identifica una sesión del sistema. La validación por
+# subconjunto permite abrir sesiones anteriores a la incorporación de columnas
+# nuevas, en lugar de rechazarlas por no coincidir exactamente con el header.
+COLUMNAS_REQUERIDAS = {
+    "timestamp",
+    "session_id",
+    "medicion_id",
+    "temperatura",
+    "modo",
+    "error_flag",
+    "XINCR",
+    "XZERO",
+    "YMULT",
+    "NR_PT",
+    "archivo_npy",
+}
 
 
 @dataclass
@@ -53,6 +71,9 @@ class PaqueteMedicion:
     error_flag: int  # 0 = limpio, 1 = medición con advertencia
     error_desc: str = field(default="")  # descripción legible del error
     pulsos_estimados: int | None = field(default=None)  # solo modo temperatura
+    output_level: str | None = field(default=None)  # nivel de energía del láser
+    eo_delay_us: int | None = field(default=None)  # retardo EO en µs
+    burst_mode: str | None = field(default=None)  # modo de disparo del láser
 
 
 class Almacenamiento(QObject):
@@ -85,7 +106,12 @@ class Almacenamiento(QObject):
     # INICIALIZACIÓN DE SESIÓN
     # ──────────────────────────────────────────────────────────────────────────
 
-    def nueva_sesion(self, nombre: str = "", carpeta_base: "Path | None" = None) -> bool:
+    def nueva_sesion(
+        self,
+        nombre: str = "",
+        carpeta_base: "Path | None" = None,
+        metadatos: "dict | None" = None,
+    ) -> bool:
         ts = datetime.now().strftime("%Y%m%d_%H%M%S")
         sid = f"{ts}_{nombre}" if nombre else ts
         base = carpeta_base if carpeta_base is not None else SESIONES_DIR
@@ -105,8 +131,30 @@ class Almacenamiento(QObject):
         self._sesion_dir = sesion_dir
         self._csv_path = csv_path
         self._medicion_idx = 0
+        self._escribir_metadatos(metadatos or {})
         self.sesion_lista.emit(sid)
         return True
+
+    def _escribir_metadatos(self, metadatos: dict) -> None:
+        """
+        Registra en texto plano la identidad del instrumental usado en la sesión.
+        Se escribe una sola vez al crearla; un fallo aquí no invalida la sesión.
+        """
+        if self._sesion_dir is None:
+            return
+
+        lineas = [
+            f"session_id: {self._session_id}",
+            f"fecha_creacion: {datetime.now().isoformat(timespec='seconds')}",
+        ]
+        for clave, valor in metadatos.items():
+            lineas.append(f"{clave}: {valor if valor not in (None, '') else 'no disponible'}")
+
+        try:
+            ruta = self._sesion_dir / "metadatos_sesion.txt"
+            ruta.write_text("\n".join(lineas) + "\n", encoding="utf-8")
+        except OSError as e:
+            logger.warning("No se pudo escribir metadatos_sesion.txt: %s", e)
 
     def abrir_sesion(self, csv_path: str | Path) -> bool:
         csv_path = Path(csv_path)
@@ -172,6 +220,9 @@ class Almacenamiento(QObject):
             w.get("NR_PT", ""),
             w.get("CH_SCALE", ""),
             w.get("HOR_SCALE", ""),
+            paquete.output_level if paquete.output_level is not None else "",
+            paquete.eo_delay_us if paquete.eo_delay_us is not None else "",
+            paquete.burst_mode if paquete.burst_mode is not None else "",
             paquete.pulsos_estimados if paquete.pulsos_estimados is not None else "",
             npy_nombre if npy_ok else "",
         ]
@@ -217,6 +268,6 @@ class Almacenamiento(QObject):
         try:
             with open(csv_path, "r", encoding="utf-8") as f:
                 header = next(csv.reader(f), None)
-            return header is not None and set(header) == HEADER_VALIDACION
+            return header is not None and COLUMNAS_REQUERIDAS.issubset(set(header))
         except OSError:
             return False

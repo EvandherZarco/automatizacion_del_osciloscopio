@@ -1,12 +1,60 @@
 % ============================================================
-%  RESUMEN
+% RESUMEN
 % ============================================================
 \chapter*{Resumen}
 \addcontentsline{toc}{chapter}{Resumen}
+\markboth{RESUMEN}{RESUMEN}
 
-% TODO: escribir el resumen al final, cuando tengas todos los resultados.
-% Aprox. 250–350 palabras. Responde: ¿qué problema?, ¿qué se hizo?,
-% ¿cómo?, ¿qué se obtuvo?
+La técnica fotoacústica pulsada permite medir coeficientes de absorción
+óptica varios órdenes de magnitud menores que los accesibles por
+espectrofotometría de transmisión, lo que la hace apropiada para
+líquidos que son esencialmente transparentes a la longitud de onda de
+excitación. Su costo es operativo: cada punto experimental exige
+coordinar el disparo del láser, la adquisición del osciloscopio y el
+registro de la temperatura de la muestra, una coordinación que
+realizada a mano resulta lenta y difícil de reproducir entre sesiones.
 
-\noindent
-[Resumen pendiente]
+Este trabajo desarrolla el sistema de automatización de un arreglo
+fotoacústico del Laboratorio de Fotofísica y Películas Delgadas del
+ICAT. El sistema integra tres instrumentos bajo una sola aplicación de
+escritorio escrita en Python con interfaz gráfica PySide6: un láser
+Nd:YAG pulsado EKSPLA NL303HT-10-SH, controlado a través de la
+biblioteca de enlace dinámico del fabricante; un osciloscopio digital
+Tektronix de la serie TDS5000B, comunicado por VXI-11 sobre Ethernet; y
+un módulo de medición de temperatura desarrollado íntegramente en este
+trabajo, compuesto por un microcontrolador ESP32 WROOM-32 y cuatro
+sensores DS18B20 sobre buses 1-Wire independientes.
+
+La aplicación ejecuta secuencias de medición sin intervención del
+operador en dos modos: adquisición durante un intervalo de tiempo fijo,
+y adquisición gobernada por la temperatura de la muestra, en la que el
+osciloscopio opera como integrador entre los instantes en que el
+líquido cruza umbrales sucesivos durante su enfriamiento. Cada captura
+se guarda con las muestras crudas del instrumento y con los metadatos
+necesarios para reconstruirla en unidades físicas, incluidos los
+parámetros del láser, las escalas vigentes del osciloscopio y una
+marca explícita de las condiciones anómalas detectadas durante la
+adquisición.
+
+La validación se organizó en dos planos. La lógica del programa se
+ejercitó sin instrumentos mediante simulación de perfiles térmicos,
+recorrido completo de la cadena de medición y almacenamiento, y
+sesiones sintéticas construidas para provocar cada una de las
+condiciones que la herramienta de verificación debe detectar; esta
+última se sometió además a una prueba de mutación que confirmó que
+ninguna de sus comprobaciones puede desactivarse sin que la prueba
+correspondiente falle. El comportamiento del sistema integrado se
+evaluó sobre sesiones reales de laboratorio.
+
+El criterio con el que se juzga el resultado no es la ausencia de
+fallas, inevitable en un sistema que integra tres instrumentos
+independientes, sino la capacidad del sistema para dejar constancia de
+ellas en lugar de aparentar normalidad. Se documentan cinco anomalías
+observadas durante el desarrollo, clasificadas según el nivel al que
+fue posible detectarlas —durante la ejecución, en la verificación
+posterior de los datos, o en la auditoría del código—, incluida una que
+tuvo como origen la propia herramienta de verificación. Cuatro de las
+cinco no eran observables mientras ocurrían, y todas resultaron
+reconstruibles a partir de la información conservada en los archivos de
+sesión. Esa reconstruibilidad es la propiedad que el sistema aporta al
+arreglo experimental.

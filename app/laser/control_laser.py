@@ -180,6 +180,21 @@ class LaserController(QObject):
             return False
         return self._set_reg(_REG_ENERGY, valor)
 
+    def read_output_level(self) -> str | None:
+        """
+        Lee el nivel de energía configurado en el láser.
+        Devuelve la etiqueta de la GUI ('E OFF' | 'E Adjust' | 'E Max')
+        o None si el registro no se pudo leer.
+        """
+        ok, val = self._get_reg(_REG_ENERGY)
+        if not ok:
+            return None
+        crudo = val.strip()
+        for etiqueta, valor in _ENERGY_MAP.items():
+            if valor.lower() == crudo.lower():
+                return etiqueta
+        return crudo
+
     # ══════════════════════════════════════════════════════════════════════════
     # EO DELAY (API pública — evita acceso directo a _set_reg)
     # ══════════════════════════════════════════════════════════════════════════
@@ -194,6 +209,16 @@ class LaserController(QObject):
             return False
         return self._set_reg(_REG_EO_ADJ, str(us))
 
+    def read_eo_delay(self) -> int | None:
+        """Lee el retardo EO configurado en el láser, en microsegundos."""
+        ok, val = self._get_reg(_REG_EO_ADJ)
+        if not ok:
+            return None
+        try:
+            return int(float(val.strip()))
+        except ValueError:
+            return None
+
     # ══════════════════════════════════════════════════════════════════════════
     # BURST
     # ══════════════════════════════════════════════════════════════════════════
@@ -205,6 +230,17 @@ class LaserController(QObject):
             self.error.emit(f"Burst mode desconocido: {modo}. Opciones: {list(_BURST_MAP)}")
             return False
         return self._set_reg(_REG_BATCH_MODE, valor)
+
+    def read_burst_mode(self) -> str | None:
+        """Lee el modo de disparo configurado ('Continuous' | 'Burst' | 'Trigger')."""
+        ok, val = self._get_reg(_REG_BATCH_MODE)
+        if not ok:
+            return None
+        crudo = val.strip()
+        for etiqueta, valor in _BURST_MAP.items():
+            if valor.lower() == crudo.lower():
+                return etiqueta
+        return crudo
 
     def set_burst_length(self, n_pulsos: int) -> bool:
         return self._set_reg(_REG_BURST_LEN, str(int(n_pulsos)))
@@ -240,6 +276,24 @@ class LaserController(QObject):
             return int(val.strip())
         except ValueError:
             return None
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # LECTURA CONJUNTA DE PARÁMETROS
+    # ══════════════════════════════════════════════════════════════════════════
+
+    def leer_parametros(self) -> dict[str, object]:
+        """
+        Consulta al láser los parámetros que se registran junto a cada medición.
+        Las claves cuyo registro no responda quedan en None, de modo que el CSV
+        refleje la ausencia de dato en lugar de un valor supuesto.
+        """
+        if not self.conectado:
+            return {"output_level": None, "eo_delay_us": None, "burst_mode": None}
+        return {
+            "output_level": self.read_output_level(),
+            "eo_delay_us": self.read_eo_delay(),
+            "burst_mode": self.read_burst_mode(),
+        }
 
     # ══════════════════════════════════════════════════════════════════════════
     # MODO SEGURO

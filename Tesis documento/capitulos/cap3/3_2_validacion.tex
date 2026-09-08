@@ -1,0 +1,292 @@
+% =========================================================
+\section{Validación funcional por subsistema}
+\label{sec:validacion}
+% =========================================================
+
+La \cref{sec:sistema} describe lo que el sistema hace. Esta sección
+establece con qué evidencia se sostiene esa descripción.
+
+La dificultad de validar un sistema de automatización de laboratorio es
+que su comportamiento depende de tres instrumentos cuyo acceso es
+limitado: el láser y el osciloscopio solo están disponibles durante las
+sesiones reservadas, y una parte de las condiciones que interesa
+verificar --- la pérdida de un dispositivo a mitad de secuencia, el
+rebote de una lectura alrededor del umbral de disparo, la escritura de
+un registro incompleto --- no puede provocarse a voluntad frente al
+equipo sin arriesgar la muestra o el instrumento.
+
+El criterio adoptado fue separar la validación en dos planos. Todo lo
+que depende de la lógica del programa --- la evaluación de las
+condiciones de disparo, la construcción del registro de sesión, la
+detección de anomalías en los datos guardados, la propagación de
+advertencias a la interfaz --- se valida sin instrumento, mediante
+simulación y sesiones sintéticas. Solo se reserva para el laboratorio
+aquello que depende de la respuesta efectiva del equipo. Esta
+separación no es una concesión a la escasez de tiempo de laboratorio:
+es lo que permite ejercitar condiciones de falla que en el equipo real
+serían irreproducibles.
+
+\subsection{Simulación de la secuencia de medición}
+\label{sec:val_simulador}
+
+El módulo \texttt{app/medicion/trigger.py} concentra la lógica que
+decide cuándo abrir y cuándo cerrar una adquisición. En modo por
+temperatura esa decisión depende de una magnitud que varía con el
+tiempo, con ruido, y que puede cruzar el umbral varias veces antes de
+estabilizarse. Es la porción del sistema donde un error resulta más
+difícil de advertir: una ventana que se cierra antes de tiempo produce
+un archivo que parece válido.
+
+Para ejercitarla se construyó \texttt{simular\_barrido.py}, que alimenta
+al módulo de disparo con perfiles de temperatura sintéticos y verifica
+que las ventanas de adquisición resultantes correspondan a lo esperado.
+La suite consta de nueve casos que cubren el enfriamiento monótono, el
+cruce del umbral con ruido, el rebote alrededor de la temperatura
+objetivo y la terminación anticipada de la secuencia. Los nueve casos
+resultan aprobados.
+
+Ese resultado admite una salvedad que conviene declarar. El caso
+\texttt{no\_cierra\_durante\_rebote} verifica que la ventana de
+adquisición no se fragmente cuando la lectura oscila alrededor del
+umbral, y lo hace comprobando que la duración de la ventana
+correspondiente al objetivo de \SI{45}{\celsius} se mantenga entre una
+décima parte y diez veces el promedio de las ventanas de sus objetivos
+vecinos, \SI{40}{\celsius} y \SI{50}{\celsius}. En la corrida
+verificada la ventana del objetivo central dura \SI{140.30}{\second}
+de tiempo simulado, frente a \SI{130.32}{\second} y \SI{90.00}{\second}
+de las vecinas, lo que arroja un cociente de 1.27 sobre un intervalo
+admisible de entre 0.1 y 10.
+
+Dos aspectos limitan el alcance de esta comprobación. El primero es la
+amplitud del intervalo: dos órdenes de magnitud detectan una
+fragmentación grosera de la ventana, no una desviación moderada. El
+segundo, más relevante, es la naturaleza de la referencia. El criterio
+no contrasta la ventana contra una duración esperada, sino contra el
+promedio de sus vecinas, y esas vecinas difieren entre sí en cerca de
+un cuarenta por ciento. Se trata, por tanto, de una prueba de
+consistencia interna: detecta que una ventana se desmarque de las
+demás ---que es precisamente lo que el rebote provocaría---, pero no
+verifica que ninguna de ellas dure lo que debe durar. Se reporta como
+aprobado con esa reserva explícita.
+
+Conviene añadir una observación de orden práctico. Este caso simula el
+enfriamiento de la muestra desde \SI{62}{\celsius} hasta
+\SI{30}{\celsius} con un factor de compresión temporal de veinte, lo
+que se traduce en cerca de catorce minutos de ejecución real frente a
+los segundos que consumen los demás. Una prueba con ese costo se corre
+con menos frecuencia que las restantes, y esa asimetría conviene
+tenerla presente al interpretar la vigencia del resultado.
+
+\subsection{Validación de la cadena de medición y almacenamiento}
+\label{sec:val_cadena}
+
+La simulación anterior ejercita la lógica de disparo de forma aislada.
+Un segundo nivel de la misma herramienta sustituye los componentes
+simulados por las clases reales de \texttt{app/medicion/medicion.py} y
+\texttt{app/almacenamiento/almacenamiento.py}, dejando fuera únicamente
+la comunicación con los instrumentos.
+
+En esa configuración se recorre la cadena completa: se resuelve la
+condición de disparo, se solicita la captura, se convierten las
+muestras a unidades físicas, se escriben el archivo \texttt{.npy} y la
+fila correspondiente del registro de sesión, y se vuelve a leer el
+resultado. La corrida produce un registro de siete filas cuyo contenido
+coincide con lo esperado tanto en el número de campos como en los
+valores derivados de los metadatos de adquisición.
+
+Lo que este nivel valida no es la calidad de la señal --- no hay señal
+--- sino la integridad del camino que va de la decisión de capturar al
+archivo en disco. Es precisamente el tramo donde se originaron dos de
+las anomalías documentadas en la \cref{sec:fallas}.
+
+\subsection{Compatibilidad con registros anteriores}
+\label{sec:val_compatibilidad}
+
+El formato del registro de sesión descrito en la
+\cref{sec:formato_datos} no fue el primero. Las sesiones anteriores a la
+integración del módulo de temperatura se guardaron con un conjunto
+menor de columnas, y algunas de ellas conservan valor documental.
+
+La lectura de sesiones se implementó tratando el conjunto de campos
+declarado en \texttt{COLUMNAS\_REQUERIDAS} como un subconjunto del
+encabezado presente en el archivo, en lugar de exigir coincidencia
+exacta. Con ese criterio, un registro de dieciocho columnas se abre sin
+modificación y sin pérdida de los campos que sí contiene. La
+verificación se realizó sobre sesiones reales conservadas del formato
+anterior.
+
+La contraparte de esa decisión es que la ausencia de una columna deja de
+ser un error de apertura y pasa a ser una condición que debe detectarse
+más tarde, en la verificación del contenido. Ese desplazamiento es
+deliberado y se examina en la subsección siguiente.
+
+\subsection{Verificación de sesiones y validación de la herramienta}
+\label{sec:val_verificador}
+
+La herramienta \texttt{verificar\_sesion.py} recorre una sesión ya
+guardada y evalúa diez condiciones anómalas: ausencia de archivos de
+muestras (\texttt{npy\_ausente}), imposibilidad de reconstruir captura
+alguna (\texttt{sin\_reconstruibles}), saturación de la señal
+(\texttt{saturacion}), repetición de un mismo contenido binario bajo
+la misma escala o bajo escalas distintas
+(\texttt{buffer\_repetido\_misma\_escala} y
+\texttt{buffer\_repetido\_escala\_distinta}), coexistencia de escalas
+diferentes en una misma serie (\texttt{mezcla\_escalas}), deriva del
+tiempo de arribo (\texttt{deriva\_onset}), estancamiento de la lectura
+de temperatura (\texttt{temperatura\_estancada}), presencia de
+capturas marcadas con error (\texttt{error\_flag}) y dispersión
+excesiva de la amplitud pico a pico (\texttt{dispersion\_vpp}). Es la
+herramienta con la que se detectaron las anomalías descritas en la
+\cref{sec:falla_buffer} y en la \cref{sec:falla_regresion}.
+
+Una herramienta de auditoría que nunca se ha visto fallar no es una
+herramienta verificada, sino una herramienta afortunada. Su validación
+se realizó en dos etapas.
+
+La primera consistió en fabricar, mediante
+\texttt{generar\_sesion\_prueba.py}, once sesiones sintéticas: diez
+diseñadas para provocar cada una de las condiciones anteriores, y una
+undécima deliberadamente limpia. Esta última no es un caso menor. Un
+verificador que declarara anomalías en toda sesión que examina
+detectaría las diez condiciones sin dificultad y sería inútil; la
+sesión limpia es la que exige que no las declare cuando no las hay. El
+verificador identifica las diez condiciones y no emite alerta alguna
+sobre la sesión limpia.
+
+La segunda etapa responde a una objeción que la primera deja abierta.
+El corredor compara las alertas obtenidas contra un conjunto esperado,
+y ese conjunto podría haberse derivado de la salida observada del
+verificador en lugar del comportamiento pretendido; de ser así, la
+prueba pasaría igual con el verificador averiado. Para descartarlo se
+realizó una prueba de mutación: se desactivó la emisión de cada una de
+las diez condiciones, una a la vez, restaurando el archivo entre
+mutaciones, y se registró qué casos dejaban de detectarse.
+
+Las diez mutaciones provocaron la caída del caso correspondiente.
+Ninguna sobrevivió, y en ningún caso el conjunto completo quedó en
+verde con un chequeo desactivado. Dos de ellas arrastraron además un
+caso ajeno: al desactivar \texttt{npy\_ausente} cae también
+\texttt{sin\_reconstruibles}, y al desactivar \texttt{mezcla\_escalas}
+cae \texttt{buffer\_repetido\_escala\_distinta}. Ambas muertes
+cruzadas corresponden a relaciones de implicación entre las
+condiciones --- una sesión sin capturas reconstruibles es
+necesariamente una sesión a la que le faltan archivos de muestras, y
+la repetición de contenido bajo escalas distintas presupone escalas
+distintas ---, previstas por análisis del código antes de la prueba y
+confirmadas empíricamente por ella.
+
+La mutación dejó un hallazgo que no se buscaba. Al desactivar
+\texttt{sin\_reconstruibles}, el código de salida del verificador
+permanece en 1: la instrucción de retorno anticipada devuelve una lista
+que \texttt{npy\_ausente} ya había poblado en la condición anterior. Un
+corredor que juzgara el resultado por el código de salida habría dado
+ese caso por aprobado con el chequeo apagado. Lo que impidió el falso
+aprobado fue la decisión de comparar el conjunto de alertas emitidas
+contra el esperado, y no únicamente el código de salida. La
+observación no es anecdótica: reaparece en
+\cref{sec:val_advertencias}, donde una comprobación distinta calcula su
+código de retorno antes del paso que pretende verificar. En ambos
+casos, el código de salida resultó ser el indicador menos informativo
+disponible.
+
+Queda una limitación que conviene declarar. La prueba de mutación se
+aplicó manualmente y no existe en el repositorio como procedimiento
+automatizado: si \texttt{verificar\_sesion.py} incorpora una condición
+nueva o reescribe una existente, el resultado anterior deja de ser
+válido y nada lo advierte. La herramienta que somete al sistema a
+verificación continua está, ella misma, verificada por una prueba de
+un solo momento.
+
+\subsection{Propagación de advertencias a la interfaz}
+\label{sec:val_advertencias}
+
+El sistema no interrumpe una secuencia ante una anomalía recuperable:
+la registra y la señala. Esa decisión, justificada en la
+\cref{sec:decisiones}, hace que el indicador de advertencia de la
+interfaz sea el único aviso que recibe el operador mientras la sesión
+transcurre.
+
+La comprobación \texttt{probar\_advertencias\_gui.py} ejercita cuatro
+trayectorias de esa señalización y las cuatro resultan conformes. El
+alcance de esa cifra, sin embargo, es menor de lo que sugiere: la
+comprobación calcula su código de retorno antes de ejecutar el único
+paso que requiere confirmación visual del operador, de modo que ese
+paso no puede hacerla reprobar. Los cuatro resultados corresponden a
+las trayectorias automatizables; el paso restante queda como
+comprobación asistida, y así se reporta.
+
+\subsection{Verificaciones que requieren instrumento}
+\label{sec:val_instrumento}
+
+La separación adoptada deja fuera un residuo que conviene enumerar en
+lugar de dar por cubierto. Cinco comprobaciones dependen de la respuesta
+efectiva del equipo y no admiten sustituto por simulación; se declaran
+aquí como pendientes de la siguiente sesión de laboratorio.
+
+La primera es el poblado de las columnas de escala. La regresión descrita
+en la \cref{sec:falla_regresion} se corrigió restituyendo las consultas
+\texttt{CH1:SCALE?} y \texttt{HORizontal:SCAle?} dentro de la rutina de
+lectura del preámbulo, pero esa corrección no se ha ejercitado contra un
+instrumento. Conviene precisar el criterio con el que debe juzgarse:
+un valor de \texttt{0.0} en esas columnas no constituye aprobación, pues
+es lo que escriben los manejadores de excepción cuando la consulta se
+lanza y falla. Solo un número consistente con el panel del osciloscopio
+confirma la corrección.
+
+La segunda y la tercera conciernen al módulo de temperatura. Una captura
+manual con el dispositivo físicamente desconectado debe producir una fila
+con \texttt{error\_flag = 1}, un \texttt{error\_desc} que nombre al
+dispositivo ausente y un campo de temperatura en cero; y la bandera del
+monitor de conexión debe limpiarse por sí sola en el siguiente ciclo de
+consulta tras reconectar el módulo. Ninguna de las dos puede provocarse
+por simulación: \texttt{generar\_sesion\_prueba.py} fabrica el archivo
+resultante, no el evento de desconexión que lo origina, de modo que
+probaría el formato de la fila y no el camino que conduce a escribirla.
+
+La cuarta es el recorrido completo del modo de adquisición gobernado por
+temperatura contra los tres instrumentos simultáneos. Su lógica se
+ejercitó de forma exhaustiva por simulación, según la
+\cref{sec:val_simulador}, pero ninguna sesión de hardware lo ha
+recorrido de punta a punta: la sesión reportada en la \cref{sec:prueba_integrada}
+tenía la lectura de temperatura activa, pero corrió en modo tiempo.
+
+La quinta es la exportación de una sesión al formato \texttt{.mat}, que
+no se ha ejecutado sobre datos de hardware con el formato de registro
+vigente.
+
+Ninguna de las cinco invalida lo verificado hasta aquí; delimitan lo que
+la validación sin instrumentos alcanza a sostener y lo que no.
+
+\begin{table}[H]
+  \centering
+  \caption{Resumen de la validación por subsistema. Los casos marcados
+           como asistidos requieren confirmación visual del operador.}
+  \label{tab:resumen_validacion}
+  \begin{tabular}{llcl}
+    \toprule
+    \textbf{Subsistema} & \textbf{Herramienta} & \textbf{Casos} &
+    \textbf{Resultado} \\
+    \midrule
+    Lógica de disparo & \texttt{simular\_barrido.py} & 9 &
+      Conforme\textsuperscript{a} \\
+    Medición y almacenamiento & \texttt{simular\_barrido.py} (nivel 2) & 7 &
+      Conforme \\
+    Verificación de sesiones & \texttt{generar\_sesion\_prueba.py} &
+      $10+1$\textsuperscript{c} & Conforme \\
+    Advertencias en interfaz & \texttt{probar\_advertencias\_gui.py} & 4 &
+      Conforme\textsuperscript{b} \\
+    \bottomrule
+  \end{tabular}
+
+  \vspace{0.5em}
+  \begin{minipage}{0.85\textwidth}
+    \footnotesize
+    \textsuperscript{a} El caso \texttt{no\_cierra\_durante\_rebote}
+    aprueba bajo un criterio de tolerancia amplio; véase la
+    \cref{sec:val_simulador}.\\
+    \textsuperscript{b} Cuatro trayectorias automatizables; un paso
+    adicional queda como comprobación asistida.\\
+    \textsuperscript{c} Diez condiciones de alerta más una sesión limpia
+    de control negativo.
+  \end{minipage}
+\end{table}

@@ -24,8 +24,8 @@ import pyqtgraph as pg
 from PySide6.QtCore import Qt, QThread, QTimer, Signal, Slot, QObject, QEvent
 from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QGroupBox,
-    QLabel, QPushButton, QComboBox, QSpinBox, QDoubleSpinBox,
-    QTabWidget, QFrame, QFileDialog, QMessageBox, QApplication,
+    QLabel, QPushButton, QSpinBox, QDoubleSpinBox, QLineEdit,
+    QTabWidget, QFrame, QFileDialog, QMessageBox, QApplication, QTextEdit,
 )
 
 from app.config import TEMP_COM_PORT
@@ -41,7 +41,7 @@ from app.medicion.medicion import Medicion
 from app.gui.visualizacion import VisualizacionWidget
 from app.gui.theme import (
     APP_STYLESHEET, LED_VERDE, LED_AMARILLO, LED_ROJO, LED_GRIS,
-    make_led, set_led, set_btn_activo, chip_log,
+    make_led, set_led, set_btn_activo, chip_log, formatear_tdiv,
 )
 
 INACTIVIDAD_AVISO_MS   = 60_000
@@ -116,11 +116,11 @@ class VentanaAmbos(QMainWindow):
         self._secuencia_running = False
         self._iniciando_secuencia = False
         self._sesion_activa     = False
+        self._advertencias: list[str] = []
         self._ultima_captura    = None
         self._canal_sel: str | None = None
         self._output_sel        = "E Adjust"
         self._burst_sel         = "Continuous"
-        self._acoplamiento      = "DC"
         self._adquisicion       = "Sample"
         self._cerrado           = False
 
@@ -227,18 +227,60 @@ class VentanaAmbos(QMainWindow):
         self._lbl_temp_live.setStyleSheet(
             "font-size: 15px; font-weight: bold; color: #00bfff;")
         lay.addWidget(self._lbl_temp_live)
+
+        sep3 = QFrame()
+        sep3.setFrameShape(QFrame.VLine)
+        sep3.setStyleSheet("color: #2e2e2e;")
+        lay.addWidget(sep3)
+
+        self._btn_stop_emergencia = QPushButton("⚠  Stop emergencia")
+        self._btn_stop_emergencia.setFixedHeight(32)
+        self._btn_stop_emergencia.setProperty("peligro", True)
+        self._btn_stop_emergencia.style().unpolish(self._btn_stop_emergencia)
+        self._btn_stop_emergencia.style().polish(self._btn_stop_emergencia)
+        lay.addWidget(self._btn_stop_emergencia)
         return bar
 
     # ── Pestaña Parámetros ────────────────────────────────────────────────────
 
     def _tab_parametros(self) -> QWidget:
         w = QWidget()
-        lay = QHBoxLayout(w)
+        lay = QVBoxLayout(w)
         lay.setContentsMargins(8, 8, 8, 8)
         lay.setSpacing(12)
-        lay.addWidget(self._panel_laser_params(), 1)
-        lay.addWidget(self._panel_oscil_params(), 1)
+        fila = QHBoxLayout()
+        fila.setSpacing(12)
+        fila.addWidget(self._panel_laser_params(), 1)
+        fila.addWidget(self._panel_oscil_params(), 1)
+        lay.addLayout(fila)
+        lay.addWidget(self._panel_geometria())
         return w
+
+    def _panel_geometria(self) -> QGroupBox:
+        g = QGroupBox()
+        lay = QHBoxLayout(g)
+        lay.setSpacing(12)
+
+        hdr = QLabel("📐  Geometría de la sesión")
+        hdr.setStyleSheet("font-weight: bold; font-size: 14px;")
+        lay.addWidget(hdr)
+
+        col_hidrofono = QVBoxLayout()
+        col_hidrofono.addWidget(self._sep_lbl("Separación hidrófono–haz (mm)"))
+        self._edit_hidrofono_mm = QLineEdit()
+        self._edit_hidrofono_mm.setPlaceholderText("opcional")
+        col_hidrofono.addWidget(self._edit_hidrofono_mm)
+        lay.addLayout(col_hidrofono, 1)
+
+        col_volumen = QVBoxLayout()
+        col_volumen.addWidget(self._sep_lbl("Volumen vertido (mL)"))
+        self._edit_volumen_ml = QLineEdit()
+        self._edit_volumen_ml.setPlaceholderText("opcional")
+        col_volumen.addWidget(self._edit_volumen_ml)
+        lay.addLayout(col_volumen, 1)
+
+        lay.addStretch(2)
+        return g
 
     def _panel_laser_params(self) -> QGroupBox:
         g = QGroupBox()
@@ -386,45 +428,6 @@ class VentanaAmbos(QMainWindow):
             fila_c.addWidget(btn)
         lay.addLayout(fila_c)
 
-        lay.addWidget(self._sep_lbl("Escala vertical"))
-        self._combo_p_vdiv = QComboBox()
-        self._combo_p_vdiv.addItems(list(OsciloscopioController.VDIV_OPCIONES.keys()))
-        self._combo_p_vdiv.setCurrentText("100 mV/div")
-        lay.addWidget(self._combo_p_vdiv)
-
-        lay.addWidget(self._sep_lbl("Escala horizontal"))
-        self._combo_p_tdiv = QComboBox()
-        self._combo_p_tdiv.addItems(list(OsciloscopioController.TDIV_OPCIONES.keys()))
-        self._combo_p_tdiv.setCurrentText("1 µs/div")
-        lay.addWidget(self._combo_p_tdiv)
-
-        lay.addWidget(self._sep_lbl("Record length (puntos)"))
-        self._combo_p_rec_length = QComboBox()
-        self._combo_p_rec_length.addItems(list(OsciloscopioController.REC_LENGTH_OPCIONES.keys()))
-        self._combo_p_rec_length.setCurrentText("25 000")
-        lay.addWidget(self._combo_p_rec_length)
-
-        lay.addWidget(self._sep_lbl("Acoplamiento"))
-        fila_ac = QHBoxLayout()
-        fila_ac.setSpacing(6)
-        self._btn_p_dc = QPushButton("DC")
-        self._btn_p_ac = QPushButton("AC")
-        for btn in (self._btn_p_dc, self._btn_p_ac):
-            btn.setFixedHeight(32)
-            fila_ac.addWidget(btn)
-        lay.addLayout(fila_ac)
-
-        lay.addWidget(self._sep_lbl("Trigger level"))
-        self._spin_p_trigger = QDoubleSpinBox()
-        self._spin_p_trigger.setRange(-10.0, 10.0)
-        self._spin_p_trigger.setSingleStep(0.001)
-        self._spin_p_trigger.setDecimals(3)
-        self._spin_p_trigger.setValue(0.010)
-        lbl_tr_h = QLabel("Voltios")
-        lbl_tr_h.setStyleSheet("color: #555; font-size: 10px;")
-        lay.addWidget(self._spin_p_trigger)
-        lay.addWidget(lbl_tr_h)
-
         lay.addWidget(self._sep_lbl("Adquisición"))
         fila_aq = QHBoxLayout()
         fila_aq.setSpacing(6)
@@ -443,12 +446,12 @@ class VentanaAmbos(QMainWindow):
         self._spin_p_numavg.setEnabled(False)
         lay.addWidget(self._spin_p_numavg)
 
-        lay.addStretch()
-
         self._btn_p_aplicar_oscil = QPushButton("Aplicar parámetros")
         self._btn_p_aplicar_oscil.setFixedHeight(34)
         self._btn_p_aplicar_oscil.setEnabled(False)
         lay.addWidget(self._btn_p_aplicar_oscil)
+
+        lay.addStretch()
         return g
 
     # ── Pestaña Medición ──────────────────────────────────────────────────────
@@ -609,12 +612,6 @@ class VentanaAmbos(QMainWindow):
         lay.setSpacing(10)
         self._lbl_log = chip_log("—")
         lay.addWidget(self._lbl_log, 1)
-        self._btn_stop_emergencia = QPushButton("⚠  Stop emergencia")
-        self._btn_stop_emergencia.setFixedHeight(32)
-        self._btn_stop_emergencia.setProperty("peligro", True)
-        self._btn_stop_emergencia.style().unpolish(self._btn_stop_emergencia)
-        self._btn_stop_emergencia.style().polish(self._btn_stop_emergencia)
-        lay.addWidget(self._btn_stop_emergencia)
         return bar
 
     # ── Helpers UI ────────────────────────────────────────────────────────────
@@ -691,6 +688,7 @@ class VentanaAmbos(QMainWindow):
         self._medicion.medicion_guardada.connect(self._on_medicion_guardada)
         self._medicion.secuencia_ok.connect(self._on_secuencia_ok)
         self._medicion.secuencia_abortada.connect(self._on_secuencia_abortada)
+        self._medicion.advertencia.connect(self._on_advertencia)
 
         # Topbar
         self._btn_volver.clicked.connect(self._on_volver)
@@ -709,8 +707,6 @@ class VentanaAmbos(QMainWindow):
         # Parámetros — oscil
         self._btn_p_ch1.clicked.connect(lambda: self._sel_canal("CH1"))
         self._btn_p_ch2.clicked.connect(lambda: self._sel_canal("CH2"))
-        self._btn_p_dc.clicked.connect(lambda: self._sel_acoplamiento("DC"))
-        self._btn_p_ac.clicked.connect(lambda: self._sel_acoplamiento("AC"))
         self._btn_p_sample.clicked.connect(lambda: self._sel_adquisicion("Sample"))
         self._btn_p_average.clicked.connect(lambda: self._sel_adquisicion("Average"))
         self._btn_p_aplicar_oscil.clicked.connect(self._on_aplicar_oscil)
@@ -729,7 +725,6 @@ class VentanaAmbos(QMainWindow):
         # Estado inicial de selectores
         self._sel_output("E Adjust")
         self._sel_burst("Continuous")
-        self._sel_acoplamiento("DC")
         self._sel_adquisicion("Sample")
         self._sel_modo_auto("tiempo")
 
@@ -905,11 +900,6 @@ class VentanaAmbos(QMainWindow):
         if self._oscil.conectado:
             self._btn_capturar.setEnabled(True)
 
-    def _sel_acoplamiento(self, modo: str):
-        self._acoplamiento = modo
-        set_btn_activo(self._btn_p_dc, modo == "DC", "azul")
-        set_btn_activo(self._btn_p_ac, modo == "AC", "azul")
-
     def _sel_adquisicion(self, modo: str):
         self._adquisicion = modo
         set_btn_activo(self._btn_p_sample,  modo == "Sample",  "azul")
@@ -921,15 +911,9 @@ class VentanaAmbos(QMainWindow):
 
     @Slot()
     def _on_aplicar_oscil(self):
-        self._oscil.set_rec_length(self._combo_p_rec_length.currentText())
-        self._oscil.aplicar_parametros(
-            vdiv      = self._combo_p_vdiv.currentText(),
-            tdiv      = self._combo_p_tdiv.currentText(),
-            coupling  = self._acoplamiento,
-            trigger_v = self._spin_p_trigger.value(),
-            acq_mode  = "AVERAGE" if self._adquisicion == "Average" else "SAMPLE",
-            numavg    = self._spin_p_numavg.value(),
-        )
+        self._oscil.set_acq_mode("AVERAGE" if self._adquisicion == "Average" else "SAMPLE")
+        if self._adquisicion == "Average":
+            self._oscil.set_numavg(self._spin_p_numavg.value())
 
     # ══════════════════════════════════════════════════════════════════════════
     # SLOTS — MEDICIÓN MANUAL
@@ -1000,7 +984,25 @@ class VentanaAmbos(QMainWindow):
         self._lbl_canal_m.setPos(xr[0], yr[1])
         self._lbl_canal_m.setText(self._canal_sel or "")
         self._lbl_tdiv_m.setPos((xr[0] + xr[1]) / 2, yr[0])
-        self._lbl_tdiv_m.setText(self._combo_p_tdiv.currentText())
+        self._lbl_tdiv_m.setText(formatear_tdiv(escala["tdiv_s"]) if escala is not None else "")
+
+    def _metadatos_instrumental(self) -> dict:
+        """
+        Identidad del instrumental al momento de crear la sesión. Se registra
+        el *IDN? del osciloscopio porque el modelo de la serie TDS5000B montado
+        en el laboratorio cambia entre sesiones.
+        """
+        params = self._laser.leer_parametros()
+        return {
+            "osciloscopio_idn": self._oscil.idn,
+            "osciloscopio_modelo": self._oscil.modelo,
+            "osciloscopio_canal": self._oscil.canal,
+            "laser_output_level": params.get("output_level"),
+            "laser_eo_delay_us": params.get("eo_delay_us"),
+            "laser_burst_mode": params.get("burst_mode"),
+            "separacion_hidrofono_haz_mm": self._edit_hidrofono_mm.text().strip(),
+            "volumen_vertido_ml": self._edit_volumen_ml.text().strip(),
+        }
 
     @Slot()
     def _on_guardar_manual(self):
@@ -1011,18 +1013,39 @@ class VentanaAmbos(QMainWindow):
             carpeta = QFileDialog.getExistingDirectory(self, "Seleccionar carpeta de sesión")
             if not carpeta:
                 return
-            if not self._store.nueva_sesion(carpeta_base=Path(carpeta)):
+            if not self._store.nueva_sesion(
+                carpeta_base=Path(carpeta),
+                metadatos=self._metadatos_instrumental(),
+            ):
                 QMessageBox.critical(self, "Error", "No se pudo crear la sesión.")
                 return
 
-        temp, _, _ = self._temp.consultar()
+        temp, _, temp_fresca = self._temp.consultar()
+        params = self._laser.leer_parametros()
+
+        errores: list[str] = []
+        if self._monitor.error_flag:
+            dispositivos = self._monitor.dispositivos_con_error
+            if dispositivos:
+                errores.append(f"sin conexión: {', '.join(dispositivos)}")
+            else:
+                errores.append("conexión con error al momento de guardar")
+        if not temp_fresca:
+            errores.append("temperatura no detectada")
+        if self._ultima_captura.error_flag:
+            errores.append("captura con advertencia")
+
         paquete = PaqueteMedicion(
             timestamp   = datetime.now().strftime("%Y-%m-%dT%H:%M:%S"),
-            temperatura = temp if temp is not None else 0.0,
+            temperatura = temp if temp is not None and temp_fresca else 0.0,
             modo        = "manual",
             wfmpre      = self._ultima_captura.wfmpre,
             raw_data    = self._ultima_captura.raw_data,
-            error_flag  = 1 if self._monitor.error_flag else self._ultima_captura.error_flag,
+            error_flag  = 1 if errores else 0,
+            error_desc  = "; ".join(errores),
+            output_level = params.get("output_level"),
+            eo_delay_us  = params.get("eo_delay_us"),
+            burst_mode   = params.get("burst_mode"),
         )
         mid = self._store.guardar(paquete)
         if mid:
@@ -1112,6 +1135,8 @@ class VentanaAmbos(QMainWindow):
             return
 
         self._secuencia_running = True
+        self._advertencias.clear()
+        self._lbl_progreso.setStyleSheet("color: #666; font-size: 11px;")
         self._timer_inactividad.stop()
         self._btn_iniciar_seq.setEnabled(False)
         self._btn_detener_seq.setEnabled(True)
@@ -1136,8 +1161,33 @@ class VentanaAmbos(QMainWindow):
     @Slot(str, int)
     def _on_medicion_guardada(self, mid: str, n_flags: int):
         self._tab_viz.agregar_medicion(mid)
+        partes = [f"Última: {mid}"]
+        if n_flags:
+            partes.append(f"⚠ con error: {n_flags}")
+        if self._advertencias:
+            partes.append(f"⚠ advertencias: {len(self._advertencias)}")
+        self._lbl_progreso.setText("  |  ".join(partes))
+
+    @Slot(str)
+    def _on_advertencia(self, mensaje: str):
+        marca = datetime.now().strftime("%H:%M:%S")
+        linea = f"[{marca}] {mensaje}"
+        self._advertencias.append(linea)
+        self._set_log(f"⚠ {mensaje}")
+        self._lbl_progreso.setStyleSheet("color: #d29922; font-size: 11px;")
         self._lbl_progreso.setText(
-            f"Última: {mid}  |  ⚠ con error: {n_flags}" if n_flags else f"Última: {mid}")
+            f"Secuencia en curso…  |  ⚠ advertencias: {len(self._advertencias)}")
+        self._registrar_advertencias_en_sesion(linea)
+
+    def _registrar_advertencias_en_sesion(self, linea: str) -> None:
+        ruta_csv = self._store.csv_path
+        if ruta_csv is None:
+            return
+        try:
+            with open(ruta_csv.parent / "advertencias.log", "a", encoding="utf-8") as f:
+                f.write(linea + "\n")
+        except OSError:
+            pass
 
     @Slot(int)
     def _on_secuencia_ok(self, n_flags: int):
@@ -1148,13 +1198,39 @@ class VentanaAmbos(QMainWindow):
             "Revise las muestras marcadas en la tabla."
             if n_flags else "Secuencia completada sin errores."
         )
-        QMessageBox.information(self, "Secuencia completada", msg)
+        caja = QMessageBox(QMessageBox.Information, "Secuencia completada", msg, QMessageBox.Ok, self)
+        self._adjuntar_advertencias(caja)
+        caja.exec()
 
     @Slot(str)
     def _on_secuencia_abortada(self, motivo: str):
         self._secuencia_running = False
         self._reset_ui_auto()
-        QMessageBox.critical(self, "Secuencia abortada", motivo)
+        caja = QMessageBox(QMessageBox.Critical, "Secuencia abortada", motivo, QMessageBox.Ok, self)
+        self._adjuntar_advertencias(caja)
+        caja.exec()
+
+    def _adjuntar_advertencias(self, caja: QMessageBox) -> None:
+        if not self._advertencias:
+            return
+        caja.setInformativeText(
+            f"Se registraron {len(self._advertencias)} advertencias durante la secuencia.")
+        caja.setDetailedText("\n".join(self._advertencias))
+
+        detalle = caja.findChild(QTextEdit)
+        if detalle is None:
+            return
+        detalle.setStyleSheet(
+            "QTextEdit {"
+            " background-color: #0d1117;"
+            " color: #c9d1d9;"
+            " border: 1px solid #30363d;"
+            " font-family: 'Consolas', 'Courier New', monospace;"
+            " font-size: 12px;"
+            " }"
+        )
+        detalle.setMinimumSize(560, 220)
+        detalle.setLineWrapMode(QTextEdit.WidgetWidth)
 
     def _reset_ui_auto(self):
         self._btn_iniciar_seq.setEnabled(self._sesion_activa)

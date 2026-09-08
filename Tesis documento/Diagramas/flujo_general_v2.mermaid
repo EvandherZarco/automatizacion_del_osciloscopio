@@ -1,13 +1,13 @@
 flowchart TD
-    START([🔬 Inicio]) --> MAIN
+    START([Inicio]) --> MAIN
 
     %% ─────────────────────────────
     %% PANTALLA PRINCIPAL
     %% ─────────────────────────────
     MAIN["Pantalla Principal
     ──────────────────────────────
-    🔴🟡🟢 Láser · Osciloscopio · ESP32
-    🔴🟡🟢 Sensor 1 · 2 · 3 · 4 (DS18B20)
+    Láser · Osciloscopio · ESP32
+    Sensor 1 · 2 · 3 · 4 (DS18B20)
     ──────────────────────────────
     Columna 1 — Manual
     Columna 2 — Automático"]
@@ -24,7 +24,7 @@ flowchart TD
 
     MCONFIG --> MCONCHECK{¿Láser y osciloscopio
     conectados?}
-    MCONCHECK --> |No| MCONWARN[/⚠️ Dispositivos desconectados
+    MCONCHECK --> |No| MCONWARN[/Dispositivos desconectados
     Verifique conexiones/]
     MCONWARN --> MAIN
     MCONCHECK --> |Sí| MSTART([Botón: Iniciar])
@@ -41,7 +41,7 @@ flowchart TD
     MVISUALIZE --> |No| MACTIVE
     MVISUALIZE --> |Sí| VIZ
 
-    MIDLE --> |Sí| MWARN[/⚠️ Popup: ¿Sigues usando el láser?
+    MIDLE --> |Sí| MWARN[/Popup: ¿Sigues usando el láser?
     Tienes 1 minuto para responder/]
     MWARN --> MRESP{¿Usuario
     responde?}
@@ -56,7 +56,7 @@ flowchart TD
 
     TCONFIG --> TCONCHECK{¿Láser y osciloscopio
     conectados?}
-    TCONCHECK --> |No| TCONWARN[/⚠️ Dispositivos desconectados
+    TCONCHECK --> |No| TCONWARN[/Dispositivos desconectados
     Verifique conexiones/]
     TCONWARN --> MAIN
     TCONCHECK --> |Sí| TASTART
@@ -66,13 +66,13 @@ flowchart TD
     %% ─────────────────────────────
     TEMPCHECK{¿Láser, osciloscopio
     y ESP32 conectados?}
-    TEMPCHECK --> |No| TEMPWARN[/⚠️ Dispositivos desconectados
+    TEMPCHECK --> |No| TEMPWARN[/Dispositivos desconectados
     Verifique conexiones/]
     TEMPWARN --> MAIN
     TEMPCHECK --> |Sí| SENSORCHECK{¿Todos los sensores
     DS18B20 en línea?}
     SENSORCHECK --> |Sí| TEMPCONFIG
-    SENSORCHECK --> |No| SENSORWARN[/"⚠️ Hay X sensores desconectados
+    SENSORCHECK --> |No| SENSORWARN[/"Hay X sensores desconectados
     ¿Desea continuar de todas formas?
     Los datos faltantes quedarán
     registrados en el CSV"/]
@@ -88,7 +88,7 @@ flowchart TD
     %% INICIO AUTOMÁTICO COMPARTIDO
     %% ─────────────────────────────
     TASTART([Botón: Iniciar])
-    TASTART --> AWARN[/"⚠️ Está a punto de iniciar el láser.
+    TASTART --> AWARN[/"Está a punto de iniciar el láser.
     Verifique que tenga las protecciones necesarias
     y esté correctamente configurado.
     Una vez iniciado, deberá detenerlo
@@ -110,7 +110,7 @@ flowchart TD
     conexión?}
 
     CONERR --> |No| FINALCHECK
-    CONERR --> |Sí| RETRY["🟡 LED parpadeando
+    CONERR --> |Sí| RETRY["LED parpadeando
     Reintenta conexión ×3
     Medición continúa
     error_flag = 1 en CSV"]
@@ -125,8 +125,8 @@ flowchart TD
 
     DONE["Secuencia completada
     Guarda todos los datos"]
-    DONE --> ERRCOUNT[/"✅ Medición completada.
-    ⚠️ Errores detectados: N
+    DONE --> ERRCOUNT[/"Medición completada.
+    Errores detectados: N
     Revise muestras marcadas en CSV"/]
     ERRCOUNT --> VIZPOPUP
 
@@ -141,7 +141,7 @@ flowchart TD
     %% ─────────────────────────────
     %% PESTAÑA VISUALIZAR DATOS
     %% ─────────────────────────────
-    VIZ["📊 Pestaña: Visualizar Datos"]
+    VIZ["Pestaña: Visualizar Datos"]
     VIZ --> VLIST["Lista de mediciones
     por diferencial tiempo · temperatura"]
     VLIST --> VSELECT[Usuario selecciona medición]
@@ -159,7 +159,7 @@ flowchart TD
     %% ─────────────────────────────
     %% MODO SEGURO — NODO CENTRAL
     %% ─────────────────────────────
-    SAFE["🔒 Parámetros Seguros
+    SAFE["Parámetros Seguros
     ──────────────────────
     Láser → STOP
     E Adjust = 3800

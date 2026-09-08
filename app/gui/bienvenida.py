@@ -147,7 +147,7 @@ class BienvenidaWindow(QMainWindow):
 
         sub = QLabel(
             "Universidad Nacional Autónoma de México  ·  ICAT\n"
-            "Asesor: Dr. Arturo Ronquillo Arvizu\n"
+            "Asesor: M. en C. Arturo Ronquillo Arvizu\n"
             "Autor: Zarco Hernández Evandher Joel · ZarcoMecatronics"
         )
         sub.setAlignment(Qt.AlignCenter)

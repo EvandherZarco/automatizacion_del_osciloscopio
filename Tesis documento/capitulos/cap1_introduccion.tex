@@ -1,0 +1,192 @@
+% =========================================================
+%   CAPÍTULO 1: INTRODUCCIÓN
+% =========================================================
+\chapter{Introducción}
+\label{cap:introduccion}
+
+% =========================================================
+\section{Planteamiento del problema}
+\label{sec:planteamiento}
+% =========================================================
+
+El Laboratorio de Fotofísica y Películas Delgadas del ICAT cuenta con
+un arreglo fotoacústico pulsado destinado a la caracterización de
+líquidos de baja absorción óptica. El arreglo es funcional y ha
+sostenido trabajos experimentales previos, pero su operación es
+enteramente manual: cada punto experimental exige coordinar el disparo
+del láser, la adquisición del osciloscopio y el registro de la
+temperatura de la muestra, y anotar aparte las condiciones bajo las
+cuales se tomó la medición. Los fundamentos físicos que justifican esa
+configuración se desarrollan en el \cref{cap:fundamentos}.
+
+La consecuencia más visible de esa operación manual es la lentitud, y
+es también la menos importante. El problema de fondo es la
+correspondencia entre un dato y las condiciones que lo produjeron. Una
+captura guardada a mano queda descrita por lo que el operador alcanzó a
+anotar, y esa anotación vive en un cuaderno, separada del archivo: puede
+extraviarse, puede contradecir al archivo, y no existe forma de detectar
+la discrepancia meses después, cuando el dato se analiza. Un experimento
+cuyo interés reside en comparar señales tomadas bajo condiciones
+distintas —niveles de energía, temperaturas, líquidos— descansa por
+completo sobre esa correspondencia.
+
+A ello se añade que el láser es un recurso compartido del laboratorio,
+de modo que el arreglo se desmonta y se restablece entre sesiones. La
+geometría efectiva cambia, y con ella parámetros que condicionan la
+interpretación de la señal. Sin un registro que acompañe a cada captura,
+la reproducibilidad entre sesiones no puede afirmarse ni desmentirse.
+
+% =========================================================
+\section{Premisa de trabajo}
+\label{sec:premisa}
+% =========================================================
+
+El trabajo parte de la siguiente premisa:
+
+\begin{quote}
+Un sistema que registre cada captura junto con las condiciones
+instrumentales que la produjeron permite reconstruir a posteriori el
+estado del arreglo en el momento de la adquisición, incluidas
+condiciones anómalas que no fueron observables durante la sesión.
+\end{quote}
+
+Se enuncia como premisa y no como hipótesis porque no se contrasta
+contra la naturaleza sino contra el desempeño de un artefacto
+construido: su comprobación consiste en mostrar que el registro
+conservado basta para reconstruir situaciones que en su momento pasaron
+inadvertidas. El \cref{cap:resultados} documenta cinco anomalías
+ocurridas durante el desarrollo, cuatro de las cuales no eran
+observables mientras transcurrían, y todas ellas caracterizables meses
+después a partir de los archivos de sesión.
+
+% =========================================================
+\section{Objetivos}
+\label{sec:objetivos}
+% =========================================================
+
+\subsection*{Objetivo general}
+
+Desarrollar un sistema de automatización que integre el láser de
+excitación, el osciloscopio de adquisición y la medición de temperatura
+de la muestra bajo una sola aplicación, ejecute secuencias de medición
+sin intervención del operador entre puntos, y conserve para cada
+captura los metadatos necesarios para reconstruirla en unidades físicas
+y para conocer las condiciones bajo las cuales fue adquirida.
+
+\subsection*{Objetivos particulares}
+
+\begin{enumerate}[label=\arabic*.]
+  \item Implementar el control programático del láser a través de la
+        biblioteca de enlace dinámico del fabricante, incluido un
+        procedimiento de retorno a estado seguro ante la conclusión de
+        una secuencia, una parada de emergencia o un fallo de
+        comunicación.
+
+  \item Implementar el control del osciloscopio sobre el protocolo
+        VXI-11, con transferencia binaria de la forma de onda y lectura
+        del preámbulo que permite su conversión posterior a unidades
+        físicas.
+
+  \item Definir e implementar la interfaz de adquisición de temperatura
+        del sistema: el contrato de comunicación que la aplicación
+        espera, la distinción entre una lectura válida y la pérdida de
+        un sensor, y la correspondencia estable entre cada valor
+        recibido y el dispositivo que lo produjo.
+
+  \item Implementar los dos modos de secuencia automática previstos para
+        el experimento: adquisición durante un intervalo de tiempo fijo
+        y adquisición gobernada por la temperatura de la muestra durante
+        su enfriamiento.
+
+  \item Definir un formato de almacenamiento de sesión que conserve las
+        muestras crudas del instrumento, los parámetros vigentes de cada
+        dispositivo al momento de la captura y una marca explícita de
+        las condiciones anómalas detectadas durante la adquisición.
+
+  \item Validar la lógica del sistema sin acceso a los instrumentos,
+        mediante simulación de perfiles térmicos, recorrido completo de
+        la cadena de medición y almacenamiento, y sesiones sintéticas
+        construidas para provocar cada una de las condiciones que la
+        herramienta de verificación debe detectar.
+\end{enumerate}
+
+% =========================================================
+\section{Alcance y delimitación}
+\label{sec:alcance}
+% =========================================================
+
+Conviene establecer desde ahora qué queda fuera de este trabajo, pues
+varias de las limitaciones que se discuten en los capítulos siguientes
+son consecuencia de esta delimitación y no defectos del sistema
+desarrollado.
+
+El trabajo desarrolla el sistema de automatización de un arreglo
+experimental preexistente. No modifica la celda fotoacústica, diseñada y
+manufacturada en un trabajo anterior, ni el hidrófono, cuyo ancho de
+banda condiciona la forma de las señales registradas; ambos se describen
+en el \cref{cap:arreglo} como condiciones de frontera del experimento.
+Tampoco incorpora un sensor calibrado de energía del pulso láser, de
+modo que las amplitudes adquiridas no son normalizables y el sistema, por
+completo que sea su registro, no sostiene por sí solo afirmaciones
+cuantitativas sobre el coeficiente de absorción del medio.
+
+El trabajo tampoco caracteriza líquidos. Las sesiones experimentales
+reportadas se realizaron con agua y su propósito es evaluar la
+herramienta —su repetibilidad, su capacidad de distinguir un cambio
+deliberado de parámetros y la integridad de su registro—, no las
+propiedades del líquido empleado. La caracterización de líquidos es lo
+que el sistema hace posible, no lo que este trabajo entrega.
+
+% =========================================================
+\section{Metodología}
+\label{sec:metodologia}
+% =========================================================
+
+El desarrollo se organizó en cuatro etapas.
+
+La primera consistió en resolver el control de cada instrumento por
+separado, atendiendo a las particularidades de su interfaz: la carga de
+una biblioteca de 64 bits que resuelve sus dependencias por rutas
+relativas en el caso del láser, y el orden de configuración de la
+transferencia binaria en el caso del osciloscopio. La segunda integró
+los tres subsistemas bajo una sola aplicación de escritorio, con las
+operaciones de hardware ejecutándose en hilos independientes del de la
+interfaz gráfica y comunicando sus resultados mediante señales.
+
+La tercera etapa fue la validación sin instrumentos. El acceso al láser
+y al osciloscopio se limita a las sesiones reservadas, y una parte de
+las condiciones que interesa verificar —la pérdida de un dispositivo a
+mitad de secuencia, el rebote de una lectura alrededor del umbral de
+disparo, la escritura de un registro incompleto— no puede provocarse a
+voluntad frente al equipo sin arriesgar la muestra o el instrumento. Se
+adoptó por ello el criterio de validar por simulación y sesiones
+sintéticas todo aquello que depende de la lógica del programa,
+reservando para el laboratorio únicamente lo que depende de la respuesta
+efectiva del equipo. La herramienta de verificación de datos se sometió
+además a una prueba de mutación, en la que cada una de sus
+comprobaciones se desactivó por separado para confirmar que su ausencia
+hacía fallar el caso correspondiente.
+
+La cuarta etapa evaluó el comportamiento del sistema integrado en
+sesiones reales de laboratorio, y documentó las anomalías observadas
+durante el desarrollo junto con el nivel al que fue posible detectarlas.
+
+% =========================================================
+\section{Estructura del documento}
+\label{sec:estructura}
+% =========================================================
+
+El \cref{cap:fundamentos} presenta los fundamentos del efecto
+fotoacústico, su manifestación en líquidos de baja absorción, la
+necesidad de caracterizar este tipo de medios y las técnicas
+disponibles para hacerlo. El \cref{cap:arreglo} describe el arreglo
+experimental: la celda, los equipos de medición y la trayectoria óptica
+heredados del laboratorio, y los tres subsistemas de instrumentación
+automatizados en este trabajo. El \cref{cap:resultados} presenta el
+sistema desarrollado, la evidencia que sostiene lo que cada subsistema
+declara, el comportamiento del conjunto en sesiones reales y los modos
+de falla observados. El \cref{cap:conclusiones} recoge el balance del
+trabajo y las líneas de continuación identificadas durante su
+desarrollo. El \cref{ap:tiempos_arribo} desarrolla el cálculo de los
+tiempos de arribo acústicos en la celda y el procedimiento para
+recalcularlos cuando la geometría del montaje difiere de la nominal.

@@ -124,6 +124,7 @@ class MonitoreoConexion(QObject):
         self._estado = EstadoMonitoreo.REPOSO
         self._error_flag = False
         self._reconectando: set[str] = set()
+        self._desconectados: set[str] = set()
 
         self._timer = QTimer(self)
         self._timer.timeout.connect(self._ciclo)
@@ -170,6 +171,10 @@ class MonitoreoConexion(QObject):
     def error_flag(self) -> bool:
         return self._error_flag
 
+    @property
+    def dispositivos_con_error(self) -> list[str]:
+        return sorted(self._desconectados)
+
     # ──────────────────────────────────────────────────────────────────────────
     # LOOP INTERNO
     # ──────────────────────────────────────────────────────────────────────────
@@ -192,11 +197,20 @@ class MonitoreoConexion(QObject):
                 else:
                     self.ds_led_rojo.emit(i)
 
-        return {
+        resultados = {
             "laser": self._laser.conectado,
             "oscil": self._oscil.conectado,
             "esp32": es_fresco,
         }
+
+        for dev, ok in resultados.items():
+            if ok:
+                self._desconectados.discard(dev)
+            else:
+                self._desconectados.add(dev)
+        self._set_error_flag(bool(self._desconectados))
+
+        return resultados
 
     def _aplicar_intervalo(self):
         intervalo = (
@@ -244,7 +258,6 @@ class MonitoreoConexion(QObject):
 
         if reconectado:
             self._set_led_verde(dispositivo)
-            self._set_error_flag(False)
             logger.info("%s reconectado.", dispositivo)
         else:
             self._set_led_rojo(dispositivo)

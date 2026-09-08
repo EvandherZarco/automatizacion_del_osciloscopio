@@ -14,7 +14,7 @@ import pyqtgraph as pg
 from PySide6.QtCore import Qt, Signal, Slot, QThread, QObject
 from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
-    QLabel, QPushButton, QComboBox, QSpinBox, QDoubleSpinBox,
+    QLabel, QPushButton, QSpinBox, QDoubleSpinBox,
     QFrame, QFileDialog, QMessageBox, QSplitter,
 )
 
@@ -22,7 +22,7 @@ from app.osciloscopio.control_osciloscopio import OsciloscopioController
 from app.almacenamiento.almacenamiento import Almacenamiento, PaqueteMedicion
 from app.gui.theme import (
     APP_STYLESHEET, LED_VERDE, LED_AMARILLO, LED_ROJO, LED_GRIS,
-    make_led, set_led, set_btn_activo,
+    make_led, set_led, set_btn_activo, formatear_tdiv, formatear_vdiv,
 )
 
 
@@ -70,9 +70,10 @@ class VentanaOsciloscopio(QMainWindow):
         self._captura_worker: _CapturaWorker | None = None
         self._cerrado = False
 
-        self._acoplamiento  = "DC"
         self._adquisicion   = "Sample"
         self._canal_sel: str | None = None
+        self._ultimo_vdiv_v: float | None = None
+        self._ultimo_tdiv_s: float | None = None
 
         self._construir_ui()
         self._conectar_signals()
@@ -138,6 +139,18 @@ class VentanaOsciloscopio(QMainWindow):
         self._btn_conectar.setFixedHeight(30)
         self._btn_conectar.setMinimumWidth(110)
         lay.addWidget(self._btn_conectar)
+
+        sep2 = QFrame()
+        sep2.setFrameShape(QFrame.VLine)
+        sep2.setStyleSheet("color: #333;")
+        lay.addWidget(sep2)
+
+        self._btn_stop_emergencia = QPushButton("⚠  Stop emergencia")
+        self._btn_stop_emergencia.setFixedHeight(32)
+        self._btn_stop_emergencia.setProperty("peligro", True)
+        self._btn_stop_emergencia.style().unpolish(self._btn_stop_emergencia)
+        self._btn_stop_emergencia.style().polish(self._btn_stop_emergencia)
+        lay.addWidget(self._btn_stop_emergencia)
         return bar
 
     def _area_senal(self) -> QWidget:
@@ -204,50 +217,6 @@ class VentanaOsciloscopio(QMainWindow):
         lay.addWidget(self._lbl_canal_hint)
         lay.addWidget(self._hline())
 
-        # Escalas
-        lay.addWidget(self._sep_label("Escala vertical"))
-        self._combo_vdiv = QComboBox()
-        self._combo_vdiv.addItems(list(OsciloscopioController.VDIV_OPCIONES.keys()))
-        self._combo_vdiv.setCurrentText("50 mV/div")
-        lay.addWidget(self._combo_vdiv)
-
-        lay.addWidget(self._sep_label("Escala horizontal"))
-        self._combo_tdiv = QComboBox()
-        self._combo_tdiv.addItems(list(OsciloscopioController.TDIV_OPCIONES.keys()))
-        self._combo_tdiv.setCurrentText("1 µs/div")
-        lay.addWidget(self._combo_tdiv)
-
-        lay.addWidget(self._sep_label("Record length (puntos)"))
-        self._combo_rec_length = QComboBox()
-        self._combo_rec_length.addItems(list(OsciloscopioController.REC_LENGTH_OPCIONES.keys()))
-        self._combo_rec_length.setCurrentText("25 000")
-        lay.addWidget(self._combo_rec_length)
-        lay.addWidget(self._hline())
-
-        # Acoplamiento
-        lay.addWidget(self._sep_label("Acoplamiento"))
-        fila_ac = QHBoxLayout()
-        fila_ac.setSpacing(6)
-        self._btn_dc = QPushButton("DC")
-        self._btn_ac = QPushButton("AC")
-        for btn in (self._btn_dc, self._btn_ac):
-            btn.setFixedHeight(32)
-            fila_ac.addWidget(btn)
-        lay.addLayout(fila_ac)
-
-        # Trigger
-        lay.addWidget(self._sep_label("Nivel de trigger"))
-        self._spin_trigger = QDoubleSpinBox()
-        self._spin_trigger.setRange(-10.0, 10.0)
-        self._spin_trigger.setSingleStep(0.001)
-        self._spin_trigger.setDecimals(3)
-        self._spin_trigger.setValue(0.010)
-        lbl_tr_h = QLabel("Voltios")
-        lbl_tr_h.setStyleSheet("color: #555; font-size: 10px;")
-        lay.addWidget(self._spin_trigger)
-        lay.addWidget(lbl_tr_h)
-        lay.addWidget(self._hline())
-
         # Adquisición
         lay.addWidget(self._sep_label("Adquisición"))
         fila_aq = QHBoxLayout()
@@ -266,12 +235,12 @@ class VentanaOsciloscopio(QMainWindow):
         self._spin_numavg.setEnabled(False)
         lay.addWidget(self._spin_numavg)
 
-        lay.addStretch()
-
         self._btn_aplicar = QPushButton("Aplicar parámetros")
         self._btn_aplicar.setFixedHeight(36)
         self._btn_aplicar.setEnabled(False)
         lay.addWidget(self._btn_aplicar)
+
+        lay.addStretch()
         return w
 
     def _bottombar(self) -> QWidget:
@@ -290,16 +259,9 @@ class VentanaOsciloscopio(QMainWindow):
         self._btn_guardar.setFixedHeight(32)
         self._btn_guardar.setEnabled(False)
 
-        self._btn_stop_emergencia = QPushButton("⚠  Stop emergencia")
-        self._btn_stop_emergencia.setFixedHeight(32)
-        self._btn_stop_emergencia.setProperty("peligro", True)
-        self._btn_stop_emergencia.style().unpolish(self._btn_stop_emergencia)
-        self._btn_stop_emergencia.style().polish(self._btn_stop_emergencia)
-
         lay.addWidget(self._btn_capturar)
         lay.addWidget(self._btn_guardar)
         lay.addStretch()
-        lay.addWidget(self._btn_stop_emergencia)
         return bar
 
     # ══════════════════════════════════════════════════════════════════════════
@@ -317,8 +279,6 @@ class VentanaOsciloscopio(QMainWindow):
 
         self._btn_ch1.clicked.connect(lambda: self._sel_canal("CH1"))
         self._btn_ch2.clicked.connect(lambda: self._sel_canal("CH2"))
-        self._btn_dc.clicked.connect(lambda: self._sel_acoplamiento("DC"))
-        self._btn_ac.clicked.connect(lambda: self._sel_acoplamiento("AC"))
         self._btn_sample.clicked.connect(lambda: self._sel_adquisicion("Sample"))
         self._btn_average.clicked.connect(lambda: self._sel_adquisicion("Average"))
 
@@ -327,7 +287,6 @@ class VentanaOsciloscopio(QMainWindow):
         self._btn_guardar.clicked.connect(self._on_guardar)
         self._btn_stop_emergencia.clicked.connect(self._on_stop_emergencia)
 
-        self._sel_acoplamiento("DC")
         self._sel_adquisicion("Sample")
 
     # ══════════════════════════════════════════════════════════════════════════
@@ -374,23 +333,8 @@ class VentanaOsciloscopio(QMainWindow):
         if escala is None:
             return
 
-        mejor_vdiv = min(
-            OsciloscopioController.VDIV_OPCIONES.items(),
-            key=lambda kv: abs(kv[1] - escala["vdiv_v"])
-        )[0]
-        self._combo_vdiv.setCurrentText(mejor_vdiv)
-
-        mejor_tdiv = min(
-            OsciloscopioController.TDIV_OPCIONES.items(),
-            key=lambda kv: abs(kv[1] - escala["tdiv_s"])
-        )[0]
-        self._combo_tdiv.setCurrentText(mejor_tdiv)
-
-        coup = escala["coupling"]
-        if coup in ("DC", "AC"):
-            self._sel_acoplamiento(coup)
-
-        self._spin_trigger.setValue(escala["trigger_v"])
+        self._ultimo_vdiv_v = escala["vdiv_v"]
+        self._ultimo_tdiv_s = escala["tdiv_s"]
 
         if "AVERAGE" in escala["acq_mode"]:
             self._sel_adquisicion("Average")
@@ -423,11 +367,6 @@ class VentanaOsciloscopio(QMainWindow):
             self._plot.setVisible(True)
         self._lbl_canal_plot.setText(canal)
 
-    def _sel_acoplamiento(self, modo: str):
-        self._acoplamiento = modo
-        set_btn_activo(self._btn_dc, modo == "DC", "azul")
-        set_btn_activo(self._btn_ac, modo == "AC", "azul")
-
     def _sel_adquisicion(self, modo: str):
         self._adquisicion = modo
         set_btn_activo(self._btn_sample,  modo == "Sample",  "azul")
@@ -436,15 +375,9 @@ class VentanaOsciloscopio(QMainWindow):
 
     @Slot()
     def _on_aplicar_params(self):
-        self._oscil.set_rec_length(self._combo_rec_length.currentText())
-        self._oscil.aplicar_parametros(
-            vdiv      = self._combo_vdiv.currentText(),
-            tdiv      = self._combo_tdiv.currentText(),
-            coupling  = self._acoplamiento,
-            trigger_v = self._spin_trigger.value(),
-            acq_mode  = "AVERAGE" if self._adquisicion == "Average" else "SAMPLE",
-            numavg    = self._spin_numavg.value(),
-        )
+        self._oscil.set_acq_mode("AVERAGE" if self._adquisicion == "Average" else "SAMPLE")
+        if self._adquisicion == "Average":
+            self._oscil.set_numavg(self._spin_numavg.value())
         self._refrescar_labels_plot()
 
     def _refrescar_labels_plot(self):
@@ -452,9 +385,9 @@ class VentanaOsciloscopio(QMainWindow):
         xr, yr = vr
         self._lbl_canal_plot.setPos(xr[0], yr[1])
         self._lbl_vdiv_plot.setPos(xr[1], yr[1])
-        self._lbl_vdiv_plot.setText(self._combo_vdiv.currentText())
+        self._lbl_vdiv_plot.setText(formatear_vdiv(self._ultimo_vdiv_v))
         self._lbl_tdiv_plot.setPos((xr[0] + xr[1]) / 2, yr[0])
-        self._lbl_tdiv_plot.setText(self._combo_tdiv.currentText())
+        self._lbl_tdiv_plot.setText(formatear_tdiv(self._ultimo_tdiv_s))
 
     @Slot()
     def _on_capturar(self):

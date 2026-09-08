@@ -3,7 +3,7 @@ flowchart TD
     %% ─────────────────────────────
     %% INICIALIZACIÓN
     %% ─────────────────────────────
-    INIT([🎯 Trigger: Inicialización])
+    INIT([Trigger: Inicialización])
     INIT --> RECVPARAMS["Recibe parámetros de GUI:
     modo · intervalo o temp. objetivo · temp. final · paso"]
     RECVPARAMS --> MODESEL{Modo seleccionado?}
@@ -13,7 +13,7 @@ flowchart TD
     %% ─────────────────────────────
     %% SUB-FLUJO A: MODO POR TIEMPO
     %% ─────────────────────────────
-    TIMELOOP(["⏱️ Modo por tiempo — esperando"])
+    TIMELOOP(["Modo por tiempo — esperando"])
     TIMELOOP --> WAITTIMER["Espera N segundos
     definidos por el usuario"]
     WAITTIMER --> TIMERDONE["Timer cumplido
@@ -29,7 +29,7 @@ flowchart TD
     %% ─────────────────────────────
     %% SUB-FLUJO B: MODO POR TEMPERATURA
     %% ─────────────────────────────
-    TEMPLOOP(["🌡️ Modo por temperatura
+    TEMPLOOP(["Modo por temperatura
     Objetivo actual: T objetivo"])
     TEMPLOOP --> BUILDSEQ["Construye secuencia de objetivos:
     T inicial · T final · paso"]
