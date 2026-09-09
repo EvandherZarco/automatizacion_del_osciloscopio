@@ -683,6 +683,8 @@ class VentanaAmbos(QMainWindow):
 
         # Monitor seguridad
         self._monitor.seguridad_activada.connect(self._on_seguridad_activada)
+        self._monitor.esp32_reconectado.connect(self._reconectar_esp32)
+        self._safe.completado.connect(self._on_modo_seguro)
 
         # Medición
         self._medicion.medicion_guardada.connect(self._on_medicion_guardada)
@@ -1031,13 +1033,13 @@ class VentanaAmbos(QMainWindow):
             else:
                 errores.append("conexión con error al momento de guardar")
         if not temp_fresca:
-            errores.append("temperatura no detectada")
+            errores.append(f"ESP32 sin respuesta ({TEMP_COM_PORT})")
         if self._ultima_captura.error_flag:
             errores.append("captura con advertencia")
 
         paquete = PaqueteMedicion(
             timestamp   = datetime.now().strftime("%Y-%m-%dT%H:%M:%S"),
-            temperatura = temp if temp is not None and temp_fresca else 0.0,
+            temperatura = temp if temp is not None and temp_fresca else float("nan"),
             modo        = "manual",
             wfmpre      = self._ultima_captura.wfmpre,
             raw_data    = self._ultima_captura.raw_data,
@@ -1315,6 +1317,14 @@ class VentanaAmbos(QMainWindow):
 
     def _set_log(self, texto: str):
         self._lbl_log.setText(texto)
+
+    @Slot(bool, list)
+    def _on_modo_seguro(self, todo_ok: bool, fallidos: list):
+        if "stop" in fallidos:
+            return
+        self._laser_running = False
+        self._timer_inactividad.stop()
+        self._actualizar_ui_laser()
 
     @Slot(str)
     def _on_seguridad_activada(self, dispositivo: str):

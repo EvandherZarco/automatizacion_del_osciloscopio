@@ -25,6 +25,8 @@ import serial
 import serial.tools.list_ports
 from PySide6.QtCore import QObject, Signal, Slot, QMutex, QMutexLocker
 
+from app.config import TEMP_COM_PORT
+
 BAUD_RATE = 115200
 TIMEOUT_LINEA_S = 1.5
 TIMEOUT_SILENCIO = 5.0
@@ -32,6 +34,7 @@ FRESCURA_MAX_S = 3.0
 TEMP_MIN = 10.0
 TEMP_MAX = 50.0
 ESPERA_PRIMER_S = 5.0
+ESPERA_REINTENTO_S = 2.5
 
 
 def listar_puertos() -> list[str]:
@@ -98,11 +101,20 @@ class TempWorker(QObject):
 
     def reconectar(self) -> bool:
         """
-        Verifica si el ESP32 sigue enviando datos frescos.
-        Si el worker ya detuvo su loop (desconexión detectada), retorna False.
-        Una reconexión real requiere reiniciar el QThread desde la GUI.
+        Verifica si el ESP32 volvió a responder en el puerto configurado.
+
+        Si ya hay lecturas frescas no hace nada. En caso contrario reabre
+        TEMP_COM_PORT y espera una trama válida; el puerto se cierra antes de
+        retornar para que el loop de lectura pueda tomarlo al reiniciarse.
+        Un puerto reasignado por el sistema operativo no se detecta aquí:
+        ese caso se resuelve con la reconexión manual desde la GUI.
         """
-        return self.esta_conectado()
+        if self.esta_conectado():
+            return True
+        if not self._puerto_responde(TEMP_COM_PORT):
+            return False
+        self._puerto = TEMP_COM_PORT
+        return True
 
     @Slot()
     def detener(self):
@@ -216,6 +228,23 @@ class TempWorker(QObject):
         except serial.SerialException as exc:
             self.error.emit(f"Error de lectura serial: {exc}")
         return None
+
+    def _puerto_responde(self, puerto: str) -> bool:
+        try:
+            with serial.Serial(
+                port=puerto, baudrate=BAUD_RATE, timeout=TIMEOUT_LINEA_S
+            ) as ser:
+                limite = time.monotonic() + ESPERA_REINTENTO_S
+                while time.monotonic() < limite:
+                    raw = ser.readline()
+                    if not raw:
+                        continue
+                    linea = raw.decode("utf-8", errors="ignore").strip()
+                    if self._parsear(linea) is not None:
+                        return True
+        except (serial.SerialException, OSError):
+            return False
+        return False
 
     def _parsear(self, linea: str) -> tuple[float, list[bool]] | None:
         partes = linea.split(",")

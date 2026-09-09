@@ -31,6 +31,7 @@ from datetime import datetime
 from PySide6.QtCore import QObject, Signal, Slot, QThread, QMetaObject, Qt
 
 from app.almacenamiento.almacenamiento import Almacenamiento, PaqueteMedicion
+from app.config import TEMP_COM_PORT
 from app.medicion.trigger import TriggerWorker
 
 LASER_HZ = 10.0
@@ -167,7 +168,8 @@ class MedicionWorker(QObject):
         temp, _, es_fresco = self._leer_temperatura()
         if not es_fresco:
             error_flag = 1
-            errores.append("temperatura no detectada")
+            temp = float("nan")
+            errores.append(f"ESP32 sin respuesta ({TEMP_COM_PORT})")
 
         if self._intervalo_excedido > 0:
             errores.append(
@@ -183,7 +185,7 @@ class MedicionWorker(QObject):
         if captura is not None:
             paquete = PaqueteMedicion(
                 timestamp=datetime.now().strftime("%Y-%m-%dT%H:%M:%S"),
-                temperatura=temp if temp is not None else 0.0,
+                temperatura=temp if temp is not None else float("nan"),
                 modo=self._modo,
                 wfmpre=captura.wfmpre,
                 raw_data=captura.raw_data,

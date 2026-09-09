@@ -101,6 +101,8 @@ class MonitoreoConexion(QObject):
     esp32_led_amarillo = Signal()
     esp32_led_rojo = Signal()
 
+    esp32_reconectado = Signal()
+
     ds_led_verde = Signal(int)  # índice 0-3
     ds_led_amarillo = Signal(int)
     ds_led_rojo = Signal(int)
@@ -206,6 +208,8 @@ class MonitoreoConexion(QObject):
         for dev, ok in resultados.items():
             if ok:
                 self._desconectados.discard(dev)
+                if dev not in self._reconectando:
+                    self._set_led_verde(dev)
             else:
                 self._desconectados.add(dev)
         self._set_error_flag(bool(self._desconectados))
@@ -259,6 +263,8 @@ class MonitoreoConexion(QObject):
         if reconectado:
             self._set_led_verde(dispositivo)
             logger.info("%s reconectado.", dispositivo)
+            if dispositivo == "esp32":
+                self.esp32_reconectado.emit()
         else:
             self._set_led_rojo(dispositivo)
             logger.error(
