@@ -151,3 +151,6 @@ complementos/
 *.synctex(busy)
 *.toc
 main.pdf
+
+# Configuracion local por maquina
+app/config_local.py
