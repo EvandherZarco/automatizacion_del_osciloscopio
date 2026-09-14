@@ -28,7 +28,7 @@ from PySide6.QtWidgets import (
     QTabWidget, QFrame, QFileDialog, QMessageBox, QApplication, QTextEdit,
 )
 
-from app.config import TEMP_COM_PORT
+from app import config_usuario
 from app.laser.control_laser import LaserController
 from app.osciloscopio.control_osciloscopio import (
     OsciloscopioController, NUMAVG_TIEMPO, FREC_DISPARO_HZ,
@@ -39,6 +39,10 @@ from app.modo_seguro.modo_seguro import ModoSeguro
 from app.conexion.monitoreo import MonitoreoConexion, EstadoMonitoreo
 from app.medicion.medicion import Medicion
 from app.gui.visualizacion import VisualizacionWidget
+from app.gui.dialogo_conexion import (
+    DialogoConexion, texto_fallo_conexion, actualizar_boton_conexion,
+    MOTIVO_LASER_RUN, MOTIVO_SECUENCIA, MOTIVO_CAPTURA,
+)
 from app.gui.theme import (
     APP_STYLESHEET, LED_VERDE, LED_AMARILLO, LED_ROJO, LED_GRIS,
     make_led, set_led, set_btn_activo, chip_log, formatear_tdiv,
@@ -97,7 +101,7 @@ class VentanaAmbos(QMainWindow):
         # Módulos
         self._laser = LaserController(self)
         self._oscil = OsciloscopioController(self)
-        self._temp  = TempWorker(TEMP_COM_PORT)
+        self._temp  = TempWorker()
 
         self._temp_thread = QThread(self)
         self._temp.moveToThread(self._temp_thread)
@@ -123,6 +127,8 @@ class VentanaAmbos(QMainWindow):
         self._burst_sel         = "Continuous"
         self._adquisicion       = "Sample"
         self._cerrado           = False
+        self._aviso_inicial_pendiente = True
+        self._fallos_iniciales: list[tuple[str, str]] = []
 
         self._captura_thread: QThread | None = None
         self._captura_worker: _CapturaWorker | None = None
@@ -181,6 +187,11 @@ class VentanaAmbos(QMainWindow):
         self._btn_volver = QPushButton("← Volver")
         self._btn_volver.setFixedHeight(28)
         lay.addWidget(self._btn_volver)
+
+        self._btn_conexion = QPushButton("⚙ Conexión")
+        self._btn_conexion.setFixedHeight(28)
+        actualizar_boton_conexion(self._btn_conexion, None)
+        lay.addWidget(self._btn_conexion)
 
         sep = QFrame()
         sep.setFrameShape(QFrame.VLine)
@@ -694,6 +705,7 @@ class VentanaAmbos(QMainWindow):
 
         # Topbar
         self._btn_volver.clicked.connect(self._on_volver)
+        self._btn_conexion.clicked.connect(self._abrir_conexion)
 
         # Parámetros — láser
         self._btn_laser_iniciar.clicked.connect(self._on_laser_iniciar)
@@ -748,8 +760,73 @@ class VentanaAmbos(QMainWindow):
         thread.start()
 
     def _post_conexion(self):
+        if not self._laser.conectado:
+            self._fallos_iniciales.append(
+                ("LASER_COM_PORT", config_usuario.obtener("LASER_COM_PORT")))
+        if not self._oscil.conectado:
+            self._fallos_iniciales.append(("OSCIL_HOST", self._oscil.host))
         self._temp_thread.start()
         self._monitor.iniciar()
+
+    def _mostrar_aviso_inicial(self, esp32_ok: bool):
+        """Un solo aviso al arrancar, cuando ya se conoce el estado de los tres."""
+        if not self._aviso_inicial_pendiente:
+            return
+        self._aviso_inicial_pendiente = False
+        fallos = list(self._fallos_iniciales)
+        if not esp32_ok:
+            fallos.append(("TEMP_COM_PORT", self._temp.puerto))
+        if fallos:
+            self._avisar_fallo_conexion(fallos)
+
+    def _avisar_fallo_conexion(self, fallos: list[tuple[str, str]]):
+        caja = QMessageBox(
+            QMessageBox.Warning, "Dispositivo sin conexión",
+            texto_fallo_conexion(fallos), QMessageBox.Ok, self,
+        )
+        caja.setAttribute(Qt.WA_DeleteOnClose)
+        caja.show()
+
+    def _motivo_bloqueo_conexion(self) -> str | None:
+        if self._laser_running:
+            return MOTIVO_LASER_RUN
+        if self._secuencia_running or self._iniciando_secuencia:
+            return MOTIVO_SECUENCIA
+        if self._captura_thread is not None and self._captura_thread.isRunning():
+            return MOTIVO_CAPTURA
+        return None
+
+    def _actualizar_btn_conexion(self):
+        actualizar_boton_conexion(self._btn_conexion, self._motivo_bloqueo_conexion())
+
+    @Slot()
+    def _abrir_conexion(self):
+        if self._motivo_bloqueo_conexion() is not None:
+            self._actualizar_btn_conexion()
+            return
+
+        activos = {
+            "TEMP_COM_PORT":  self._temp.puerto if self._temp_thread.isRunning() else None,
+            "LASER_COM_PORT": config_usuario.obtener("LASER_COM_PORT") if self._laser.conectado else None,
+            "OSCIL_HOST":     self._oscil.host if self._oscil.conectado else None,
+        }
+        self._monitor.pausar_pings()
+        try:
+            dialogo = DialogoConexion(self, activos)
+            dialogo.exec()
+            guardado = dialogo.valores()
+        finally:
+            self._monitor.set_estado(EstadoMonitoreo.REPOSO)
+            self._monitor.iniciar()
+
+        if guardado is None:
+            return
+        self._set_log(
+            f"Conexión guardada — ESP32 {guardado['TEMP_COM_PORT']} · "
+            f"Láser {guardado['LASER_COM_PORT']} · Osciloscopio {guardado['OSCIL_HOST']}"
+        )
+        if not self._temp_thread.isRunning():
+            self._reconectar_esp32()
 
     # ══════════════════════════════════════════════════════════════════════════
     # SLOTS — CONEXIÓN
@@ -794,10 +871,12 @@ class VentanaAmbos(QMainWindow):
         self._btn_reconectar_esp32.setVisible(True)
         self._btn_reconectar_esp32.setEnabled(True)
         self._temp_thread.quit()
+        self._mostrar_aviso_inicial(esp32_ok=False)
 
     @Slot(list)
     def _on_esp32_conectado(self, _sensores):
         self._btn_reconectar_esp32.setVisible(False)
+        self._mostrar_aviso_inicial(esp32_ok=True)
 
     @Slot()
     def _reconectar_esp32(self):
@@ -864,6 +943,7 @@ class VentanaAmbos(QMainWindow):
         self._btn_laser_iniciar.setEnabled(not c and self._laser.conectado)
         self._btn_laser_detener.setEnabled(c)
         self._btn_p_aplicar_laser.setEnabled(not c and self._laser.conectado)
+        self._actualizar_btn_conexion()
         for w in (self._btn_p_e_off, self._btn_p_e_adj, self._btn_p_e_max,
                   self._btn_p_cont, self._btn_p_burst, self._btn_p_trigger,
                   self._spin_p_cooling, self._spin_p_eo):
@@ -940,11 +1020,13 @@ class VentanaAmbos(QMainWindow):
         self._captura_thread = thread
         self._captura_worker = worker
         thread.start()
+        self._actualizar_btn_conexion()
 
     @Slot(object, object)
     def _on_captura_terminada(self, captura, escala):
         self._captura_thread = None
         self._captura_worker = None
+        self._actualizar_btn_conexion()
         self._btn_capturar.setEnabled(self._oscil.conectado and self._canal_sel is not None)
 
         if captura is None:
@@ -1033,7 +1115,7 @@ class VentanaAmbos(QMainWindow):
             else:
                 errores.append("conexión con error al momento de guardar")
         if not temp_fresca:
-            errores.append(f"ESP32 sin respuesta ({TEMP_COM_PORT})")
+            errores.append(f"ESP32 sin respuesta ({self._temp.puerto})")
         if self._ultima_captura.error_flag:
             errores.append("captura con advertencia")
 
@@ -1074,11 +1156,13 @@ class VentanaAmbos(QMainWindow):
     @Slot()
     def _on_iniciar_secuencia(self):
         self._iniciando_secuencia = True
+        self._actualizar_btn_conexion()
         self._timer_inactividad.stop()
         try:
             self._intentar_iniciar_secuencia()
         finally:
             self._iniciando_secuencia = False
+            self._actualizar_btn_conexion()
             self._reiniciar_timer_inactividad()
 
     def _intentar_iniciar_secuencia(self):
@@ -1242,6 +1326,7 @@ class VentanaAmbos(QMainWindow):
         self._lbl_progreso.setText("Secuencia detenida por el usuario.")
         self._monitor.set_estado(EstadoMonitoreo.REPOSO)
         self._reiniciar_timer_inactividad()
+        self._actualizar_btn_conexion()
 
     # ══════════════════════════════════════════════════════════════════════════
     # STOP EMERGENCIA
@@ -1330,9 +1415,15 @@ class VentanaAmbos(QMainWindow):
     def _on_seguridad_activada(self, dispositivo: str):
         self._laser_running = False
         self._actualizar_ui_laser()
+        if dispositivo == "laser":
+            detalle = f"Láser: sin respuesta en {config_usuario.obtener('LASER_COM_PORT')}."
+        else:
+            detalle = f"Osciloscopio: sin respuesta en {self._oscil.host}."
         QMessageBox.critical(
             self, "Dispositivo crítico desconectado",
-            f"No fue posible reconectar: {dispositivo}.\n\nEl láser fue puesto en modo seguro.",
+            f"{detalle}\n\nEl láser fue puesto en modo seguro.\n\n"
+            "Revise el cable y el puerto o la dirección en Conexión "
+            "(botón de la barra superior).",
         )
 
     @Slot()

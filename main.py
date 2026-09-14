@@ -8,6 +8,7 @@ import logging
 
 from PySide6.QtWidgets import QApplication
 
+from app import config_usuario
 from app.gui.bienvenida import BienvenidaWindow
 from app.gui.theme import APP_STYLESHEET
 
@@ -22,6 +23,8 @@ def main():
     app = QApplication(sys.argv)
     app.setStyle("Fusion")
     app.setStyleSheet(APP_STYLESHEET)
+
+    config_usuario.aplicar()
 
     window = BienvenidaWindow()
     window.show()

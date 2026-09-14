@@ -20,12 +20,15 @@ Comandos aceptados por el ESP32 (enviar con '\\n'):
 
 from __future__ import annotations
 
+import logging
 import time
 import serial
 import serial.tools.list_ports
 from PySide6.QtCore import QObject, Signal, Slot, QMutex, QMutexLocker
 
-from app.config import TEMP_COM_PORT
+from app import config_usuario
+
+logger = logging.getLogger(__name__)
 
 BAUD_RATE = 115200
 TIMEOUT_LINEA_S = 1.5
@@ -42,10 +45,36 @@ def listar_puertos() -> list[str]:
     return [p.device for p in serial.tools.list_ports.comports()]
 
 
+def parsear_trama(linea: str) -> tuple[float, list[bool]] | None:
+    """
+    Interpreta una línea del ESP32: promedio y cuatro lecturas en °C.
+    Devuelve (temperatura_promedio, presencia_de_cada_sensor) o None si la
+    línea no tiene el formato esperado o el promedio está fuera de rango.
+    """
+    partes = linea.split(",")
+    if len(partes) != 5:
+        return None
+    try:
+        temp = float(partes[0])
+        lecturas = [float(p) for p in partes[1:]]
+    except ValueError:
+        return None
+
+    if not (TEMP_MIN <= temp <= TEMP_MAX):
+        return None
+
+    sensores = [TEMP_MIN <= t <= TEMP_MAX for t in lecturas]
+    return temp, sensores
+
+
 class TempWorker(QObject):
     """
     Worker de temperatura para ESP32-C3 + DS18B20 ×4.
     Diseñado para correr en un QThread independiente.
+
+    El puerto se toma de la configuración vigente (config_usuario) cada vez
+    que se inicia o reconecta, así un cambio hecho desde la GUI aplica en la
+    siguiente conexión sin reiniciar la aplicación.
 
     Señales:
         conectado(list[bool])  — primera trama válida recibida;
@@ -60,9 +89,9 @@ class TempWorker(QObject):
     trigger = Signal(float)
     error = Signal(str)
 
-    def __init__(self, puerto: str, parent=None):
+    def __init__(self, parent=None):
         super().__init__(parent)
-        self._puerto = puerto
+        self._puerto = config_usuario.obtener("TEMP_COM_PORT")
         self._serial: serial.Serial | None = None
         self._activo = False
 
@@ -72,6 +101,11 @@ class TempWorker(QObject):
         self._mutex = QMutex()
 
     # ── API pública ────────────────────────────────────────────────────────────
+
+    @property
+    def puerto(self) -> str:
+        """Puerto usado en la conexión más reciente."""
+        return self._puerto
 
     def consultar(self) -> tuple[float | None, list[bool], bool]:
         """
@@ -104,16 +138,17 @@ class TempWorker(QObject):
         Verifica si el ESP32 volvió a responder en el puerto configurado.
 
         Si ya hay lecturas frescas no hace nada. En caso contrario reabre
-        TEMP_COM_PORT y espera una trama válida; el puerto se cierra antes de
-        retornar para que el loop de lectura pueda tomarlo al reiniciarse.
-        Un puerto reasignado por el sistema operativo no se detecta aquí:
-        ese caso se resuelve con la reconexión manual desde la GUI.
+        el puerto configurado y espera una trama válida; el puerto se cierra
+        antes de retornar para que el loop de lectura pueda tomarlo al
+        reiniciarse. Un puerto reasignado por el sistema operativo no se
+        detecta aquí: ese caso se resuelve desde la GUI.
         """
         if self.esta_conectado():
             return True
-        if not self._puerto_responde(TEMP_COM_PORT):
+        puerto = config_usuario.obtener("TEMP_COM_PORT")
+        if not self._puerto_responde(puerto):
             return False
-        self._puerto = TEMP_COM_PORT
+        self._puerto = puerto
         return True
 
     @Slot()
@@ -131,6 +166,7 @@ class TempWorker(QObject):
         entra en el loop de lectura continua.
         Conectar a thread.started para arranque automático.
         """
+        self._puerto = config_usuario.obtener("TEMP_COM_PORT")
         if not self._abrir_puerto():
             return
 
@@ -156,7 +192,7 @@ class TempWorker(QObject):
                 continue
 
             ultimo_dato = time.monotonic()
-            resultado = self._parsear(linea)
+            resultado = parsear_trama(linea)
             if resultado is None:
                 continue
 
@@ -181,8 +217,12 @@ class TempWorker(QObject):
                 timeout=TIMEOUT_LINEA_S,
             )
             return True
-        except serial.SerialException as exc:
-            self.error.emit(f"No se pudo abrir {self._puerto}: {exc}")
+        except (serial.SerialException, OSError, ValueError) as exc:
+            logger.warning("No se pudo abrir %s: %s", self._puerto, exc)
+            self.error.emit(
+                f"ESP32: no se pudo abrir {self._puerto}. "
+                "Revise el puerto en Conexión."
+            )
             self.desconectado.emit()
             return False
 
@@ -192,7 +232,7 @@ class TempWorker(QObject):
             linea = self._leer_linea()
             if linea is None:
                 continue
-            resultado = self._parsear(linea)
+            resultado = parsear_trama(linea)
             if resultado is None:
                 continue
 
@@ -214,8 +254,8 @@ class TempWorker(QObject):
             return True
 
         self.error.emit(
-            f"ESP32 en {self._puerto} no envió datos en {ESPERA_PRIMER_S:.0f} s. "
-            "Verificar cable USB y firmware."
+            f"ESP32: sin lecturas en {self._puerto} durante {ESPERA_PRIMER_S:.0f} s. "
+            "Verifique el cable USB o el puerto en Conexión."
         )
         self.desconectado.emit()
         return False
@@ -226,7 +266,8 @@ class TempWorker(QObject):
             if raw:
                 return raw.decode("utf-8", errors="ignore").strip()
         except serial.SerialException as exc:
-            self.error.emit(f"Error de lectura serial: {exc}")
+            logger.warning("Error de lectura serial en %s: %s", self._puerto, exc)
+            self.error.emit(f"ESP32: error de lectura en {self._puerto}.")
         return None
 
     def _puerto_responde(self, puerto: str) -> bool:
@@ -240,27 +281,11 @@ class TempWorker(QObject):
                     if not raw:
                         continue
                     linea = raw.decode("utf-8", errors="ignore").strip()
-                    if self._parsear(linea) is not None:
+                    if parsear_trama(linea) is not None:
                         return True
         except (serial.SerialException, OSError):
             return False
         return False
-
-    def _parsear(self, linea: str) -> tuple[float, list[bool]] | None:
-        partes = linea.split(",")
-        if len(partes) != 5:
-            return None
-        try:
-            temp = float(partes[0])
-            lecturas = [float(p) for p in partes[1:]]
-        except ValueError:
-            return None
-
-        if not (TEMP_MIN <= temp <= TEMP_MAX):
-            return None
-
-        sensores = [TEMP_MIN <= t <= TEMP_MAX for t in lecturas]
-        return temp, sensores
 
     def _enviar_stop(self) -> None:
         if self._serial and self._serial.is_open:

@@ -1,7 +1,11 @@
 """
 config.py
-Parámetros de hardware ajustables por el usuario.
-Editar antes de ejecutar la aplicación si cambia algún puerto o dirección IP.
+Parámetros de hardware por omisión.
+
+Los puertos COM y la IP del osciloscopio se cambian normalmente desde el botón
+"Conexión" de la interfaz (se guardan en un JSON en la carpeta del usuario,
+ver config_usuario.py). Los valores de este archivo y de config_local.py solo
+se usan cuando ese JSON no existe o no es válido.
 """
 
 from pathlib import Path

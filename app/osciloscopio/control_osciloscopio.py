@@ -14,6 +14,7 @@ Modos de operación:
 
 from __future__ import annotations
 
+import logging
 import math
 import time
 import numpy as np
@@ -21,7 +22,9 @@ import vxi11
 from dataclasses import dataclass
 from PySide6.QtCore import QObject, Signal, QMutex, QMutexLocker
 
-from app.config import OSCIL_HOST
+from app import config_usuario
+
+logger = logging.getLogger(__name__)
 
 TIMEOUT_S = 30.0
 MAX_REINTENTOS = 3
@@ -61,6 +64,7 @@ class OsciloscopioController(QObject):
         self._inst: vxi11.Instrument | None = None
         self._mutex = QMutex()
         self._connected = False
+        self._host: str = config_usuario.obtener("OSCIL_HOST")
         self._idn: str = ""
         self._modelo: str = ""
         self._canal: str = _CANAL_DEFAULT
@@ -76,6 +80,11 @@ class OsciloscopioController(QObject):
         return self._canal
 
     @property
+    def host(self) -> str:
+        """Dirección IP usada en la conexión más reciente."""
+        return self._host
+
+    @property
     def idn(self) -> str:
         """Cadena *IDN? completa del instrumento conectado."""
         return self._idn
@@ -89,18 +98,23 @@ class OsciloscopioController(QObject):
 
     def conectar(self) -> bool:
         with QMutexLocker(self._mutex):
+            self._host = config_usuario.obtener("OSCIL_HOST")
             try:
-                inst = vxi11.Instrument(OSCIL_HOST)
+                inst = vxi11.Instrument(self._host)
                 inst.timeout = TIMEOUT_S
             except Exception as exc:
-                self._emit_conn_error(f"No se pudo crear instrumento VXI-11: {exc}")
+                logger.warning("No se pudo crear el enlace VXI-11 con %s: %s", self._host, exc)
+                self._emit_conn_error(
+                    f"Osciloscopio: no se pudo abrir la conexión con {self._host}. "
+                    "Revise la dirección IP en Conexión."
+                )
                 return False
 
             idn = self._ping(inst)
             if idn is None:
                 self._emit_conn_error(
-                    "Osciloscopio no responde a *IDN?. "
-                    f"Verificar: app Windows XP corriendo, cable Ethernet, IP {OSCIL_HOST}."
+                    f"Osciloscopio: sin respuesta en {self._host}. Verifique que la app "
+                    "TekScope esté corriendo, el cable Ethernet y la IP en Conexión."
                 )
                 return False
 
@@ -128,7 +142,7 @@ class OsciloscopioController(QObject):
             self._connected = True
             self.led_verde.emit()
             self.cmd_ok.emit(
-                f"Osciloscopio conectado — {modelo} ({OSCIL_HOST}). "
+                f"Osciloscopio conectado — {modelo} ({self._host}). "
                 f"Puntos de waveform: {nr_pt}."
             )
             return True

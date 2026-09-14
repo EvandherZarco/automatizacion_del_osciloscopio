@@ -20,6 +20,9 @@ from PySide6.QtWidgets import (
 
 from app.osciloscopio.control_osciloscopio import OsciloscopioController
 from app.almacenamiento.almacenamiento import Almacenamiento, PaqueteMedicion
+from app.gui.dialogo_conexion import (
+    DialogoConexion, texto_fallo_conexion, actualizar_boton_conexion, MOTIVO_CAPTURA,
+)
 from app.gui.theme import (
     APP_STYLESHEET, LED_VERDE, LED_AMARILLO, LED_ROJO, LED_GRIS,
     make_led, set_led, set_btn_activo, formatear_tdiv, formatear_vdiv,
@@ -115,6 +118,11 @@ class VentanaOsciloscopio(QMainWindow):
         self._btn_volver = QPushButton("← Volver")
         self._btn_volver.setFixedHeight(30)
         lay.addWidget(self._btn_volver)
+
+        self._btn_conexion = QPushButton("⚙ Conexión")
+        self._btn_conexion.setFixedHeight(30)
+        actualizar_boton_conexion(self._btn_conexion, None, "Dirección IP del osciloscopio")
+        lay.addWidget(self._btn_conexion)
 
         sep = QFrame()
         sep.setFrameShape(QFrame.VLine)
@@ -275,6 +283,7 @@ class VentanaOsciloscopio(QMainWindow):
         self._oscil.cmd_ok.connect(lambda t: None)
 
         self._btn_volver.clicked.connect(self._on_volver)
+        self._btn_conexion.clicked.connect(self._abrir_conexion)
         self._btn_conectar.clicked.connect(self._on_toggle_conexion)
 
         self._btn_ch1.clicked.connect(lambda: self._sel_canal("CH1"))
@@ -303,12 +312,26 @@ class VentanaOsciloscopio(QMainWindow):
         else:
             if self._oscil.conectar():
                 self._btn_conectar.setText("Desconectar")
+            else:
+                QMessageBox.warning(
+                    self, "Osciloscopio sin conexión",
+                    texto_fallo_conexion([("OSCIL_HOST", self._oscil.host)]),
+                )
+
+    @Slot()
+    def _abrir_conexion(self):
+        if self._captura_thread is not None and self._captura_thread.isRunning():
+            return
+        activos = {
+            "OSCIL_HOST": self._oscil.host if self._oscil.conectado else None,
+        }
+        DialogoConexion(self, activos).exec()
 
     @Slot()
     def _on_oscil_conectado(self):
         set_led(self._led_conn, LED_VERDE)
-        self._lbl_nombre.setText("TDS5052B")
-        self._chip_estado.setText("Conectado — 192.168.1.100")
+        self._lbl_nombre.setText(self._oscil.modelo or "TDS5052B")
+        self._chip_estado.setText(f"Conectado — {self._oscil.host}")
         self._chip_estado.setStyleSheet(
             "background: #1a3a1a; color: #4caf50; font-size: 11px;"
             "border: 1px solid #2a5a2a; border-radius: 4px; padding: 3px 10px;"
@@ -407,11 +430,14 @@ class VentanaOsciloscopio(QMainWindow):
         self._captura_thread = thread
         self._captura_worker = worker
         thread.start()
+        actualizar_boton_conexion(
+            self._btn_conexion, MOTIVO_CAPTURA, "Dirección IP del osciloscopio")
 
     @Slot(object, object)
     def _on_captura_terminada(self, captura, escala):
         self._captura_thread = None
         self._captura_worker = None
+        actualizar_boton_conexion(self._btn_conexion, None, "Dirección IP del osciloscopio")
         self._btn_capturar.setEnabled(self._oscil.conectado and self._canal_sel is not None)
 
         if captura is None:

@@ -11,8 +11,12 @@ from PySide6.QtWidgets import (
     QLabel, QPushButton, QSpinBox, QDoubleSpinBox, QFrame, QMessageBox,
 )
 
+from app import config_usuario
 from app.laser.control_laser import LaserController
 from app.modo_seguro.modo_seguro import ModoSeguro
+from app.gui.dialogo_conexion import (
+    DialogoConexion, texto_fallo_conexion, actualizar_boton_conexion, MOTIVO_LASER_RUN,
+)
 from app.gui.theme import (
     APP_STYLESHEET, LED_VERDE, LED_AMARILLO, LED_ROJO, LED_GRIS,
     make_led, set_led, set_btn_activo, chip_log,
@@ -81,6 +85,11 @@ class VentanaLaser(QMainWindow):
         self._btn_volver = QPushButton("← Volver")
         self._btn_volver.setFixedHeight(30)
         lay.addWidget(self._btn_volver)
+
+        self._btn_conexion = QPushButton("⚙ Conexión")
+        self._btn_conexion.setFixedHeight(30)
+        actualizar_boton_conexion(self._btn_conexion, None, "Puerto COM del láser")
+        lay.addWidget(self._btn_conexion)
 
         sep = QFrame()
         sep.setFrameShape(QFrame.VLine)
@@ -328,6 +337,7 @@ class VentanaLaser(QMainWindow):
         self._laser.error.connect(self._set_log)
 
         self._btn_volver.clicked.connect(self._on_volver)
+        self._btn_conexion.clicked.connect(self._abrir_conexion)
         self._btn_conectar.clicked.connect(self._on_toggle_conexion)
         self._btn_iniciar.clicked.connect(self._on_iniciar)
         self._btn_detener.clicked.connect(self._on_detener)
@@ -359,16 +369,35 @@ class VentanaLaser(QMainWindow):
             self._btn_iniciar.setEnabled(False)
             self._btn_aplicar.setEnabled(False)
         else:
+            puerto = config_usuario.obtener("LASER_COM_PORT")
             if self._laser.conectar():
                 self._btn_conectar.setText("Desconectar")
                 self._actualizar_monitoreo()
                 self._timer_monitor.start()
+            else:
+                QMessageBox.warning(
+                    self, "Láser sin conexión",
+                    texto_fallo_conexion([("LASER_COM_PORT", puerto)]),
+                )
+
+    @Slot()
+    def _abrir_conexion(self):
+        if self._laser_running:
+            return
+        activos = {
+            "LASER_COM_PORT": config_usuario.obtener("LASER_COM_PORT") if self._laser.conectado else None,
+        }
+        dialogo = DialogoConexion(self, activos)
+        dialogo.exec()
+        guardado = dialogo.valores()
+        if guardado is not None:
+            self._set_log(f"Conexión guardada — láser en {guardado['LASER_COM_PORT']}")
 
     @Slot()
     def _on_laser_conectado(self):
         set_led(self._led_conn, LED_VERDE)
         self._lbl_nombre.setText("NL303HT-10-SH")
-        self._chip_estado.setText("Conectado — COM10")
+        self._chip_estado.setText(f"Conectado — {config_usuario.obtener('LASER_COM_PORT')}")
         self._chip_estado.setStyleSheet(
             "background: #1a3a1a; color: #4caf50; font-size: 11px;"
             "border: 1px solid #2a5a2a; border-radius: 4px; padding: 3px 10px;"
@@ -410,6 +439,8 @@ class VentanaLaser(QMainWindow):
 
     def _actualizar_estado_ui(self):
         c = self._laser_running
+        actualizar_boton_conexion(
+            self._btn_conexion, MOTIVO_LASER_RUN if c else None, "Puerto COM del láser")
         self._circulo.setText("⚡" if c else "⊗")
         self._circulo.setStyleSheet(
             f"background: {'#1a3a1a' if c else '#2a1a1a'};"

@@ -22,6 +22,7 @@ from PySide6.QtWidgets import (
     QFrame,
 )
 
+from app.gui.dialogo_conexion import DialogoConexion
 from app.gui.theme import APP_STYLESHEET
 
 _ASSETS_DIR = Path(__file__).resolve().parent.parent.parent / "assets"
@@ -98,6 +99,8 @@ class BienvenidaWindow(QMainWindow):
         root.addWidget(self._bloque_titulo())
         root.addSpacing(36)
         root.addLayout(self._fila_botones())
+        root.addSpacing(18)
+        root.addLayout(self._fila_conexion())
         root.addStretch(2)
         root.addWidget(self._pie())
 
@@ -195,6 +198,25 @@ class BienvenidaWindow(QMainWindow):
         fila.addWidget(self._btn_oscil)
         fila.addWidget(self._btn_ambos)
         return fila
+
+    # ── Conexión ───────────────────────────────────────────────────────────
+
+    def _fila_conexion(self) -> QHBoxLayout:
+        fila = QHBoxLayout()
+        fila.setAlignment(Qt.AlignCenter)
+        self._btn_conexion = QPushButton("⚙  Conexión")
+        self._btn_conexion.setCursor(Qt.PointingHandCursor)
+        self._btn_conexion.setFixedHeight(30)
+        self._btn_conexion.setToolTip(
+            "Puertos COM del ESP32 y del láser, e IP del osciloscopio"
+        )
+        self._btn_conexion.clicked.connect(self._abrir_conexion)
+        fila.addWidget(self._btn_conexion)
+        return fila
+
+    @Slot()
+    def _abrir_conexion(self):
+        DialogoConexion(self).exec()
 
     # ── Pie ────────────────────────────────────────────────────────────────
 
