@@ -11,7 +11,7 @@ necesita un objeto con consultar() -> (temp, sensores, es_fresco), la misma
 firma que TempWorker.consultar().
 
 Uso:
-    python herramientas\\simular_barrido.py            corre los 8 casos + nivel 2
+    python herramientas\\simular_barrido.py            corre los 8 casos + niveles 2 y 3
     python herramientas\\simular_barrido.py 3           corre solo el caso 3
 """
 
@@ -275,8 +275,14 @@ class DobleOsciloscopio:
     def configurar_modo_temperatura(self) -> bool:
         return True
 
+    def configurar_modo_tiempo(self, numavg: int) -> bool:
+        return True
+
     def acq_run(self) -> bool:
         return True
+
+    def capturar_modo_tiempo(self):
+        return self.acq_stop_and_capture()
 
     def acq_stop_and_capture(self):
         from app.osciloscopio.control_osciloscopio import CapturaOscil
@@ -707,13 +713,72 @@ def caso_8_perdida_por_reconexion() -> ResultadoCaso:
 # ══════════════════════════════════════════════════════════════════════════
 
 
+def correr_secuencia(store, doble_temp, **params) -> str | None:
+    """
+    Corre una secuencia completa vía Medicion sobre la sesión `store` y
+    bloquea hasta que termina. Devuelve None si terminó bien o el motivo
+    del fallo (aborto o timeout).
+    """
+    from app.medicion.medicion import Medicion
+
+    medicion = Medicion(
+        laser_ctrl=DobleLaser(),
+        oscil_ctrl=DobleOsciloscopio(),
+        temp_worker=doble_temp,
+        almacenamiento=store,
+        modo_seguro=DobleModoSeguro(),
+        monitor=DobleMonitor(),
+    )
+
+    app = QCoreApplication.instance()
+    estado = {"abortada": None, "timeout": False}
+
+    def _on_ok(con_flag):
+        app.quit()
+
+    def _on_abortada(motivo):
+        estado["abortada"] = motivo
+        app.quit()
+
+    def _on_advertencia(msg):
+        print(f"  [advertencia] {msg}")
+
+    def _on_timeout():
+        estado["timeout"] = True
+        app.quit()
+
+    medicion.secuencia_ok.connect(_on_ok)
+    medicion.secuencia_abortada.connect(_on_abortada)
+    medicion.advertencia.connect(_on_advertencia)
+
+    timeout = QTimer()
+    timeout.setSingleShot(True)
+    timeout.timeout.connect(_on_timeout)
+    timeout.start(10 * 60 * 1000)
+
+    medicion.iniciar(**params)
+
+    app.exec()
+    timeout.stop()
+
+    for th in (medicion._worker_thread, medicion._trigger_thread):
+        if th is not None:
+            th.quit()
+            th.wait(3000)
+
+    if estado["timeout"]:
+        return "Timeout esperando la secuencia."
+    if estado["abortada"] is not None:
+        return f"Secuencia abortada: {estado['abortada']}"
+    return None
+
+
 def nivel_dos_cadena_completa() -> ResultadoCaso:
     print(
         "\n=== Nivel 2 — Cadena completa (Medicion + dobles + Almacenamiento real) ==="
     )
 
     from app.almacenamiento.almacenamiento import Almacenamiento
-    from app.medicion.medicion import Medicion
 
     T0, T_amb, tau, factor = 62.0, 21.0, 10800.0, 300.0
 
@@ -721,10 +786,6 @@ def nivel_dos_cadena_completa() -> ResultadoCaso:
         doble_temp = DobleTemperaturaSimulada(
             T0=T0, T_amb=T_amb, tau=tau, factor_compresion=factor, semilla=42
         )
-        doble_laser = DobleLaser()
-        doble_modo_seguro = DobleModoSeguro()
-        doble_oscil = DobleOsciloscopio()
-        doble_monitor = DobleMonitor()
 
         store = Almacenamiento()
         if not store.nueva_sesion(nombre="nivel2", carpeta_base=Path(tmp)):
@@ -734,62 +795,11 @@ def nivel_dos_cadena_completa() -> ResultadoCaso:
                 "No se pudo crear la sesión temporal.",
             )
 
-        medicion = Medicion(
-            laser_ctrl=doble_laser,
-            oscil_ctrl=doble_oscil,
-            temp_worker=doble_temp,
-            almacenamiento=store,
-            modo_seguro=doble_modo_seguro,
-            monitor=doble_monitor,
+        fallo = correr_secuencia(
+            store, doble_temp, modo="temperatura", t_inicial=60.0, t_final=30.0, paso=5.0
         )
-
-        app = QCoreApplication.instance()
-        estado = {"con_flag": None, "abortada": None, "timeout": False}
-
-        def _on_ok(con_flag):
-            estado["con_flag"] = con_flag
-            app.quit()
-
-        def _on_abortada(motivo):
-            estado["abortada"] = motivo
-            app.quit()
-
-        def _on_advertencia(msg):
-            print(f"  [advertencia] {msg}")
-
-        def _on_timeout():
-            estado["timeout"] = True
-            app.quit()
-
-        medicion.secuencia_ok.connect(_on_ok)
-        medicion.secuencia_abortada.connect(_on_abortada)
-        medicion.advertencia.connect(_on_advertencia)
-
-        timeout = QTimer()
-        timeout.setSingleShot(True)
-        timeout.timeout.connect(_on_timeout)
-        timeout.start(10 * 60 * 1000)
-
-        medicion.iniciar(modo="temperatura", t_inicial=60.0, t_final=30.0, paso=5.0)
-
-        app.exec()
-        timeout.stop()
-
-        for th in (medicion._worker_thread, medicion._trigger_thread):
-            if th is not None:
-                th.quit()
-                th.wait(3000)
-
-        if estado["timeout"]:
-            return ResultadoCaso(
-                "Nivel 2 — Cadena completa", False, "Timeout esperando la secuencia."
-            )
-        if estado["abortada"] is not None:
-            return ResultadoCaso(
-                "Nivel 2 — Cadena completa",
-                False,
-                f"Secuencia abortada: {estado['abortada']}",
-            )
+        if fallo is not None:
+            return ResultadoCaso("Nivel 2 — Cadena completa", False, fallo)
 
         filas = store.cargar_csv()
         if not filas:
@@ -815,6 +825,146 @@ def nivel_dos_cadena_completa() -> ResultadoCaso:
         aprobado = n_filas == 7 and pulsos_ok and monotona_ok and abre_ok
         detalle = f"filas={n_filas} pulsos_ok={pulsos_ok} monotona_ok={monotona_ok} abre_ok={abre_ok}"
         return ResultadoCaso("Nivel 2 — Cadena completa", aprobado, detalle)
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# Nivel tres: parámetros del barrido en metadatos_sesion.txt
+# ══════════════════════════════════════════════════════════════════════════
+
+
+def leer_barridos(store) -> list[dict]:
+    """Bloques barrido_N_* de metadatos_sesion.txt, en orden de numeración."""
+    ruta = store._sesion_dir / "metadatos_sesion.txt"
+    bloques: dict[int, dict] = {}
+    for linea in ruta.read_text(encoding="utf-8").splitlines():
+        m = re.match(r"^barrido_(\d+)_(\w+): (.*)$", linea)
+        if m:
+            bloques.setdefault(int(m.group(1)), {})[m.group(2)] = m.group(3)
+    return [bloques[n] for n in sorted(bloques)]
+
+
+def nivel_tres_metadatos_barrido() -> ResultadoCaso:
+    print("\n=== Nivel 3 — Parámetros del barrido en metadatos_sesion.txt ===")
+
+    from app.almacenamiento.almacenamiento import Almacenamiento, PaqueteMedicion
+
+    nombre = "Nivel 3 — Metadatos del barrido"
+    T_amb, tau, factor = 21.0, 10800.0, 300.0
+
+    with tempfile.TemporaryDirectory(prefix="barrido_simulado_") as tmp:
+        store = Almacenamiento()
+        if not store.nueva_sesion(
+            nombre="nivel3",
+            carpeta_base=Path(tmp),
+            metadatos={"osciloscopio_modelo": "SIMULADO"},
+        ):
+            return ResultadoCaso(nombre, False, "No se pudo crear la sesión temporal.")
+        ruta_meta = store._sesion_dir / "metadatos_sesion.txt"
+        cabecera = ruta_meta.read_text(encoding="utf-8")
+
+        # Guardado manual: la sesión ya existe y el archivo no debe cambiar.
+        cap = DobleOsciloscopio().acq_stop_and_capture()
+        store.guardar(
+            PaqueteMedicion(
+                timestamp="2026-01-01T00:00:00",
+                temperatura=25.0,
+                modo="manual",
+                wfmpre=cap.wfmpre,
+                raw_data=cap.raw_data,
+                error_flag=0,
+            )
+        )
+        manual_sin_cambios = ruta_meta.read_text(encoding="utf-8") == cabecera
+
+        # Primer barrido por temperatura.
+        fallo = correr_secuencia(
+            store,
+            DobleTemperaturaSimulada(
+                T0=62.0, T_amb=T_amb, tau=tau, factor_compresion=factor, semilla=31
+            ),
+            modo="temperatura",
+            t_inicial=60.0,
+            t_final=50.0,
+            paso=5.0,
+        )
+        if fallo is not None:
+            return ResultadoCaso(nombre, False, f"barrido 1: {fallo}")
+        barridos_tras_1 = leer_barridos(store)
+
+        # Secuencia por tiempo sobre la misma sesión: no debe registrar nada.
+        fallo = correr_secuencia(
+            store,
+            DobleTemperaturaSimulada(
+                T0=40.0, T_amb=T_amb, tau=tau, factor_compresion=factor, semilla=32
+            ),
+            modo="tiempo",
+            intervalo=0.5,
+            n_mediciones=2,
+        )
+        if fallo is not None:
+            return ResultadoCaso(nombre, False, f"modo tiempo: {fallo}")
+        barridos_tras_tiempo = leer_barridos(store)
+
+        # Segundo barrido con parámetros distintos, sin cerrar la sesión.
+        fallo = correr_secuencia(
+            store,
+            DobleTemperaturaSimulada(
+                T0=47.0, T_amb=T_amb, tau=tau, factor_compresion=factor, semilla=33
+            ),
+            modo="temperatura",
+            t_inicial=45.0,
+            t_final=35.0,
+            paso=10.0,
+        )
+        if fallo is not None:
+            return ResultadoCaso(nombre, False, f"barrido 2: {fallo}")
+        barridos_tras_2 = leer_barridos(store)
+
+        contenido = ruta_meta.read_text(encoding="utf-8")
+        print("  --- metadatos_sesion.txt ---")
+        for linea in contenido.splitlines():
+            print(f"  {linea}")
+
+        esperado_1 = {
+            "temperatura_inicial_c": "60.0",
+            "temperatura_final_c": "50.0",
+            "paso_c": "5.0",
+        }
+        esperado_2 = {
+            "temperatura_inicial_c": "45.0",
+            "temperatura_final_c": "35.0",
+            "paso_c": "10.0",
+        }
+
+        def _coincide(bloque: dict, esperado: dict) -> bool:
+            return "inicio" in bloque and all(
+                bloque.get(k) == v for k, v in esperado.items()
+            )
+
+        barrido_1_ok = len(barridos_tras_1) == 1 and _coincide(
+            barridos_tras_1[0], esperado_1
+        )
+        tiempo_sin_cambios = barridos_tras_tiempo == barridos_tras_1
+        barrido_2_ok = (
+            len(barridos_tras_2) == 2
+            and barridos_tras_2[0] == barridos_tras_1[0]
+            and _coincide(barridos_tras_2[1], esperado_2)
+        )
+        cabecera_intacta = contenido.startswith(cabecera)
+
+        aprobado = (
+            manual_sin_cambios
+            and barrido_1_ok
+            and tiempo_sin_cambios
+            and barrido_2_ok
+            and cabecera_intacta
+        )
+        detalle = (
+            f"manual_sin_cambios={manual_sin_cambios} barrido_1_ok={barrido_1_ok} "
+            f"tiempo_sin_cambios={tiempo_sin_cambios} barrido_2_ok={barrido_2_ok} "
+            f"cabecera_intacta={cabecera_intacta}"
+        )
+        return ResultadoCaso(nombre, aprobado, detalle)
 
 
 # ══════════════════════════════════════════════════════════════════════════
@@ -857,7 +1007,7 @@ def main():
         nargs="?",
         type=int,
         default=None,
-        help="Número de caso a correr (1-8). Sin argumento corre los 8 casos más el nivel dos.",
+        help="Número de caso a correr (1-8). Sin argumento corre los 8 casos más los niveles dos y tres.",
     )
     args = parser.parse_args()
 
@@ -874,6 +1024,7 @@ def main():
         for n in sorted(CASOS):
             resultados.append(CASOS[n]())
         resultados.append(nivel_dos_cadena_completa())
+        resultados.append(nivel_tres_metadatos_barrido())
 
     imprimir_resumen(resultados)
     sys.exit(0 if all(r.aprobado for r in resultados) else 1)

@@ -21,6 +21,8 @@ python main.py
 
 Dependencies are pinned in `requirements.txt` (`pip install -r requirements.txt` inside `venv`). There is no lint/test/build tooling configured — `codigos_de_prueba/` scripts are standalone manual hardware scripts run directly with `python <script>.py`, not a pytest suite, and are meant to be run against real connected hardware.
 
+`codigos_de_prueba/probar_config_usuario.py` is the one hardware-free automated test: it exercises the user-config cycle (no JSON → save from the dialog → reload → cancel) with Qt offscreen and a temporary `APPDATA`, prints a per-case summary and exits non-zero if the set of passed cases differs from the expected one — judge it by that summary, not only by the exit code.
+
 `codigos_de_prueba/osciloscopio/exportar_mat.py` converts a saved session (`.csv` + `.npy` files) to per-measurement `.mat` files for MATLAB: `python exportar_mat.py "ruta\a\la\sesion"`.
 
 ## Architecture

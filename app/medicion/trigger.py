@@ -58,6 +58,7 @@ class TriggerWorker(QObject):
     secuencia_terminada = Signal()  # fin normal o detenida externamente
     intervalo_excedido = Signal(float)  # segundos que la captura excedió el intervalo
     advertencia = Signal(str)  # incidencias no fatales durante la secuencia
+    barrido_iniciado = Signal(float, float, float)  # modo temperatura: (t_inicial, t_final, paso) en uso
 
     def __init__(
         self,
@@ -152,6 +153,7 @@ class TriggerWorker(QObject):
     # ── Modo por temperatura ───────────────────────────────────────────────────
 
     def _loop_temperatura(self):
+        self.barrido_iniciado.emit(self._t_inicial, self._t_final, self._paso)
         objetivos = deque(self._descartar_objetivos_rebasados(self._generar_objetivos()))
 
         if not objetivos:

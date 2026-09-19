@@ -13,14 +13,14 @@ from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # ── ESP32 WROOM-32 (temperatura) ──────────────────────────────────────────────
-TEMP_COM_PORT = "COM5"
+TEMP_COM_PORT = "COM3"
 
 # ── Láser EKSPLA NLL455 ───────────────────────────────────────────────────────
 LASER_COM_PORT = "COM10"
-LASER_DLL_DIR  = str(BASE_DIR / "complementos")
+LASER_DLL_DIR = str(BASE_DIR / "complementos")
 
-# ── Osciloscopio Tektronix TDS5052B (VXI-11 sobre Ethernet) ──────────────────
-OSCIL_HOST = "192.168.1.1"
+# ── Osciloscopio Tektronix TDS5054B (VXI-11 sobre Ethernet) ──────────────────
+OSCIL_HOST = "192.168.1.100"
 
 # ── Valores locales (no versionados) ──────────────────────────────────────────
 # app/config_local.py sobreescribe los parámetros anteriores en cada máquina.

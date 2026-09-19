@@ -335,6 +335,9 @@ class Medicion(QObject):
         # Trigger → fachada: incidencias no fatales
         trigger.advertencia.connect(self._on_advertencia)
 
+        # Trigger → almacenamiento: parámetros del barrido efectivamente en uso
+        trigger.barrido_iniciado.connect(self._on_barrido_iniciado)
+
         # Worker → fachada
         worker.medicion_completada.connect(self._on_medicion_completada)
         worker.secuencia_terminada.connect(self._on_secuencia_terminada)
@@ -386,6 +389,10 @@ class Medicion(QObject):
     @Slot(str)
     def _on_advertencia(self, mensaje: str):
         self.advertencia.emit(mensaje)
+
+    @Slot(float, float, float)
+    def _on_barrido_iniciado(self, t_inicial: float, t_final: float, paso: float):
+        self._store.registrar_barrido(t_inicial, t_final, paso)
 
     def _limpiar_threads(self):
         for thread in (self._worker_thread, self._trigger_thread):

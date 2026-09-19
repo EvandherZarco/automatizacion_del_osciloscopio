@@ -156,6 +156,47 @@ class Almacenamiento(QObject):
         except OSError as e:
             logger.warning("No se pudo escribir metadatos_sesion.txt: %s", e)
 
+    def registrar_barrido(self, t_inicial: float, t_final: float, paso: float) -> None:
+        """
+        Anexa a metadatos_sesion.txt los parámetros de un barrido por
+        temperatura, con los valores que recibió el trigger.
+
+        Una misma sesión puede correr varias secuencias sin cerrarse, y sus
+        parámetros pueden cambiar entre una y otra. Cada barrido se agrega
+        como un bloque numerado con su instante de arranque, sin reescribir
+        lo anterior: el archivo conserva la historia completa y las filas
+        del CSV se atribuyen a su barrido comparando timestamps.
+        """
+        if self._sesion_dir is None:
+            return
+
+        ruta = self._sesion_dir / "metadatos_sesion.txt"
+        prefijo = f"barrido_{self._contar_barridos(ruta) + 1}"
+        lineas = [
+            f"{prefijo}_inicio: {datetime.now().isoformat(timespec='seconds')}",
+            f"{prefijo}_temperatura_inicial_c: {t_inicial}",
+            f"{prefijo}_temperatura_final_c: {t_final}",
+            f"{prefijo}_paso_c: {paso}",
+        ]
+
+        try:
+            with open(ruta, "a", encoding="utf-8") as f:
+                f.write("\n".join(lineas) + "\n")
+        except OSError as e:
+            logger.warning("No se pudo registrar el barrido en metadatos_sesion.txt: %s", e)
+
+    @staticmethod
+    def _contar_barridos(ruta: Path) -> int:
+        """Barridos ya registrados en el archivo, para continuar la numeración."""
+        try:
+            with open(ruta, "r", encoding="utf-8") as f:
+                return sum(
+                    1 for linea in f
+                    if linea.startswith("barrido_") and "_inicio:" in linea
+                )
+        except OSError:
+            return 0
+
     def abrir_sesion(self, csv_path: str | Path) -> bool:
         csv_path = Path(csv_path)
 
