@@ -215,47 +215,149 @@ paso no puede hacerla reprobar. Los cuatro resultados corresponden a
 las trayectorias automatizables; el paso restante queda como
 comprobación asistida, y así se reporta.
 
-\subsection{Verificaciones que requieren instrumento}
+\subsection{Verificaciones con instrumento}
 \label{sec:val_instrumento}
 
-La separación adoptada deja fuera un residuo que conviene enumerar en
-lugar de dar por cubierto. Cinco comprobaciones dependen de la respuesta
-efectiva del equipo y no admiten sustituto por simulación; se declaran
-aquí como pendientes de la siguiente sesión de laboratorio.
+La separación adoptada deja fuera un residuo que no admite sustituto
+por simulación. Cinco comprobaciones dependen de la respuesta efectiva
+del equipo y quedaron declaradas como pendientes hasta la sesión de
+laboratorio del 8 de septiembre de 2026, en la que se ejecutaron las
+cinco. Se reportan aquí junto con el criterio de aceptación fijado de
+antemano, porque dos de ellas no lo cumplieron en su primera ejecución
+y esa discrepancia forma parte del resultado.
 
-La primera es el poblado de las columnas de escala. La regresión descrita
-en la \cref{sec:falla_regresion} se corrigió restituyendo las consultas
-\texttt{CH1:SCALE?} y \texttt{HORizontal:SCAle?} dentro de la rutina de
-lectura del preámbulo, pero esa corrección no se ha ejercitado contra un
-instrumento. Conviene precisar el criterio con el que debe juzgarse:
-un valor de \texttt{0.0} en esas columnas no constituye aprobación, pues
-es lo que escriben los manejadores de excepción cuando la consulta se
-lanza y falla. Solo un número consistente con el panel del osciloscopio
-confirma la corrección.
+\subsubsection*{Poblado de las columnas de escala}
 
-La segunda y la tercera conciernen al módulo de temperatura. Una captura
-manual con el dispositivo físicamente desconectado debe producir una fila
-con \texttt{error\_flag = 1}, un \texttt{error\_desc} que nombre al
-dispositivo ausente y un campo de temperatura en cero; y la bandera del
-monitor de conexión debe limpiarse por sí sola en el siguiente ciclo de
-consulta tras reconectar el módulo. Ninguna de las dos puede provocarse
-por simulación: \texttt{generar\_sesion\_prueba.py} fabrica el archivo
-resultante, no el evento de desconexión que lo origina, de modo que
-probaría el formato de la fila y no el camino que conduce a escribirla.
+La regresión descrita en la \cref{sec:falla_regresion} se corrigió
+restituyendo las consultas \texttt{CH1:SCALE?} y
+\texttt{HORizontal:SCAle?} dentro de la rutina de lectura del
+preámbulo. El criterio fijado excluía explícitamente el valor
+\num{0.0} como aprobación, pues es lo que escriben los manejadores de
+excepción cuando la consulta se lanza y falla: solo un número
+consistente con el panel del instrumento confirma la corrección. En la
+sesión \texttt{20260908\_184623} las once capturas registran
+\texttt{CH\_SCALE} $=\num{0.001}$ y \texttt{HOR\_SCALE} $=\num{1e-5}$,
+equivalentes a \SI{1}{\milli\volt} y \SI{10}{\micro\second} por
+división, en coincidencia con el panel. Conforme.
 
-La cuarta es el recorrido completo del modo de adquisición gobernado por
-temperatura contra los tres instrumentos simultáneos. Su lógica se
-ejercitó de forma exhaustiva por simulación, según la
-\cref{sec:val_simulador}, pero ninguna sesión de hardware lo ha
-recorrido de punta a punta: la sesión reportada en la \cref{sec:prueba_integrada}
-tenía la lectura de temperatura activa, pero corrió en modo tiempo.
+\subsubsection*{Captura manual con el módulo de temperatura
+desconectado}
 
-La quinta es la exportación de una sesión al formato \texttt{.mat}, que
-no se ha ejecutado sobre datos de hardware con el formato de registro
-vigente.
+El criterio fijado exigía tres cosas de la fila resultante:
+\texttt{error\_flag = 1}, un \texttt{error\_desc} que nombrara al
+dispositivo ausente y un campo de temperatura en cero. La primera
+ejecución cumplió únicamente la primera. Las capturas
+\texttt{m0012}--\texttt{m0014} de la sesión \texttt{20260908\_184623}
+levantaron la bandera, pero escribieron \SI{24.25}{\celsius} sin sensor
+conectado y una descripción genérica. El defecto y su corrección se
+documentan en la \cref{sec:falla_fantasma}.
 
-Ninguna de las cinco invalida lo verificado hasta aquí; delimitan lo que
-la validación sin instrumentos alcanza a sostener y lo que no.
+La corrección modificó además el propio criterio. El campo en cero se
+sustituyó por \texttt{nan}, porque \SI{0}{\celsius} es una temperatura
+físicamente válida y un análisis posterior no podría distinguirla de
+una medición; \texttt{nan} no admite esa lectura. En la sesión
+\texttt{20260908\_190614}, con el módulo desconectado, las filas
+registran \texttt{error\_flag = 1}, \texttt{temperatura = nan} y un
+\texttt{error\_desc} que nombra al ESP32 y su puerto. Conforme bajo el
+criterio corregido.
+
+\subsubsection*{Limpieza automática de la bandera del monitor}
+
+El criterio exigía que la bandera del monitor de conexión se limpiara
+por sí sola en el siguiente ciclo de consulta tras restablecerse el
+módulo. La primera ejecución tampoco lo cumplió: el registro de la
+sesión \texttt{20260908\_190614} muestra que cada recuperación
+(\texttt{m0005} y \texttt{m0013}) ocurre después de una pausa
+prolongada, la que toma accionar el botón de reconexión en la
+interfaz. No había limpieza automática porque no había reconexión
+automática: el método correspondiente se limitaba a informar el estado
+de la conexión sin intentar restablecerla.
+
+Se implementó el reintento sobre el puerto configurado y, al recibirse
+una trama válida, el reinicio del hilo de lectura. La sesión
+\texttt{20260908\_200938} lo verifica: las capturas \texttt{m0003} y
+\texttt{m0004} se registran con el módulo desconectado y
+\texttt{temperatura = nan}, y \texttt{m0005} vuelve a
+\texttt{error\_flag = 0} con lectura real, sin intervención del
+operador.
+
+La implementación reintenta únicamente sobre el puerto declarado en la
+configuración y no recorre los puertos disponibles buscando el
+dispositivo. La restricción es deliberada. Un puerto no se reasigna
+solo: cuando cambia es porque alguien manipuló la conexión física o el
+sistema operativo la renumeró tras esa manipulación, y en ambos casos
+hay una persona presente que puede corregir la configuración. Recorrer
+los puertos implicaría, en cambio, abrir puertos ajenos al módulo
+---entre ellos el del láser--- para averiguar qué hay detrás de cada
+uno, lo que introduce un riesgo mayor que el problema que resuelve.
+
+El costo de esa decisión se materializó en la misma sesión: el módulo
+apareció en \texttt{COM5} al inicio y en \texttt{COM4} al final, y esa
+transición sí requirió editar la configuración y reiniciar la
+aplicación. La reconexión automática cubre la pérdida de comunicación
+sobre un puerto estable, no la reasignación del puerto.
+
+\subsubsection*{Recorrido completo del modo por temperatura}
+
+La cuarta comprobación es la que ninguna simulación puede sustituir:
+el modo de adquisición gobernado por temperatura, ejercitado de forma
+exhaustiva según la \cref{sec:val_simulador}, no había recorrido nunca
+de punta a punta los tres instrumentos simultáneos.
+
+La sesión \texttt{20260908\_203856} lo recorrió. Con la muestra
+calentada por encima del rango de interés y midiendo sobre su
+enfriamiento pasivo, la secuencia produjo nueve puntos entre
+\SI{43.89}{\celsius} y \SI{39.91}{\celsius}, sobre un barrido
+programado de \SI{44}{\celsius} a \SI{40}{\celsius} en pasos de
+\SI{0.5}{\celsius}, con \texttt{error\_flag = 0} en los nueve, las
+columnas de escala pobladas y el campo \texttt{pulsos\_estimados}
+---que contabiliza los disparos del láser integrados dentro de cada
+ventana de adquisición--- con valor por primera vez fuera de
+simulación. La lógica de apertura y cierre de ventana, verificada hasta
+entonces contra perfiles sintéticos, gobernó una adquisición real.
+
+La captura \texttt{m0001} del mismo archivo no pertenece al barrido:
+es la adquisición manual de verificación que el sistema solicita antes
+de iniciar cualquier secuencia, para que el operador confirme que la
+señal es razonable y elija el destino de los datos. Su campo
+\texttt{pulsos\_estimados} está vacío porque no hubo ventana de
+acumulación que medir, y su modo registrado es \texttt{manual}. El
+formato distingue ambas cosas sin ambigüedad.
+
+Los objetivos efectivamente alcanzados fueron \SI{43.89}{\celsius},
+\SI{43.39}{\celsius}, \SI{42.88}{\celsius}, \SI{42.39}{\celsius},
+\SI{41.91}{\celsius}, \SI{41.41}{\celsius}, \SI{40.89}{\celsius},
+\SI{40.39}{\celsius} y \SI{39.91}{\celsius}. La separación entre
+puntos consecutivos se aparta del paso nominal de
+\SI{0.5}{\celsius} en a lo sumo \SI{0.03}{\celsius}. El intervalo
+entre capturas crece de forma monótona, de \SI{81}{\second} a
+\SI{100}{\second}, lo que corresponde al enfriamiento pasivo
+frenándose conforme la muestra se acerca a la temperatura ambiente:
+el sistema no gobierna ese ritmo, solo espera a que el umbral se
+cumpla.
+
+\subsubsection*{Exportación al formato \texttt{.mat}}
+
+La quinta comprobación se ejecutó sobre los datos de esa misma sesión.
+El archivo resultante contiene el arreglo crudo, las muestras
+convertidas a volts, el eje temporal reconstruido, la frecuencia de
+muestreo, el número de puntos y los veintiún campos de metadatos del
+registro de sesión. Conforme.
+
+\subsubsection*{Lo que estas cinco comprobaciones dejan ver}
+
+Tres de las cinco resultaron conformes en su primera ejecución. Dos no,
+y ninguna de las dos podía haberse detectado sin el instrumento: una
+escribía un dato inexistente y la otra ofrecía una función que nunca
+llegó a implementarse. Ambas corresponden a trayectorias que la
+validación por simulación no alcanza por construcción y no por descuido
+en su diseño: \texttt{generar\_sesion\_prueba.py} fabrica el archivo
+que produce una desconexión, no la desconexión misma.
+
+El resultado respalda la separación adoptada al inicio de esta sección
+y marca al mismo tiempo su frontera. La simulación verificó
+correctamente todo lo que estaba a su alcance; lo que quedó fuera de su
+alcance falló en dos de cinco casos.
 
 \begin{table}[H]
   \centering
@@ -275,6 +377,8 @@ la validación sin instrumentos alcanza a sostener y lo que no.
       $10+1$\textsuperscript{c} & Conforme \\
     Advertencias en interfaz & \texttt{probar\_advertencias\_gui.py} & 4 &
       Conforme\textsuperscript{b} \\
+    Verificaciones con instrumento & Sesión de laboratorio & 5 &
+      Conforme\textsuperscript{d} \\
     \bottomrule
   \end{tabular}
 
@@ -287,6 +391,9 @@ la validación sin instrumentos alcanza a sostener y lo que no.
     \textsuperscript{b} Cuatro trayectorias automatizables; un paso
     adicional queda como comprobación asistida.\\
     \textsuperscript{c} Diez condiciones de alerta más una sesión limpia
-    de control negativo.
+    de control negativo.\\
+    \textsuperscript{d} Dos de las cinco exigieron corregir el sistema
+    antes de resultar conformes, y una de ellas exigió además corregir el
+    criterio; véase la \cref{sec:val_instrumento}.
   \end{minipage}
 \end{table}

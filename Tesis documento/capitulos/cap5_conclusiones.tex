@@ -71,14 +71,15 @@ verificada; está sin poner a prueba.
 
 \subsection*{Sobre las fallas documentadas}
 
-El \cref{cap:resultados} dedica su sección más extensa a cinco anomalías
+El \cref{cap:resultados} dedica su sección más extensa a siete anomalías
 observadas durante el desarrollo. Esa elección fue deliberada, y
 conviene justificarla.
 
-Cuatro de las cinco no eran observables mientras ocurrían. Dos de ellas
+Seis de las siete no eran observables mientras ocurrían. Tres de ellas
 tampoco lo eran inspeccionando los datos captura por captura: aparecieron
 solo al contrastar el archivo con lo que su propio encabezado declaraba
-contener, y el código con su historial de cambios. La más prolongada
+contener, el código con su historial de cambios, y cada campo del archivo
+con el lugar del código que lo produce. La más prolongada
 —diez capturas consecutivas en las que no hubo adquisición— transcurrió
 durante doce minutos frente a un operador atento, sin producir una sola
 excepción.
@@ -86,11 +87,11 @@ excepción.
 De ahí se sigue el criterio con el que conviene juzgar un sistema de
 este tipo. No es la ausencia de fallas, inalcanzable en un montaje que
 integra tres instrumentos independientes con sus propios modos de
-error. Es que las fallas resulten reconstruibles después. Las cinco
-anomalías descritas pudieron caracterizarse meses más tarde a partir de
-los archivos conservados, y esa posibilidad es en sí misma un resultado
-del diseño: un sistema que hubiera guardado menos las habría vuelto
-indetectables.
+error. Es que las fallas resulten reconstruibles después. Todas las
+anomalías descritas que se manifestaron pudieron caracterizarse meses
+más tarde a partir de los archivos conservados, y esa posibilidad es en
+sí misma un resultado del diseño: un sistema que hubiera guardado menos
+las habría vuelto indetectables.
 
 El caso de la propia herramienta de verificación, en la
 \cref{sec:falla_umbral}, cierra el argumento por el lado incómodo. Un
@@ -105,12 +106,14 @@ distinguir el hallazgo del artefacto.
 
 Tres limitaciones deben quedar declaradas.
 
-La primera es de alcance experimental: el modo de adquisición
-gobernado por temperatura se ejercitó de forma exhaustiva por
-simulación, pero no llegó a ejecutarse de punta a punta contra los
-tres instrumentos reales. Su lógica está verificada; su
-comportamiento frente al enfriamiento efectivo de una muestra no lo
-está.
+La primera es de alcance experimental: el modo de adquisición gobernado
+por temperatura se ejercitó exhaustivamente por simulación y se
+recorrió de punta a punta contra los tres instrumentos reales en una
+sola sesión, sobre agua, en un intervalo de \SI{44}{\celsius} a
+\SI{40}{\celsius} y bajo enfriamiento pasivo. La lógica está verificada
+y el recorrido completo está demostrado; lo que no queda establecido es
+su comportamiento sobre otros líquidos, intervalos más amplios o
+regímenes de enfriamiento distintos del pasivo.
 
 La segunda es que la calibración relativa entre los cuatro sensores de
 temperatura quedó definida pero no aplicada, de modo que las lecturas
@@ -142,6 +145,48 @@ El sistema desarrollado en este trabajo constituye una base funcional
 que puede extenderse en varias direcciones. A continuación se describen
 las líneas de trabajo identificadas durante el desarrollo.
 
+\subsection*{La pregunta que los datos dejaron abierta}
+
+El análisis de la sesión del 8 de septiembre de 2026, descrito en el
+\cref{sec:falla_umbral}, dejó planteada una pregunta que este trabajo
+no resuelve y que conviene enunciar con claridad, porque marca el
+límite entre lo que la automatización establece y lo que no.
+
+Descontado el artefacto del criterio de umbral, persiste un
+desplazamiento del registro completo de aproximadamente
+\SI{0.12}{\micro\second} a lo largo del barrido, en el sentido de
+tiempos \emph{menores} conforme la muestra se enfría. La velocidad del
+sonido en agua disminuye al bajar la temperatura en este intervalo, de
+modo que el arribo debería retrasarse, no adelantarse; y la magnitud
+esperada, para la separación hidrófono--haz registrada en los
+metadatos de la sesión, es de unos \SI{0.08}{\micro\second}. El signo
+es opuesto y el orden de magnitud no coincide.
+
+Tres explicaciones quedan abiertas y este trabajo no dispone de
+elementos para decidir entre ellas. La primera es instrumental: si la
+fuente de disparo del osciloscopio dependiera de la propia señal
+adquirida, el origen temporal se desplazaría con la amplitud y el
+efecto sería enteramente artificial. La segunda es geométrica:
+\SI{0.12}{\micro\second} equivalen a unas \SI{0.18}{\milli\meter} de
+trayecto, una magnitud que la deriva térmica del arreglo o la ausencia
+de una sujeción rígida del hidrófono pueden producir sin dificultad, y
+que está muy por debajo de la incertidumbre con que esa distancia se
+mide hoy. La tercera es de interpretación de la señal: el máximo se
+ubica cerca de \SI{94}{\micro\second}, lejos del tiempo de arribo que
+la separación registrada predice para la señal directa según el
+\cref{ap:tiempos_arribo}, de modo que la característica que se está
+siguiendo podría corresponder a una trayectoria reflejada y no a la
+directa.
+
+Distinguir entre las tres requiere intervenir el arreglo experimental
+---fijar la geometría, verificar la fuente de disparo, caracterizar las
+reflexiones--- y queda fuera del alcance de este trabajo, cuyo objeto
+es la automatización del sistema y no la caracterización del fenómeno.
+Se enuncia aquí porque su sola formulación depende de que el registro
+conserve, para cada captura, las escalas del instrumento, la
+temperatura de la muestra y la geometría de la sesión. La pregunta es
+un producto del sistema, no una objeción a él.
+
 \subsection*{Mejoras al hardware}
 
 El módulo de temperatura actual emplea cuatro sensores DS18B20
@@ -164,14 +209,14 @@ cuatro sensores sumergidos en agua en agitación continua--- y su
 resultado ajustaría las lecturas individuales al mismo orden de
 magnitud que el umbral de decisión de la secuencia automática.
 
-La reconexión automática del módulo de temperatura, cuya ausencia se
-documenta en la \cref{sec:falla_temperatura}, es una carencia del lado
-del software con manifestación en el hardware: el sistema detecta la
-pérdida del hilo de lectura y la señala, pero requiere intervención
-desde la interfaz para restablecerlo. Reiniciar el hilo de forma
-automática al recuperarse la comunicación evitaría que una
-reprogramación del microcontrolador a mitad de sesión invalide el
-registro de temperatura de todas las capturas posteriores.
+La reconexión automática del módulo de temperatura, documentada antes
+como carencia, quedó implementada y verificada según la
+\cref{sec:val_instrumento}. Subsiste un caso no cubierto: el reintento
+opera sobre el puerto declarado en la configuración, de modo que una
+reasignación del puerto por parte del sistema operativo sigue
+requiriendo intervención manual. Resolverlo sin recorrer puertos ajenos
+exigiría identificar al módulo por su descriptor de dispositivo antes
+de abrir la comunicación.
 
 En cuanto a la celda fotoacústica, trabajos futuros podrían explorar
 geometrías optimizadas para minimizar reflexiones acústicas internas
@@ -180,14 +225,15 @@ hidrófono.
 
 \subsection*{Mejoras al software}
 
-Los metadatos de sesión no registran actualmente ni la distancia entre
-el hidrófono y el eje del haz ni el volumen vertido, de modo que la
-ventana temporal útil de una sesión ---que depende de ambos, según el
-\cref{ap:tiempos_arribo}--- solo puede reconstruirse desde la bitácora
-del operador y no desde el archivo de datos. Incorporar ambas
-magnitudes al formato descrito en la \cref{sec:formato_datos} es una
-extensión menor en esfuerzo y coherente con el criterio de trazabilidad
-que guió el resto del diseño.
+Los metadatos de sesión incorporan la distancia entre el hidrófono y el
+eje del haz y el volumen vertido, de modo que la ventana temporal útil
+---que depende de ambos, según el \cref{ap:tiempos_arribo}--- puede
+reconstruirse desde el archivo de datos y no desde la bitácora del
+operador. Ambas magnitudes se capturan hoy a mano en la interfaz, y la
+distancia se mide con flexómetro por no existir una sujeción fija del
+hidrófono. Una montura que fije esa distancia, o su medición con un
+instrumento de mayor resolución, reduciría la incertidumbre que hoy
+domina el cálculo de la ventana.
 
 El módulo de visualización actual muestra la forma de onda adquirida
 tras concluir cada medición. Una extensión relevante sería implementar
@@ -200,6 +246,23 @@ aplicó de forma manual y no existe en el repositorio como
 procedimiento automatizado. Incorporarla como tal es lo que permitiría
 que su resultado siga siendo válido cuando la herramienta de
 verificación incorpore condiciones nuevas.
+
+La biblioteca de control del láser mantiene su estado de conexión a
+nivel de proceso y no por instancia. La aplicación no garantiza la
+desconexión explícita al cerrarse, de modo que una terminación
+irregular puede dejarla en un estado que impide la siguiente conexión
+hasta reiniciar el proceso. Garantizar la desconexión en el cierre es
+una corrección acotada, y conviene acompañarla de una comprobación de
+conectividad independiente de la interfaz gráfica, como la que se
+empleó para diagnosticar el caso.
+
+La frecuencia de repetición del láser se emplea como constante del
+programa para estimar el número de disparos integrados en cada
+ventana, según se documenta en la \cref{sec:falla_laserhz}. El equipo
+expone ese parámetro como registro consultable por la misma biblioteca
+que el sistema ya utiliza. Leerlo en lugar de suponerlo, y guardar el
+valor leído entre los metadatos de sesión, convierte un campo supuesto
+en uno medido sin costo apreciable.
 
 El módulo de almacenamiento guarda los datos crudos en archivos
 \texttt{.npy} y los metadatos en un registro \texttt{.csv}.
