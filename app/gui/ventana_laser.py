@@ -24,6 +24,7 @@ from app.gui.theme import (
 )
 
 _MONITOREO_INTERVALO_MS = 10_000
+_ESTADO_INTERVALO_MS    = 1_000
 
 
 class VentanaLaser(QMainWindow):
@@ -49,6 +50,10 @@ class VentanaLaser(QMainWindow):
         self._timer_monitor = QTimer(self)
         self._timer_monitor.setInterval(_MONITOREO_INTERVALO_MS)
         self._timer_monitor.timeout.connect(self._actualizar_monitoreo)
+
+        self._timer_estado = QTimer(self)
+        self._timer_estado.setInterval(_ESTADO_INTERVALO_MS)
+        self._timer_estado.timeout.connect(self._leer_estado)
 
         self._construir_ui()
         self._conectar_signals()
@@ -367,6 +372,7 @@ class VentanaLaser(QMainWindow):
     @Slot()
     def _on_toggle_conexion(self):
         if self._laser.conectado:
+            self._timer_estado.stop()
             self._timer_monitor.stop()
             self._laser.desconectar()
             self._btn_conectar.setText("Conectar")
@@ -376,6 +382,8 @@ class VentanaLaser(QMainWindow):
             puerto = config_usuario.obtener("LASER_COM_PORT")
             if self._laser.conectar():
                 self._btn_conectar.setText("Desconectar")
+                self._timer_estado.start()
+                self._leer_estado()
                 self._actualizar_monitoreo()
                 self._timer_monitor.start()
             else:
@@ -555,12 +563,16 @@ class VentanaLaser(QMainWindow):
         self.volver.emit()
         self.close()
 
-    def _actualizar_monitoreo(self):
+    def _leer_estado(self):
         ok, val = self._laser.leer_estado()
+        leido = ok and bool(val.strip())
         anterior = self._laser_estado_txt
-        self._fijar_estado_laser(val.strip().upper() if ok and val.strip() else None)
+        self._fijar_estado_laser(val.strip().upper() if leido else None)
         if anterior != self._laser_estado_txt:
             self._set_log(f"State → {self._laser_estado_txt}")
+        self._timer_estado.setInterval(_ESTADO_INTERVALO_MS if leido else _MONITOREO_INTERVALO_MS)
+
+    def _actualizar_monitoreo(self):
         t = self._laser.read_cooling_temp()
         if t is not None:
             self._card_t_actual._lbl_valor.setText(f"{t:.1f}")
@@ -576,6 +588,7 @@ class VentanaLaser(QMainWindow):
         if self._cerrado:
             return
         self._cerrado = True
+        self._timer_estado.stop()
         self._timer_monitor.stop()
         if self._laser.conectado and (self._laser_running or self._laser_incierto):
             self._safe.activar()
