@@ -26,6 +26,7 @@ import serial
 import vxi11
 
 from app import config
+from app.laser.control_laser import _ERR_CODES
 from app.temperatura.temperatura import BAUD_RATE, parsear_trama
 
 logger = logging.getLogger(__name__)
@@ -115,30 +116,35 @@ def probar_laser(puerto: str) -> tuple[bool, str]:
     try:
         os.add_dll_directory(str(dll_path.parent))
         os.chdir(str(dll_path.parent))
-        dll = ctypes.WinDLL(str(dll_path))
-        dll.rcConnect.argtypes = [c_int, c_int]
-        dll.rcConnect.restype = c_int
-        dll.rcDisconnect.argtypes = []
-        dll.rcDisconnect.restype = c_int
-        dll.rcGetFirstDeviceName.argtypes = [c_char_p, c_int]
-        dll.rcGetFirstDeviceName.restype = c_int
-    except Exception as exc:
-        logger.warning("Láser: no se pudo cargar %s: %s", _DLL_NAME, exc)
-        return False, f"Láser: no se pudo cargar la biblioteca {_DLL_NAME}."
+        try:
+            dll = ctypes.WinDLL(str(dll_path))
+            dll.rcConnect.argtypes = [c_int, c_int]
+            dll.rcConnect.restype = c_int
+            dll.rcDisconnect.argtypes = []
+            dll.rcDisconnect.restype = c_int
+            dll.rcGetFirstDeviceName.argtypes = [c_char_p, c_int]
+            dll.rcGetFirstDeviceName.restype = c_int
+        except Exception as exc:
+            logger.warning("Láser: no se pudo cargar %s: %s", _DLL_NAME, exc)
+            return False, f"Láser: no se pudo cargar la biblioteca {_DLL_NAME}."
+
+        try:
+            err = dll.rcConnect(_CONNECT_RS232, com_num)
+        except Exception as exc:
+            logger.warning("Láser: fallo inesperado en rcConnect %s: %s", puerto, exc)
+            return False, f"Láser: fallo al comunicar por {puerto}."
     finally:
         os.chdir(prev_dir)
 
-    conectado = False
-    try:
-        err = dll.rcConnect(_CONNECT_RS232, com_num)
-        if err != 0:
-            logger.warning("Láser: rcConnect en %s devolvió %d", puerto, err)
-            return False, (
-                f"Láser: sin respuesta en {puerto}. Verifique el cable RS-232 "
-                "y que el láser esté encendido."
-            )
-        conectado = True
+    if err != 0:
+        nombre_err = _ERR_CODES.get(err, "desconocido")
+        logger.warning("Láser: rcConnect en %s devolvió %d (%s)", puerto, err, nombre_err)
+        return False, (
+            f"Láser: sin respuesta en {puerto} (error {err}={nombre_err}). "
+            "Verifique el cable RS-232 y que el láser esté encendido."
+        )
 
+    try:
         buf = create_string_buffer(_DEVICE_BUF)
         err = dll.rcGetFirstDeviceName(buf, len(buf))
         if err != 0:
@@ -153,11 +159,10 @@ def probar_laser(puerto: str) -> tuple[bool, str]:
         logger.warning("Láser: fallo inesperado en %s: %s", puerto, exc)
         return False, f"Láser: fallo al comunicar por {puerto}."
     finally:
-        if conectado:
-            try:
-                dll.rcDisconnect()
-            except Exception:
-                pass
+        try:
+            dll.rcDisconnect()
+        except Exception:
+            pass
 
 
 def _motivo_serial(exc: Exception) -> str:
