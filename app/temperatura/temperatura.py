@@ -14,8 +14,13 @@ la lectura más reciente. Otros módulos (Trigger, Medición, GUI)
 consultan mediante consultar() sin bloquear el hilo del worker.
 
 Comandos aceptados por el ESP32 (enviar con '\\n'):
-    PING  →  responde "PONG\\n"
-    STOP  →  detiene el streaming hasta un reset del ESP32
+    PING   →  responde "PONG\\n"
+    START  →  reanuda el streaming con una lectura inmediata
+    STOP   →  detiene el streaming hasta un START o un reset del ESP32
+
+El puerto se abre siempre con abrir_serial(): DTR y RTS en bajo para no
+disparar el circuito de auto-reset de la placa, y START al abrir porque
+la sesión anterior terminó con STOP.
 """
 
 from __future__ import annotations
@@ -43,6 +48,29 @@ ESPERA_REINTENTO_S = 2.5
 def listar_puertos() -> list[str]:
     """Devuelve los puertos COM disponibles en el sistema."""
     return [p.device for p in serial.tools.list_ports.comports()]
+
+
+def abrir_serial(puerto: str, timeout: float) -> serial.Serial:
+    """
+    Abre el puerto del ESP32 sin reiniciarlo y reanuda el streaming.
+
+    DTR y RTS se fijan en bajo antes de open() para que la apertura no
+    reinicie la placa ni la deje en modo descarga. Luego se envía START,
+    ya que el ESP32 sigue detenido si la última sesión le mandó STOP.
+    """
+    ser = serial.Serial()
+    ser.port = puerto
+    ser.baudrate = BAUD_RATE
+    ser.timeout = timeout
+    ser.dtr = False
+    ser.rts = False
+    ser.open()
+    try:
+        ser.write(b"START\n")
+    except (serial.SerialException, OSError):
+        ser.close()
+        raise
+    return ser
 
 
 def parsear_trama(linea: str) -> tuple[float, list[bool]] | None:
@@ -166,56 +194,51 @@ class TempWorker(QObject):
         entra en el loop de lectura continua.
         Conectar a thread.started para arranque automático.
         """
+        self._activo = True
         self._puerto = config_usuario.obtener("TEMP_COM_PORT")
         if not self._abrir_puerto():
             return
 
-        if not self._esperar_primer_dato():
-            self._cerrar_puerto()
-            return
-
-        self._activo = True
-        ultimo_dato = time.monotonic()
-
-        while self._activo:
-            linea = self._leer_linea()
-
-            if linea is None:
-                if time.monotonic() - ultimo_dato > TIMEOUT_SILENCIO:
-                    self.error.emit(
-                        f"ESP32 en {self._puerto} sin respuesta "
-                        f"por {TIMEOUT_SILENCIO:.0f} s."
-                    )
-                    self.desconectado.emit()
-                    self._cerrar_puerto()
-                    return
-                continue
+        try:
+            if not self._esperar_primer_dato():
+                return
 
             ultimo_dato = time.monotonic()
-            resultado = parsear_trama(linea)
-            if resultado is None:
-                continue
 
-            temp, sensores = resultado
+            while self._activo:
+                linea = self._leer_linea()
 
-            with QMutexLocker(self._mutex):
-                self._ultima_temp = temp
-                self._estado_sensores = sensores
-                self._timestamp_lectura = time.monotonic()
+                if linea is None:
+                    if time.monotonic() - ultimo_dato > TIMEOUT_SILENCIO:
+                        self.error.emit(
+                            f"ESP32 en {self._puerto} sin respuesta "
+                            f"por {TIMEOUT_SILENCIO:.0f} s."
+                        )
+                        self.desconectado.emit()
+                        return
+                    continue
 
-            self.trigger.emit(temp)
+                ultimo_dato = time.monotonic()
+                resultado = parsear_trama(linea)
+                if resultado is None:
+                    continue
 
-        self._cerrar_puerto()
+                temp, sensores = resultado
+
+                with QMutexLocker(self._mutex):
+                    self._ultima_temp = temp
+                    self._estado_sensores = sensores
+                    self._timestamp_lectura = time.monotonic()
+
+                self.trigger.emit(temp)
+        finally:
+            self._cerrar_puerto()
 
     # ── Helpers internos ───────────────────────────────────────────────────────
 
     def _abrir_puerto(self) -> bool:
         try:
-            self._serial = serial.Serial(
-                port=self._puerto,
-                baudrate=BAUD_RATE,
-                timeout=TIMEOUT_LINEA_S,
-            )
+            self._serial = abrir_serial(self._puerto, TIMEOUT_LINEA_S)
             return True
         except (serial.SerialException, OSError, ValueError) as exc:
             logger.warning("No se pudo abrir %s: %s", self._puerto, exc)
@@ -228,7 +251,7 @@ class TempWorker(QObject):
 
     def _esperar_primer_dato(self) -> bool:
         deadline = time.monotonic() + ESPERA_PRIMER_S
-        while time.monotonic() < deadline:
+        while self._activo and time.monotonic() < deadline:
             linea = self._leer_linea()
             if linea is None:
                 continue
@@ -253,6 +276,9 @@ class TempWorker(QObject):
                 )
             return True
 
+        if not self._activo:
+            return False
+
         self.error.emit(
             f"ESP32: sin lecturas en {self._puerto} durante {ESPERA_PRIMER_S:.0f} s. "
             "Verifique el cable USB o el puerto en Conexión."
@@ -272,9 +298,7 @@ class TempWorker(QObject):
 
     def _puerto_responde(self, puerto: str) -> bool:
         try:
-            with serial.Serial(
-                port=puerto, baudrate=BAUD_RATE, timeout=TIMEOUT_LINEA_S
-            ) as ser:
+            with abrir_serial(puerto, TIMEOUT_LINEA_S) as ser:
                 limite = time.monotonic() + ESPERA_REINTENTO_S
                 while time.monotonic() < limite:
                     raw = ser.readline()

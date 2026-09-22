@@ -27,7 +27,7 @@ import vxi11
 
 from app import config
 from app.laser.control_laser import _ERR_CODES
-from app.temperatura.temperatura import BAUD_RATE, parsear_trama
+from app.temperatura.temperatura import abrir_serial, parsear_trama
 
 logger = logging.getLogger(__name__)
 
@@ -42,7 +42,7 @@ _DEVICE_BUF = 64
 def probar_esp32(puerto: str) -> tuple[bool, str]:
     """Abre el puerto, espera una trama válida y lo cierra."""
     try:
-        ser = serial.Serial(port=puerto, baudrate=BAUD_RATE, timeout=1.0)
+        ser = abrir_serial(puerto, timeout=1.0)
     except (serial.SerialException, OSError, ValueError) as exc:
         logger.warning("ESP32: no se pudo abrir %s: %s", puerto, exc)
         return False, f"ESP32: no se pudo abrir {puerto} — {_motivo_serial(exc)}."
