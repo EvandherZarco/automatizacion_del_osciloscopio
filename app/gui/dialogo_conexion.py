@@ -36,6 +36,7 @@ _ESTILO_SEGURIDAD = (
 
 TOOLTIP_CONEXION = "Puertos COM del ESP32 y del láser, e IP del osciloscopio"
 MOTIVO_LASER_RUN = "El láser está en RUN. Deténgalo antes de cambiar la conexión."
+MOTIVO_LASER_DESCONOCIDO = "No se pudo confirmar el estado del láser. Deténgalo antes de cambiar la conexión."
 MOTIVO_SECUENCIA = "Hay una secuencia de medición en curso. Espere a que termine o deténgala."
 MOTIVO_CAPTURA   = "Hay una captura en curso. Espere a que termine."
 

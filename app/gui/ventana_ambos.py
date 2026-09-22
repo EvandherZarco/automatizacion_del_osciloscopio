@@ -41,7 +41,7 @@ from app.medicion.medicion import Medicion
 from app.gui.visualizacion import VisualizacionWidget
 from app.gui.dialogo_conexion import (
     DialogoConexion, texto_fallo_conexion, actualizar_boton_conexion,
-    MOTIVO_LASER_RUN, MOTIVO_SECUENCIA, MOTIVO_CAPTURA,
+    MOTIVO_LASER_RUN, MOTIVO_LASER_DESCONOCIDO, MOTIVO_SECUENCIA, MOTIVO_CAPTURA,
 )
 from app.gui.theme import (
     APP_STYLESHEET, LED_VERDE, LED_AMARILLO, LED_ROJO, LED_GRIS,
@@ -117,6 +117,8 @@ class VentanaAmbos(QMainWindow):
 
         # Estado
         self._laser_running     = False
+        self._laser_estado_txt  = "STOP"
+        self._laser_incierto    = False
         self._secuencia_running = False
         self._iniciando_secuencia = False
         self._sesion_activa     = False
@@ -800,6 +802,8 @@ class VentanaAmbos(QMainWindow):
     def _motivo_bloqueo_conexion(self) -> str | None:
         if self._laser_running:
             return MOTIVO_LASER_RUN
+        if self._laser_incierto and self._laser.conectado:
+            return MOTIVO_LASER_DESCONOCIDO
         if self._secuencia_running or self._iniciando_secuencia:
             return MOTIVO_SECUENCIA
         if self._captura_thread is not None and self._captura_thread.isRunning():
@@ -844,11 +848,6 @@ class VentanaAmbos(QMainWindow):
 
     @Slot()
     def _on_laser_conectado(self):
-        self._chip_laser.setText("STOP")
-        self._chip_laser.setStyleSheet(
-            "background: #2a1a1a; color: #f44336; border-radius: 4px; padding: 2px 8px; font-size: 11px; font-weight: bold;")
-        self._btn_laser_iniciar.setEnabled(not self._laser_running)
-        self._btn_p_aplicar_laser.setEnabled(not self._laser_running)
         self._timer_monitor_laser.start()
         self._actualizar_monitoreo_laser()
 
@@ -858,6 +857,10 @@ class VentanaAmbos(QMainWindow):
         self._btn_laser_detener.setEnabled(False)
         self._btn_p_aplicar_laser.setEnabled(False)
         self._timer_monitor_laser.stop()
+        self._laser_incierto = True
+        self._laser_estado_txt = "?"
+        self._pintar_chip_laser()
+        self._actualizar_btn_conexion()
 
     @Slot()
     def _on_oscil_conectado(self):
@@ -931,24 +934,41 @@ class VentanaAmbos(QMainWindow):
         if resp != QMessageBox.Ok:
             return
         if self._laser.start():
-            self._laser_running = True
-            self._actualizar_ui_laser()
+            self._fijar_estado_laser("RUN")
             self._reiniciar_timer_inactividad()
 
     @Slot()
     def _on_laser_detener(self):
         if self._laser.stop():
-            self._laser_running = False
+            self._fijar_estado_laser("STOP")
             self._timer_inactividad.stop()
-            self._actualizar_ui_laser()
+
+    def _fijar_estado_laser(self, estado: str | None):
+        """
+        RUN y STOP/SLEEP son estados confirmados por el láser. Cualquier otro
+        valor (FAULT, lectura fallida) se trata como desconocido: nunca se
+        presenta como detenido y los controles quedan bloqueados como en RUN.
+        """
+        self._laser_running = estado == "RUN"
+        self._laser_incierto = estado not in ("RUN", "STOP", "SLEEP")
+        self._laser_estado_txt = estado or "?"
+        self._actualizar_ui_laser()
+
+    def _pintar_chip_laser(self):
+        if self._laser_incierto:
+            fondo, color = "#2a1f00", "#ffc107"
+        elif self._laser_running:
+            fondo, color = "#1a3a1a", "#4caf50"
+        else:
+            fondo, color = "#2a1a1a", "#f44336"
+        self._chip_laser.setText(self._laser_estado_txt)
+        self._chip_laser.setStyleSheet(
+            f"background: {fondo}; color: {color};"
+            "border-radius: 4px; padding: 2px 8px; font-size: 11px; font-weight: bold;")
 
     def _actualizar_ui_laser(self):
-        c = self._laser_running
-        self._chip_laser.setText("RUN" if c else "STOP")
-        self._chip_laser.setStyleSheet(
-            f"background: {'#1a3a1a' if c else '#2a1a1a'};"
-            f"color: {'#4caf50' if c else '#f44336'};"
-            "border-radius: 4px; padding: 2px 8px; font-size: 11px; font-weight: bold;")
+        c = self._laser_running or self._laser_incierto
+        self._pintar_chip_laser()
         self._banner_laser.setVisible(c)
         self._btn_laser_iniciar.setEnabled(not c and self._laser.conectado)
         self._btn_laser_detener.setEnabled(c)
@@ -972,6 +992,11 @@ class VentanaAmbos(QMainWindow):
         self._set_log("Parámetros del láser aplicados")
 
     def _actualizar_monitoreo_laser(self):
+        ok, val = self._laser.leer_estado()
+        anterior = self._laser_estado_txt
+        self._fijar_estado_laser(val.strip().upper() if ok and val.strip() else None)
+        if anterior != self._laser_estado_txt:
+            self._set_log(f"State → {self._laser_estado_txt}")
         t = self._laser.read_cooling_temp()
         if t is not None:
             self._card_t_actual._lbl_valor.setText(f"{t:.1f}")
@@ -1353,9 +1378,7 @@ class VentanaAmbos(QMainWindow):
         if self._secuencia_running:
             self._medicion.detener()
             self._secuencia_running = False
-        self._laser_running = False
         self._safe.activar()
-        self._actualizar_ui_laser()
         self._reset_ui_auto()
         self._set_log("⚠ Stop emergencia — modo seguro activado")
 
@@ -1416,16 +1439,15 @@ class VentanaAmbos(QMainWindow):
     @Slot(bool, list)
     def _on_modo_seguro(self, todo_ok: bool, fallidos: list):
         if "stop" in fallidos:
+            self._fijar_estado_laser(None)
             return
-        self._laser_running = False
+        self._fijar_estado_laser("STOP")
         self._timer_inactividad.stop()
-        self._actualizar_ui_laser()
 
     @Slot(str)
     def _on_seguridad_activada(self, dispositivo: str):
-        self._laser_running = False
-        self._actualizar_ui_laser()
         if dispositivo == "laser":
+            self._fijar_estado_laser(None)
             detalle = f"Láser: sin respuesta en {config_usuario.obtener('LASER_COM_PORT')}."
         else:
             detalle = f"Osciloscopio: sin respuesta en {self._oscil.host}."
