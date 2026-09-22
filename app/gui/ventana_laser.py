@@ -15,7 +15,8 @@ from app import config_usuario
 from app.laser.control_laser import LaserController
 from app.modo_seguro.modo_seguro import ModoSeguro
 from app.gui.dialogo_conexion import (
-    DialogoConexion, texto_fallo_conexion, actualizar_boton_conexion, MOTIVO_LASER_RUN,
+    DialogoConexion, texto_fallo_conexion, actualizar_boton_conexion,
+    MOTIVO_LASER_RUN, MOTIVO_LASER_DESCONOCIDO,
 )
 from app.gui.theme import (
     APP_STYLESHEET, LED_VERDE, LED_AMARILLO, LED_ROJO, LED_GRIS,
@@ -39,6 +40,8 @@ class VentanaLaser(QMainWindow):
         self._safe  = ModoSeguro(self._laser, self)
 
         self._laser_running = False
+        self._laser_estado_txt = "STOP"
+        self._laser_incierto   = False
         self._cerrado       = False
         self._output_sel    = "E Adjust"
         self._burst_sel     = "Continuous"
@@ -335,6 +338,7 @@ class VentanaLaser(QMainWindow):
         self._laser.led_amarillo.connect(lambda: set_led(self._led_conn, LED_AMARILLO))
         self._laser.cmd_ok.connect(self._set_log)
         self._laser.error.connect(self._set_log)
+        self._safe.completado.connect(self._on_modo_seguro)
 
         self._btn_volver.clicked.connect(self._on_volver)
         self._btn_conexion.clicked.connect(self._abrir_conexion)
@@ -382,7 +386,8 @@ class VentanaLaser(QMainWindow):
 
     @Slot()
     def _abrir_conexion(self):
-        if self._laser_running:
+        if self._motivo_bloqueo_conexion() is not None:
+            self._actualizar_btn_conexion()
             return
         activos = {
             "LASER_COM_PORT": config_usuario.obtener("LASER_COM_PORT") if self._laser.conectado else None,
@@ -402,8 +407,6 @@ class VentanaLaser(QMainWindow):
             "background: #1a3a1a; color: #4caf50; font-size: 11px;"
             "border: 1px solid #2a5a2a; border-radius: 4px; padding: 3px 10px;"
         )
-        self._btn_iniciar.setEnabled(not self._laser_running)
-        self._btn_aplicar.setEnabled(not self._laser_running)
 
     @Slot()
     def _on_laser_desconectado(self):
@@ -415,7 +418,12 @@ class VentanaLaser(QMainWindow):
             "border: 1px solid #333; border-radius: 4px; padding: 3px 10px;"
         )
         self._btn_iniciar.setEnabled(False)
+        self._btn_detener.setEnabled(False)
         self._btn_aplicar.setEnabled(False)
+        self._laser_incierto = True
+        self._laser_estado_txt = "?"
+        self._pintar_indicador()
+        self._actualizar_btn_conexion()
 
     @Slot()
     def _on_iniciar(self):
@@ -428,30 +436,56 @@ class VentanaLaser(QMainWindow):
         if resp != QMessageBox.Ok:
             return
         if self._laser.start():
-            self._laser_running = True
-            self._actualizar_estado_ui()
+            self._fijar_estado_laser("RUN")
 
     @Slot()
     def _on_detener(self):
         if self._laser.stop():
-            self._laser_running = False
-            self._actualizar_estado_ui()
+            self._fijar_estado_laser("STOP")
+
+    def _motivo_bloqueo_conexion(self) -> str | None:
+        if self._laser_running:
+            return MOTIVO_LASER_RUN
+        if self._laser_incierto and self._laser.conectado:
+            return MOTIVO_LASER_DESCONOCIDO
+        return None
+
+    def _actualizar_btn_conexion(self):
+        actualizar_boton_conexion(
+            self._btn_conexion, self._motivo_bloqueo_conexion(), "Puerto COM del láser")
+
+    def _fijar_estado_laser(self, estado: str | None):
+        """
+        RUN y STOP/SLEEP son estados confirmados por el láser. Cualquier otro
+        valor (FAULT, lectura fallida) se trata como desconocido: nunca se
+        presenta como detenido y los controles quedan bloqueados como en RUN.
+        """
+        self._laser_running = estado == "RUN"
+        self._laser_incierto = estado not in ("RUN", "STOP", "SLEEP")
+        self._laser_estado_txt = estado or "?"
+        self._actualizar_estado_ui()
+
+    def _pintar_indicador(self):
+        if self._laser_incierto:
+            fondo, color, simbolo = "#2a1f00", "#ffc107", "?"
+        elif self._laser_running:
+            fondo, color, simbolo = "#1a3a1a", "#4caf50", "⚡"
+        else:
+            fondo, color, simbolo = "#2a1a1a", "#f44336", "⊗"
+        self._circulo.setText(simbolo)
+        self._circulo.setStyleSheet(
+            f"background: {fondo}; border: 2px solid {color};"
+            f"border-radius: 40px; font-size: 28px; color: {color};"
+        )
+        self._lbl_estado_texto.setText(self._laser_estado_txt)
+        self._lbl_estado_texto.setStyleSheet(
+            f"font-size: 18px; font-weight: bold; color: {color};"
+        )
 
     def _actualizar_estado_ui(self):
-        c = self._laser_running
-        actualizar_boton_conexion(
-            self._btn_conexion, MOTIVO_LASER_RUN if c else None, "Puerto COM del láser")
-        self._circulo.setText("⚡" if c else "⊗")
-        self._circulo.setStyleSheet(
-            f"background: {'#1a3a1a' if c else '#2a1a1a'};"
-            f"border: 2px solid {'#4caf50' if c else '#f44336'};"
-            "border-radius: 40px; font-size: 28px;"
-            f"color: {'#4caf50' if c else '#f44336'};"
-        )
-        self._lbl_estado_texto.setText("RUN" if c else "STOP")
-        self._lbl_estado_texto.setStyleSheet(
-            f"font-size: 18px; font-weight: bold; color: {'#4caf50' if c else '#f44336'};"
-        )
+        c = self._laser_running or self._laser_incierto
+        self._actualizar_btn_conexion()
+        self._pintar_indicador()
         self._banner_bloqueo.setVisible(c)
         self._btn_iniciar.setEnabled(not c and self._laser.conectado)
         self._btn_detener.setEnabled(c)
@@ -482,7 +516,8 @@ class VentanaLaser(QMainWindow):
         }
         for m, btn in mapa.items():
             set_btn_activo(btn, m == modo, "azul")
-        self._spin_burst_len.setEnabled(modo != "Continuous" and not self._laser_running)
+        self._spin_burst_len.setEnabled(
+            modo != "Continuous" and not (self._laser_running or self._laser_incierto))
 
     @Slot()
     def _on_aplicar(self):
@@ -497,10 +532,12 @@ class VentanaLaser(QMainWindow):
 
     @Slot()
     def _on_stop_emergencia(self):
-        self._laser_running = False
         self._safe.activar()
-        self._actualizar_estado_ui()
         self._set_log("⚠ Stop emergencia — modo seguro activado")
+
+    @Slot(bool, list)
+    def _on_modo_seguro(self, todo_ok: bool, fallidos: list):
+        self._fijar_estado_laser(None if "stop" in fallidos else "STOP")
 
     @Slot()
     def _on_volver(self):
@@ -519,6 +556,11 @@ class VentanaLaser(QMainWindow):
         self.close()
 
     def _actualizar_monitoreo(self):
+        ok, val = self._laser.leer_estado()
+        anterior = self._laser_estado_txt
+        self._fijar_estado_laser(val.strip().upper() if ok and val.strip() else None)
+        if anterior != self._laser_estado_txt:
+            self._set_log(f"State → {self._laser_estado_txt}")
         t = self._laser.read_cooling_temp()
         if t is not None:
             self._card_t_actual._lbl_valor.setText(f"{t:.1f}")
@@ -535,7 +577,7 @@ class VentanaLaser(QMainWindow):
             return
         self._cerrado = True
         self._timer_monitor.stop()
-        if self._laser_running:
+        if self._laser.conectado and (self._laser_running or self._laser_incierto):
             self._safe.activar()
         if self._laser.conectado:
             self._laser.desconectar()
