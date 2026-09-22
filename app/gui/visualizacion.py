@@ -100,7 +100,7 @@ class VisualizacionWidget(QWidget):
         # Tabla de mediciones
         self._tabla = QTableWidget(0, len(COLUMNAS_TABLA))
         self._tabla.setHorizontalHeaderLabels(COLUMNAS_TABLA)
-        self._tabla.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        self._tabla.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
         self._tabla.setSelectionBehavior(QTableWidget.SelectRows)
         self._tabla.setEditTriggers(QTableWidget.NoEditTriggers)
         self._tabla.setAlternatingRowColors(True)
@@ -112,8 +112,8 @@ class VisualizacionWidget(QWidget):
         panel_der_lay.setContentsMargins(0, 0, 0, 0)
 
         self._plot = pg.PlotWidget(background="#1e1e1e")
-        self._plot.setLabel("bottom", "Tiempo", units="µs")
-        self._plot.setLabel("left", "Voltaje", units="mV")
+        self._plot.setLabel("bottom", "Tiempo", units="s")
+        self._plot.setLabel("left", "Voltaje", units="V")
         self._plot.showGrid(x=True, y=True, alpha=0.3)
         self._plot_curve = self._plot.plot(pen=pg.mkPen("#00bfff", width=1.5))
         panel_der_lay.addWidget(self._plot, 3)
@@ -134,7 +134,7 @@ class VisualizacionWidget(QWidget):
         panel_der_lay.addWidget(meta_box, 1)
 
         splitter.addWidget(panel_der)
-        splitter.setSizes([320, 680])
+        splitter.setSizes([700, 630])
         layout.addWidget(splitter, 1)
 
     def _conectar_signals(self):
@@ -245,11 +245,10 @@ class VisualizacionWidget(QWidget):
                 yzero = float(fila.get("YZERO", 0))
 
                 indices = np.arange(len(raw), dtype=np.float64)
-                tiempo = (xzero + (indices - pt_off) * xincr) * 1e6  # µs
+                tiempo = xzero + (indices - pt_off) * xincr
                 voltaje = (raw.astype(np.float64) - yoff) * ymult + yzero
-                voltaje_mv = voltaje * 1e3  # mV
 
-                self._plot_curve.setData(tiempo, voltaje_mv)
+                self._plot_curve.setData(tiempo, voltaje)
             except Exception as e:
                 QMessageBox.warning(self, "Error al graficar", str(e))
 

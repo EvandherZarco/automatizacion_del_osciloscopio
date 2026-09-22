@@ -186,6 +186,7 @@ QLabel {
 QTableWidget {
     background-color: #1e1e1e;
     border: 1px solid #333;
+    alternate-background-color: #242424;
     gridline-color: #2a2a2a;
     color: #e0e0e0;
     selection-background-color: #003a50;
@@ -221,6 +222,26 @@ QScrollBar::handle:vertical {
 
 QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
     height: 0;
+}
+
+QScrollBar:horizontal {
+    background: #1e1e1e;
+    height: 8px;
+    border-radius: 4px;
+}
+
+QScrollBar::handle:horizontal {
+    background: #444;
+    border-radius: 4px;
+    min-width: 20px;
+}
+
+QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
+    width: 0;
+}
+
+QAbstractScrollArea::corner {
+    background: #1e1e1e;
 }
 
 QMessageBox {

@@ -121,6 +121,7 @@ class VentanaAmbos(QMainWindow):
         self._laser_estado_txt  = "STOP"
         self._laser_incierto    = False
         self._secuencia_running = False
+        self._detencion_solicitada = False
         self._iniciando_secuencia = False
         self._sesion_activa     = False
         self._advertencias: list[str] = []
@@ -1268,6 +1269,7 @@ class VentanaAmbos(QMainWindow):
             return
 
         self._secuencia_running = True
+        self._detencion_solicitada = False
         self._advertencias.clear()
         self._lbl_progreso.setStyleSheet("color: #666; font-size: 11px;")
         self._timer_inactividad.stop()
@@ -1289,6 +1291,7 @@ class VentanaAmbos(QMainWindow):
 
     @Slot()
     def _on_detener_secuencia(self):
+        self._detencion_solicitada = True
         self._medicion.detener()
 
     @Slot(str, int)
@@ -1325,20 +1328,24 @@ class VentanaAmbos(QMainWindow):
     @Slot(int)
     def _on_secuencia_ok(self, n_flags: int):
         self._secuencia_running = False
-        self._reset_ui_auto()
+        if self._detencion_solicitada:
+            titulo, estado = "Secuencia detenida", "Secuencia detenida por el usuario."
+        else:
+            titulo, estado = "Secuencia completada", "Secuencia completada."
+        self._reset_ui_auto(estado)
         msg = (
-            f"Secuencia completada.\n\nMediciones con error_flag: {n_flags}\n"
+            f"{estado}\n\nMediciones con error_flag: {n_flags}\n"
             "Revise las muestras marcadas en la tabla."
-            if n_flags else "Secuencia completada sin errores."
+            if n_flags else f"{estado}\n\nNinguna medición con error_flag."
         )
-        caja = QMessageBox(QMessageBox.Information, "Secuencia completada", msg, QMessageBox.Ok, self)
+        caja = QMessageBox(QMessageBox.Information, titulo, msg, QMessageBox.Ok, self)
         self._adjuntar_advertencias(caja)
         caja.exec()
 
     @Slot(str)
     def _on_secuencia_abortada(self, motivo: str):
         self._secuencia_running = False
-        self._reset_ui_auto()
+        self._reset_ui_auto("Secuencia abortada.")
         caja = QMessageBox(QMessageBox.Critical, "Secuencia abortada", motivo, QMessageBox.Ok, self)
         self._adjuntar_advertencias(caja)
         caja.exec()
@@ -1365,12 +1372,13 @@ class VentanaAmbos(QMainWindow):
         detalle.setMinimumSize(560, 220)
         detalle.setLineWrapMode(QTextEdit.WidgetWidth)
 
-    def _reset_ui_auto(self):
+    def _reset_ui_auto(self, estado: str | None = None):
         self._btn_iniciar_seq.setEnabled(self._sesion_activa)
         self._btn_detener_seq.setEnabled(False)
         self._btn_por_tiempo.setEnabled(True)
         self._btn_por_temp.setEnabled(True)
-        self._lbl_progreso.setText("Secuencia detenida por el usuario.")
+        if estado is not None:
+            self._lbl_progreso.setText(estado)
         self._monitor.set_estado(EstadoMonitoreo.REPOSO)
         self._reiniciar_timer_inactividad()
         self._actualizar_btn_conexion()
@@ -1387,11 +1395,14 @@ class VentanaAmbos(QMainWindow):
             self._captura_thread.wait(2000)
             self._captura_thread = None
             self._captura_worker = None
+        estado = None
         if self._secuencia_running:
+            self._detencion_solicitada = True
             self._medicion.detener()
             self._secuencia_running = False
+            estado = "Secuencia detenida por el usuario."
         self._safe.activar()
-        self._reset_ui_auto()
+        self._reset_ui_auto(estado)
         self._set_log("⚠ Stop emergencia — modo seguro activado")
 
     # ══════════════════════════════════════════════════════════════════════════
