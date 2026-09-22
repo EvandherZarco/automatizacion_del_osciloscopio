@@ -11,12 +11,11 @@ Everything is Windows-only (the laser control depends on a 64-bit Windows DLL lo
 ## Commands
 
 ```bat
-:: run the app (activates venv, launches GUI)
-iniciar_app.bat
+:: run the app with the venv interpreter (double-click works; the window stays open only if it exits with an error)
+iniciar.bat
 
 :: equivalent manually
-venv\Scripts\activate
-python main.py
+venv\Scripts\python.exe main.py
 ```
 
 Dependencies are pinned in `requirements.txt` (`pip install -r requirements.txt` inside `venv`). There is no lint/test/build tooling configured — `codigos_de_prueba/` scripts are standalone manual hardware scripts run directly with `python <script>.py`, not a pytest suite, and are meant to be run against real connected hardware.
