@@ -329,8 +329,12 @@ class VentanaAmbos(QMainWindow):
         self._banner_laser.setVisible(False)
         lay.addWidget(self._banner_laser)
 
+        modos = QHBoxLayout()
+        modos.setSpacing(12)
+
         # Output level
-        lay.addWidget(self._sep_lbl("Output level"))
+        col_ol = QVBoxLayout()
+        col_ol.addWidget(self._sep_lbl("Output level"))
         fila_ol = QHBoxLayout()
         fila_ol.setSpacing(6)
         self._btn_p_e_off = QPushButton("E OFF")
@@ -339,10 +343,11 @@ class VentanaAmbos(QMainWindow):
         for btn in (self._btn_p_e_off, self._btn_p_e_adj, self._btn_p_e_max):
             btn.setFixedHeight(32)
             fila_ol.addWidget(btn)
-        lay.addLayout(fila_ol)
+        col_ol.addLayout(fila_ol)
 
         # Burst mode
-        lay.addWidget(self._sep_lbl("Burst mode"))
+        col_bm = QVBoxLayout()
+        col_bm.addWidget(self._sep_lbl("Burst mode"))
         fila_bm = QHBoxLayout()
         fila_bm.setSpacing(6)
         self._btn_p_cont    = QPushButton("Continuous")
@@ -351,9 +356,13 @@ class VentanaAmbos(QMainWindow):
         for btn in (self._btn_p_cont, self._btn_p_burst, self._btn_p_trigger):
             btn.setFixedHeight(32)
             fila_bm.addWidget(btn)
-        lay.addLayout(fila_bm)
+        col_bm.addLayout(fila_bm)
 
-        # Burst length + Cooling T
+        modos.addLayout(col_ol, 1)
+        modos.addLayout(col_bm, 1)
+        lay.addLayout(modos)
+
+        # Burst length + Cooling T + EO delay
         campos = QHBoxLayout()
         campos.setSpacing(12)
 
@@ -380,19 +389,20 @@ class VentanaAmbos(QMainWindow):
         col_cool.addWidget(self._spin_p_cooling)
         col_cool.addWidget(lbl_cool_h)
 
-        campos.addLayout(col_bl)
-        campos.addLayout(col_cool)
-        lay.addLayout(campos)
-
-        # EO delay
-        lay.addWidget(self._sep_lbl("Adj. EO delay"))
+        col_eo = QVBoxLayout()
+        col_eo.addWidget(self._sep_lbl("Adj. EO delay"))
         self._spin_p_eo = QSpinBox()
         self._spin_p_eo.setRange(800, 8000)
         self._spin_p_eo.setValue(3800)
         lbl_eo_h = QLabel("µs — modo seguro = 3800")
         lbl_eo_h.setStyleSheet("color: #555; font-size: 10px;")
-        lay.addWidget(self._spin_p_eo)
-        lay.addWidget(lbl_eo_h)
+        col_eo.addWidget(self._spin_p_eo)
+        col_eo.addWidget(lbl_eo_h)
+
+        campos.addLayout(col_bl, 1)
+        campos.addLayout(col_cool, 1)
+        campos.addLayout(col_eo, 1)
+        lay.addLayout(campos)
 
         # Monitoreo
         mon = QHBoxLayout()
