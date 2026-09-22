@@ -1,6 +1,6 @@
 """
 temperatura.py
-Lectura continua de temperatura desde ESP32-C3 con cuatro sensores DS18B20.
+Lectura continua de temperatura desde ESP32 WROOM-32 con cuatro sensores DS18B20.
 
 El ESP32 hace streaming automático cada ~1 s en el formato:
     "21.47,21.44,21.69,21.25,21.50\\n"
@@ -97,7 +97,7 @@ def parsear_trama(linea: str) -> tuple[float, list[bool]] | None:
 
 class TempWorker(QObject):
     """
-    Worker de temperatura para ESP32-C3 + DS18B20 ×4.
+    Worker de temperatura para ESP32 WROOM-32 + DS18B20 ×4.
     Diseñado para correr en un QThread independiente.
 
     El puerto se toma de la configuración vigente (config_usuario) cada vez
