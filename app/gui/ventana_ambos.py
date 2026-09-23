@@ -52,6 +52,10 @@ INACTIVIDAD_AVISO_MS   = 60_000
 INTERVALO_MIN_TIEMPO_S = 15.0
 MONITOREO_LASER_MS     = 10_000
 ESTADO_LASER_MS        = 1_000
+TEMPERATURA_UI_MS      = 1_000
+
+_ESTILO_TEMP_VIVA = "font-size: 15px; font-weight: bold; color: #00bfff;"
+_ESTILO_TEMP_SIN_LECTURA = "font-size: 15px; font-weight: bold; color: #666;"
 
 _EVENTOS_ACTIVIDAD = (
     QEvent.Type.MouseButtonPress,
@@ -124,6 +128,7 @@ class VentanaAmbos(QMainWindow):
         self._detencion_solicitada = False
         self._iniciando_secuencia = False
         self._sesion_activa     = False
+        self._geometria_confirmada = False
         self._advertencias: list[str] = []
         self._ultima_captura    = None
         self._canal_sel: str | None = None
@@ -148,6 +153,10 @@ class VentanaAmbos(QMainWindow):
         self._timer_estado_laser = QTimer(self)
         self._timer_estado_laser.setInterval(ESTADO_LASER_MS)
         self._timer_estado_laser.timeout.connect(self._leer_estado_laser)
+
+        self._timer_temperatura = QTimer(self)
+        self._timer_temperatura.setInterval(TEMPERATURA_UI_MS)
+        self._timer_temperatura.timeout.connect(self._actualizar_temperatura)
 
         self._construir_ui()
         self._conectar_signals()
@@ -243,8 +252,7 @@ class VentanaAmbos(QMainWindow):
         lay.addStretch()
 
         self._lbl_temp_live = QLabel("—  °C")
-        self._lbl_temp_live.setStyleSheet(
-            "font-size: 15px; font-weight: bold; color: #00bfff;")
+        self._lbl_temp_live.setStyleSheet(_ESTILO_TEMP_SIN_LECTURA)
         lay.addWidget(self._lbl_temp_live)
 
         sep3 = QFrame()
@@ -701,14 +709,10 @@ class VentanaAmbos(QMainWindow):
         self._monitor.esp32_led_verde.connect(lambda: set_led(self._led_esp32, LED_VERDE))
         self._monitor.esp32_led_amarillo.connect(lambda: set_led(self._led_esp32, LED_AMARILLO))
         self._monitor.esp32_led_rojo.connect(lambda: set_led(self._led_esp32, LED_ROJO))
-        self._temp.trigger.connect(lambda t: self._lbl_temp_live.setText(f"{t:.2f}  °C"))
+        self._temp.trigger.connect(lambda _t: self._actualizar_temperatura())
         self._temp.desconectado.connect(self._on_esp32_desconectado)
         self._temp.conectado.connect(self._on_esp32_conectado)
         self._btn_reconectar_esp32.clicked.connect(self._reconectar_esp32)
-
-        # DS18B20 LEDs
-        self._monitor.ds_led_verde.connect(lambda i: set_led(self._leds_ds[i], LED_VERDE))
-        self._monitor.ds_led_rojo.connect(lambda i: set_led(self._leds_ds[i], LED_ROJO))
 
         # Monitor seguridad
         self._monitor.seguridad_activada.connect(self._on_seguridad_activada)
@@ -784,6 +788,7 @@ class VentanaAmbos(QMainWindow):
         if not self._oscil.conectado:
             self._fallos_iniciales.append(("OSCIL_HOST", self._oscil.host))
         self._temp_thread.start()
+        self._timer_temperatura.start()
         self._monitor.iniciar()
 
     def _mostrar_aviso_inicial(self, esp32_ok: bool):
@@ -887,9 +892,29 @@ class VentanaAmbos(QMainWindow):
         self._btn_p_aplicar_oscil.setEnabled(False)
         self._btn_capturar.setEnabled(False)
 
+    def _actualizar_temperatura(self):
+        """
+        La temperatura y el estado de S1–S4 solo se presentan como válidos
+        mientras haya una lectura fresca del ESP32. Sin ella la barra muestra
+        "—" y los sensores quedan en gris: el último valor recibido ya no
+        corresponde a la muestra.
+        """
+        temp, sensores, es_fresco = self._temp.consultar()
+        if not es_fresco:
+            self._lbl_temp_live.setText("—  °C")
+            self._lbl_temp_live.setStyleSheet(_ESTILO_TEMP_SIN_LECTURA)
+            for led in self._leds_ds:
+                set_led(led, LED_GRIS)
+            return
+        self._lbl_temp_live.setText(f"{temp:.2f}  °C")
+        self._lbl_temp_live.setStyleSheet(_ESTILO_TEMP_VIVA)
+        for led, presente in zip(self._leds_ds, sensores):
+            set_led(led, LED_VERDE if presente else LED_ROJO)
+
     @Slot()
     def _on_esp32_desconectado(self):
         set_led(self._led_esp32, LED_ROJO)
+        self._actualizar_temperatura()
         self._btn_reconectar_esp32.setVisible(True)
         self._btn_reconectar_esp32.setEnabled(True)
         self._temp_thread.quit()
@@ -1049,9 +1074,50 @@ class VentanaAmbos(QMainWindow):
     # SLOTS — MEDICIÓN MANUAL
     # ══════════════════════════════════════════════════════════════════════════
 
+    def _confirmar_geometria(self) -> bool:
+        """
+        La geometría se registra en los metadatos al crear la sesión, con la
+        primera medición guardada. Mientras la sesión no exista, si falta
+        algún campo se avisa antes de capturar; tras elegir continuar no se
+        vuelve a preguntar.
+        """
+        if self._sesion_activa or self._geometria_confirmada:
+            return True
+        faltantes = [
+            (nombre, campo) for nombre, campo in (
+                ("Separación hidrófono–haz (mm)", self._edit_hidrofono_mm),
+                ("Volumen vertido (mL)", self._edit_volumen_ml),
+            )
+            if not campo.text().strip()
+        ]
+        if not faltantes:
+            return True
+
+        lista = "\n".join(f"•  {nombre}" for nombre, _ in faltantes)
+        caja = QMessageBox(
+            QMessageBox.Warning, "Geometría incompleta",
+            f"Faltan datos de geometría de la sesión:\n\n{lista}\n\n"
+            "Se registran en los metadatos al guardar la primera medición "
+            "y no se pueden añadir después.",
+            QMessageBox.NoButton, self,
+        )
+        btn_continuar = caja.addButton("Continuar sin ellos", QMessageBox.AcceptRole)
+        btn_llenar = caja.addButton("Cancelar y llenarlos", QMessageBox.RejectRole)
+        caja.setDefaultButton(btn_llenar)
+        caja.exec()
+
+        if caja.clickedButton() is btn_continuar:
+            self._geometria_confirmada = True
+            return True
+        self._tabs.setCurrentIndex(0)
+        faltantes[0][1].setFocus()
+        return False
+
     @Slot()
     def _on_capturar(self):
         if self._captura_thread is not None and self._captura_thread.isRunning():
+            return
+        if not self._confirmar_geometria():
             return
         self._btn_capturar.setEnabled(False)
         self._btn_guardar_manual.setEnabled(False)
@@ -1517,6 +1583,7 @@ class VentanaAmbos(QMainWindow):
         self._timer_inactividad.stop()
         self._timer_estado_laser.stop()
         self._timer_monitor_laser.stop()
+        self._timer_temperatura.stop()
         if self._captura_thread is not None and self._captura_thread.isRunning():
             self._captura_thread.quit()
             self._captura_thread.wait(2000)

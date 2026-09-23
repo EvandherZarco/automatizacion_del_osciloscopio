@@ -103,10 +103,6 @@ class MonitoreoConexion(QObject):
 
     esp32_reconectado = Signal()
 
-    ds_led_verde = Signal(int)  # índice 0-3
-    ds_led_amarillo = Signal(int)
-    ds_led_rojo = Signal(int)
-
     error_flag_activo = Signal(bool)
     seguridad_activada = Signal(str)
 
@@ -190,14 +186,7 @@ class MonitoreoConexion(QObject):
                 self._manejar_desconexion(dev)
 
     def _ping_todos(self) -> dict[str, bool]:
-        _, sensores, es_fresco = self._temp.consultar()
-
-        for i, ok in enumerate(sensores):
-            if es_fresco:
-                if ok:
-                    self.ds_led_verde.emit(i)
-                else:
-                    self.ds_led_rojo.emit(i)
+        _, _, es_fresco = self._temp.consultar()
 
         resultados = {
             "laser": self._laser.conectado,
