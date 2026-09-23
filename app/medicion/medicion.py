@@ -16,7 +16,8 @@ Modo por temperatura:
   Trigger emite iniciar_acumulacion() cuando temp ≤ T_obj + 0.1.
   Trigger emite detener_y_capturar()  cuando temp ≤ T_obj - 0.1.
   Worker controla la ventana de integración del osciloscopio.
-  Cada captura guarda ACQ:MODE, NUMAVG y el ACQ:NUMACQ? del osciloscopio.
+  Cada captura guarda ACQ:MODE, NUMAVG y el ACQ:NUMACQ? del osciloscopio,
+  la temperatura al abrir (RUN) y al cerrar (STOP) la ventana y su duración.
 
 El láser corre continuo toda la secuencia: START en iniciar_secuencia(),
 Modo Seguro al finalizar o abortar. No hay START/STOP por medición.
@@ -25,6 +26,7 @@ Modo Seguro al finalizar o abortar. No hay START/STOP por medición.
 from __future__ import annotations
 from app.osciloscopio.control_osciloscopio import NUMAVG_TIEMPO
 
+import time
 from datetime import datetime
 
 from PySide6.QtCore import QObject, Signal, Slot, QThread, QMetaObject, Qt
@@ -70,6 +72,10 @@ class MedicionWorker(QObject):
         self._realizadas = 0
         self._con_flag = 0
         self._intervalo_excedido: float = 0.0
+        self._t_apertura: float | None = None
+        self._inicio_ventana: float | None = None
+        self._t_cierre: float | None = None
+        self._duracion_ventana: float | None = None
 
     @Slot()
     def detener(self):
@@ -119,15 +125,23 @@ class MedicionWorker(QObject):
         if not self._activo:
             return
         self.captura_iniciando.emit()
+        self._t_apertura = None
+        self._inicio_ventana = None
         if not self._oscil.acq_run():
             self.captura_terminada.emit()
             self.error.emit("Error al iniciar ACQ:STATE RUN en modo temperatura.")
+            return
+        self._inicio_ventana = time.monotonic()
+        self._t_apertura = self._temperatura_fresca()
 
     @Slot()
     def on_detener_y_capturar(self):
         """Modo temperatura: cierra la compuerta y captura."""
         if not self._activo:
             return
+        self._t_cierre = self._temperatura_fresca()
+        if self._inicio_ventana is not None:
+            self._duracion_ventana = time.monotonic() - self._inicio_ventana
         captura = self._oscil.acq_stop_and_capture()
         self.captura_terminada.emit()
         self._procesar_captura(captura)
@@ -163,6 +177,13 @@ class MedicionWorker(QObject):
             error_flag = 1
             temp = float("nan")
             errores.append(f"ESP32 sin respuesta ({TEMP_COM_PORT})")
+        lecturas, repetidos = self._leer_sensores()
+
+        t_apertura, t_cierre, duracion = (
+            self._t_apertura, self._t_cierre, self._duracion_ventana
+        )
+        self._t_apertura = self._inicio_ventana = None
+        self._t_cierre = self._duracion_ventana = None
 
         if self._intervalo_excedido > 0:
             errores.append(
@@ -179,6 +200,11 @@ class MedicionWorker(QObject):
             paquete = PaqueteMedicion(
                 timestamp=datetime.now().strftime("%Y-%m-%dT%H:%M:%S"),
                 temperatura=temp if temp is not None else float("nan"),
+                temps_sensores=lecturas,
+                sensores_repetidos=repetidos,
+                t_apertura=t_apertura,
+                t_cierre=t_cierre,
+                duracion_ventana_s=round(duracion, 3) if duracion is not None else None,
                 modo=self._modo,
                 wfmpre=captura.wfmpre,
                 raw_data=captura.raw_data,
@@ -223,6 +249,19 @@ class MedicionWorker(QObject):
         if self._temp is None:
             return None, [False] * 4, False
         return self._temp.consultar()
+
+    def _temperatura_fresca(self) -> float | None:
+        temp, _, es_fresco = self._leer_temperatura()
+        return temp if es_fresco else None
+
+    def _leer_sensores(self) -> tuple[list | None, list | None]:
+        consultar_sensores = getattr(self._temp, "consultar_sensores", None)
+        if consultar_sensores is None:
+            return None, None
+        lecturas, repetidos, es_fresco = consultar_sensores()
+        if not es_fresco:
+            return None, None
+        return lecturas, repetidos
 
     def _leer_parametros_laser(self) -> dict:
         if self._laser is None:

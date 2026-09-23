@@ -453,8 +453,8 @@ class VentanaAmbos(QMainWindow):
         # Monitoreo
         mon = QHBoxLayout()
         mon.setSpacing(6)
-        self._card_t_actual = self._metric_card("T actual °C", "—")
-        self._card_t_obj    = self._metric_card("T objetivo °C", "—")
+        self._card_t_actual = self._metric_card("T enfriamiento láser °C", "—")
+        self._card_t_obj    = self._metric_card("Set cooling láser °C", "—")
         self._card_pulsos   = self._metric_card("Pulsos", "—")
         mon.addWidget(self._card_t_actual)
         mon.addWidget(self._card_t_obj)
@@ -911,6 +911,8 @@ class VentanaAmbos(QMainWindow):
         self._chip_oscil.setText("Conectado")
         self._chip_oscil.setStyleSheet(
             "background: #1a3a1a; color: #4caf50; border-radius: 4px; padding: 2px 8px; font-size: 11px;")
+        if self._secuencia_running:
+            return
         self._btn_p_aplicar_oscil.setEnabled(True)
         self._btn_capturar.setEnabled(self._canal_sel is not None)
 
@@ -1094,6 +1096,9 @@ class VentanaAmbos(QMainWindow):
 
     @Slot()
     def _on_aplicar_oscil(self):
+        if self._secuencia_running:
+            self._set_log("Parámetros del osciloscopio bloqueados durante la secuencia")
+            return
         self._oscil.set_acq_mode("AVERAGE" if self._adquisicion == "Average" else "SAMPLE")
         if self._adquisicion == "Average":
             self._oscil.set_numavg(self._spin_p_numavg.value())
@@ -1143,6 +1148,9 @@ class VentanaAmbos(QMainWindow):
 
     @Slot()
     def _on_capturar(self):
+        if self._secuencia_running:
+            self._set_log("Captura manual bloqueada durante la secuencia")
+            return
         if self._captura_thread is not None and self._captura_thread.isRunning():
             return
         if not self._confirmar_geometria():
@@ -1171,9 +1179,25 @@ class VentanaAmbos(QMainWindow):
         hasta completar el promedio; cambiar canal o adquisición en ese
         lapso dejaría a la interfaz esperando el fin de la captura.
         """
+        habilitar = habilitar and not self._secuencia_running
         self._btn_p_ch1.setEnabled(habilitar)
         self._btn_p_ch2.setEnabled(habilitar)
         self._btn_p_aplicar_oscil.setEnabled(habilitar and self._oscil.conectado)
+
+    def _habilitar_panel_oscil(self, habilitar: bool):
+        """
+        Durante una secuencia automática el osciloscopio lo configura y lo
+        lee el worker de medición: canal, adquisición, promedios y captura
+        manual quedan bloqueados hasta que la secuencia termina o se aborta.
+        """
+        self._habilitar_ajustes_oscil(habilitar)
+        habilitar = habilitar and not self._secuencia_running
+        self._btn_p_sample.setEnabled(habilitar)
+        self._btn_p_average.setEnabled(habilitar)
+        self._spin_p_numavg.setEnabled(habilitar and self._adquisicion == "Average")
+        self._btn_capturar.setEnabled(
+            habilitar and self._oscil.conectado and self._canal_sel is not None
+        )
 
     @Slot(object, object)
     def _on_captura_terminada(self, captura, escala):
@@ -1181,7 +1205,10 @@ class VentanaAmbos(QMainWindow):
         self._captura_worker = None
         self._habilitar_ajustes_oscil(True)
         self._actualizar_btn_conexion()
-        self._btn_capturar.setEnabled(self._oscil.conectado and self._canal_sel is not None)
+        self._btn_capturar.setEnabled(
+            self._oscil.conectado and self._canal_sel is not None
+            and not self._secuencia_running
+        )
 
         if captura is None:
             QMessageBox.warning(self, "Error de captura",
@@ -1260,6 +1287,9 @@ class VentanaAmbos(QMainWindow):
             self._bloquear_geometria()
 
         temp, _, temp_fresca = self._temp.consultar()
+        lecturas, repetidos, sensores_frescos = self._temp.consultar_sensores()
+        if not sensores_frescos:
+            lecturas, repetidos = None, None
         params = self._laser.leer_parametros()
 
         errores: list[str] = []
@@ -1277,6 +1307,8 @@ class VentanaAmbos(QMainWindow):
         paquete = PaqueteMedicion(
             timestamp   = datetime.now().strftime("%Y-%m-%dT%H:%M:%S"),
             temperatura = temp if temp is not None and temp_fresca else float("nan"),
+            temps_sensores     = lecturas,
+            sensores_repetidos = repetidos,
             modo        = "manual",
             wfmpre      = self._ultima_captura.wfmpre,
             raw_data    = self._ultima_captura.raw_data,
@@ -1352,7 +1384,7 @@ class VentanaAmbos(QMainWindow):
                 QMessageBox.warning(
                     self, "Configuración no realizable",
                     f"Cada captura requiere ~{t_estimado:.1f} s: {NUMAVG_TIEMPO} promedios "
-                    f"a {FREC_DISPARO_HZ:.0f} Hz más la transferencia de "
+                    f"a {FREC_DISPARO_HZ:g} Hz más la transferencia de "
                     f"{self._oscil._nr_pt:,} puntos.\n\n"
                     f"El intervalo configurado es de {intervalo:.1f} s, de modo que "
                     f"las {n_med} mediciones solicitadas no caben en ese tiempo.\n\n"
@@ -1384,6 +1416,7 @@ class VentanaAmbos(QMainWindow):
         self._btn_detener_seq.setEnabled(True)
         self._btn_por_tiempo.setEnabled(False)
         self._btn_por_temp.setEnabled(False)
+        self._habilitar_panel_oscil(False)
         self._lbl_progreso.setText("Secuencia en curso…")
         self._monitor.set_estado(EstadoMonitoreo.ENTRE_MEDICIONES)
 
@@ -1484,6 +1517,7 @@ class VentanaAmbos(QMainWindow):
         self._btn_detener_seq.setEnabled(False)
         self._btn_por_tiempo.setEnabled(True)
         self._btn_por_temp.setEnabled(True)
+        self._habilitar_panel_oscil(True)
         if estado is not None:
             self._lbl_progreso.setText(estado)
         self._monitor.set_estado(EstadoMonitoreo.REPOSO)

@@ -24,6 +24,17 @@ CSV_HEADER = [
     "session_id",
     "medicion_id",
     "temperatura",
+    "t_s1",
+    "t_s2",
+    "t_s3",
+    "t_s4",
+    "s1_repetido",
+    "s2_repetido",
+    "s3_repetido",
+    "s4_repetido",
+    "t_apertura",
+    "t_cierre",
+    "duracion_ventana_s",
     "modo",
     "error_flag",
     "error_desc",
@@ -63,6 +74,10 @@ COLUMNAS_REQUERIDAS = {
 }
 
 
+def _celda(valor) -> object:
+    return "" if valor is None else valor
+
+
 @dataclass
 class PaqueteMedicion:
     timestamp: str
@@ -75,6 +90,11 @@ class PaqueteMedicion:
     output_level: str | None = field(default=None)  # nivel de energía del láser
     eo_delay_us: int | None = field(default=None)  # retardo EO en µs
     burst_mode: str | None = field(default=None)  # modo de disparo del láser
+    temps_sensores: list | None = field(default=None)  # S1–S4 en °C; None si el sensor no está presente
+    sensores_repetidos: list | None = field(default=None)  # S1–S4: valor idéntico al de la trama anterior
+    t_apertura: float | None = field(default=None)  # modo temperatura: °C al abrir la ventana (RUN)
+    t_cierre: float | None = field(default=None)  # modo temperatura: °C al cerrar la ventana (STOP)
+    duracion_ventana_s: float | None = field(default=None)  # modo temperatura: RUN → STOP en s
 
 
 class Almacenamiento(QObject):
@@ -261,7 +281,15 @@ class Almacenamiento(QObject):
             "eo_delay_us": paquete.eo_delay_us if paquete.eo_delay_us is not None else "",
             "burst_mode": paquete.burst_mode if paquete.burst_mode is not None else "",
             "archivo_npy": npy_nombre if npy_ok else "",
+            "t_apertura": _celda(paquete.t_apertura),
+            "t_cierre": _celda(paquete.t_cierre),
+            "duracion_ventana_s": _celda(paquete.duracion_ventana_s),
         })
+        lecturas = paquete.temps_sensores or [None] * 4
+        repetidos = paquete.sensores_repetidos or [None] * 4
+        for i, (t, repetido) in enumerate(zip(lecturas, repetidos), start=1):
+            fila[f"t_s{i}"] = _celda(t)
+            fila[f"s{i}_repetido"] = "" if repetido is None else int(repetido)
 
         csv_ok = True
         try:

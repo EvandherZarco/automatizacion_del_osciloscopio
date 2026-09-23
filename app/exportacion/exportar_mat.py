@@ -21,6 +21,9 @@ from scipy.io import savemat
 CAMPOS_NUMERICOS = (
     "XINCR", "XZERO", "PT_OFF", "YMULT", "YOFF", "YZERO",
     "NR_PT", "CH_SCALE", "HOR_SCALE", "temperatura",
+    "t_s1", "t_s2", "t_s3", "t_s4",
+    "s1_repetido", "s2_repetido", "s3_repetido", "s4_repetido",
+    "t_apertura", "t_cierre", "duracion_ventana_s",
     "numavg", "adquisiciones_promediadas",
     "eo_delay_us",
     "error_flag",

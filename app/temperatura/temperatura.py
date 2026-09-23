@@ -11,7 +11,9 @@ en falla reporta NaN o el artefacto de 85 °C, ambos fuera del rango válido.
 
 Este módulo corre en un QThread separado y mantiene en memoria
 la lectura más reciente. Otros módulos (Trigger, Medición, GUI)
-consultan mediante consultar() sin bloquear el hilo del worker.
+consultan mediante consultar() sin bloquear el hilo del worker;
+consultar_sensores() entrega además la lectura de cada sensor y si
+llegó idéntica a la de la trama anterior.
 
 Comandos aceptados por el ESP32 (enviar con '\\n'):
     PING   →  responde "PONG\\n"
@@ -125,6 +127,9 @@ class TempWorker(QObject):
 
         self._ultima_temp: float | None = None
         self._estado_sensores: list[bool] = [False, False, False, False]
+        self._lecturas: list[float | None] = [None, None, None, None]
+        self._repetidos: list[bool | None] = [None, None, None, None]
+        self._crudos_previos: list[str | None] = [None, None, None, None]
         self._timestamp_lectura: float = 0.0
         self._mutex = QMutex()
 
@@ -152,6 +157,27 @@ class TempWorker(QObject):
 
         es_fresco = temp is not None and (time.monotonic() - ts) < FRESCURA_MAX_S
         return temp, sensores, es_fresco
+
+    def consultar_sensores(self) -> tuple[list[float | None], list[bool | None], bool]:
+        """
+        Devuelve (lecturas, repetidos, es_fresco) de la última trama válida.
+
+        lecturas : temperatura de S1–S4 en °C; None si el sensor no está presente.
+        repetidos: True si el valor del sensor llegó idéntico, carácter por
+                   carácter, al de la trama válida anterior; None si el
+                   sensor no está presente.
+        es_fresco: mismo criterio que consultar().
+
+        Thread-safe — puede llamarse desde cualquier hilo.
+        """
+        with QMutexLocker(self._mutex):
+            temp = self._ultima_temp
+            lecturas = list(self._lecturas)
+            repetidos = list(self._repetidos)
+            ts = self._timestamp_lectura
+
+        es_fresco = temp is not None and (time.monotonic() - ts) < FRESCURA_MAX_S
+        return lecturas, repetidos, es_fresco
 
     def esta_conectado(self) -> bool:
         """
@@ -196,6 +222,7 @@ class TempWorker(QObject):
         """
         self._activo = True
         self._puerto = config_usuario.obtener("TEMP_COM_PORT")
+        self._crudos_previos = [None, None, None, None]
         if not self._abrir_puerto():
             return
 
@@ -224,17 +251,35 @@ class TempWorker(QObject):
                     continue
 
                 temp, sensores = resultado
-
-                with QMutexLocker(self._mutex):
-                    self._ultima_temp = temp
-                    self._estado_sensores = sensores
-                    self._timestamp_lectura = time.monotonic()
-
+                self._registrar(linea, temp, sensores)
                 self.trigger.emit(temp)
         finally:
             self._cerrar_puerto()
 
     # ── Helpers internos ───────────────────────────────────────────────────────
+
+    def _registrar(self, linea: str, temp: float, sensores: list[bool]) -> None:
+        """
+        Guarda una trama válida. Cada sensor se compara con el texto que
+        envió en la trama válida anterior: un valor idéntico se marca como
+        repetido.
+        """
+        crudos = [c.strip() for c in linea.split(",")[1:]]
+        lecturas = [
+            float(c) if presente else None for c, presente in zip(crudos, sensores)
+        ]
+        repetidos = [
+            (c == previo) if presente else None
+            for c, previo, presente in zip(crudos, self._crudos_previos, sensores)
+        ]
+        self._crudos_previos = crudos
+
+        with QMutexLocker(self._mutex):
+            self._ultima_temp = temp
+            self._estado_sensores = sensores
+            self._lecturas = lecturas
+            self._repetidos = repetidos
+            self._timestamp_lectura = time.monotonic()
 
     def _abrir_puerto(self) -> bool:
         try:
@@ -260,12 +305,7 @@ class TempWorker(QObject):
                 continue
 
             temp, sensores = resultado
-
-            with QMutexLocker(self._mutex):
-                self._ultima_temp = temp
-                self._estado_sensores = sensores
-                self._timestamp_lectura = time.monotonic()
-
+            self._registrar(linea, temp, sensores)
             self.conectado.emit(sensores)
 
             ausentes = [i + 1 for i, ok in enumerate(sensores) if not ok]
