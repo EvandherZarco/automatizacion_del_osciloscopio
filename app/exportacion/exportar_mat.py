@@ -20,7 +20,8 @@ from scipy.io import savemat
 
 CAMPOS_NUMERICOS = (
     "XINCR", "XZERO", "PT_OFF", "YMULT", "YOFF", "YZERO",
-    "NR_PT", "CH_SCALE", "HOR_SCALE", "temperatura", "pulsos_estimados",
+    "NR_PT", "CH_SCALE", "HOR_SCALE", "temperatura",
+    "numavg", "adquisiciones_promediadas",
     "eo_delay_us",
     "error_flag",
 )

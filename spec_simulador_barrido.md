@@ -49,10 +49,7 @@ Señales a registrar: `iniciar_acumulacion`, `detener_y_capturar`,
 
 Al final debe imprimir una tabla por punto objetivo con:
 
-| Objetivo | T de apertura | T de cierre | Duración de ventana | Pulsos estimados |
-
-Los pulsos estimados se calculan como `duracion_simulada * 10 Hz`, que es lo que
-el sistema real guardaría en el CSV.
+| Objetivo | T de apertura | T de cierre | Duración de ventana |
 
 ## 3. Casos de prueba
 
@@ -64,7 +61,7 @@ secuencia e informar al final cuántos pasaron.
 
 Aprueba si: se generan siete ventanas, en orden descendente de temperatura,
 ninguna con duración menor a la mitad de la esperada teóricamente, y todas con
-`pulsos_estimados > 0`.
+duración mayor a cero.
 
 ### Caso 2 — Arranque con la muestra ya tibia
 `T0 = 47`, objetivos de 60 a 30 con paso 5.
@@ -123,8 +120,8 @@ Los dobles deben responder a lo que `MedicionWorker` invoca:
   `CH_SCALE` y `HOR_SCALE`, y un `raw_data` sintético
 
 Aprueba si: el CSV resultante tiene una fila por punto objetivo, todas las filas
-traen `pulsos_estimados` mayor a cero, la columna de temperatura desciende
-monótonamente, y el archivo abre correctamente con `Almacenamiento.abrir_sesion`.
+traen `acq_mode` y `numavg` poblados y `adquisiciones_promediadas` mayor a
+cero, la columna de temperatura desciende monótonamente, y el archivo abre correctamente con `Almacenamiento.abrir_sesion`.
 
 ## 5. Requisitos de forma
 

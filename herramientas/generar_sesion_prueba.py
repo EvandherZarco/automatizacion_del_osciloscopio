@@ -34,8 +34,9 @@ HEADER_NUEVO = [
     "timestamp", "session_id", "medicion_id", "temperatura", "modo",
     "error_flag", "error_desc", "XINCR", "XZERO", "PT_OFF", "YMULT",
     "YOFF", "YZERO", "NR_PT", "CH_SCALE", "HOR_SCALE",
+    "acq_mode", "numavg", "adquisiciones_promediadas",
     "output_level", "eo_delay_us", "burst_mode",
-    "pulsos_estimados", "archivo_npy",
+    "archivo_npy",
 ]
 
 HEADER_VIEJO = [
@@ -110,7 +111,6 @@ class EspecCaptura:
     output_level: str = "E Adjust"
     eo_delay_us: int = 3800
     burst_mode: str = "Continuous"
-    pulsos_estimados: int | None = None
 
 
 def _fila(header: list[str], valores: dict) -> list:
@@ -189,9 +189,9 @@ def generar(
                 "output_level": spec.output_level,
                 "eo_delay_us": spec.eo_delay_us,
                 "burst_mode": spec.burst_mode,
-                "pulsos_estimados": (
-                    spec.pulsos_estimados if spec.pulsos_estimados is not None else int(190 + 4 * i)
-                ),
+                "acq_mode": "AVERAGE",
+                "numavg": 100,
+                "adquisiciones_promediadas": 100,
                 "archivo_npy": nombre_npy,
             }
             escritor.writerow(_fila(header, valores))

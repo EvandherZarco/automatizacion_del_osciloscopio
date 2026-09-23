@@ -37,7 +37,6 @@ class Captura:
         self.error_flag = int(fila["error_flag"] or 0)
         self.error_desc = fila.get("error_desc", "")
         self.temperatura = _float(fila.get("temperatura"))
-        self.pulsos = _float(fila.get("pulsos_estimados"))
         self.eo_delay = fila.get("eo_delay_us", "")
         self.output_level = fila.get("output_level", "")
 

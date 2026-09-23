@@ -191,7 +191,6 @@ class ColectorSenales:
         v["temp_cierre"] = temp
         v["duracion_real"] = v["t_real_fin"] - v["t_real_ini"]
         v["duracion_sim"] = v["t_sim_fin"] - v["t_sim_ini"]
-        v["pulsos_estimados"] = v["duracion_sim"] * 10.0
         self.ventanas.append(v)
         self._actual = None
 
@@ -236,7 +235,7 @@ class ColectorSenales:
     def imprimir_tabla(self):
         encabezado = (
             f"{'Objetivo':>10} {'T apertura':>12} {'T cierre':>10} "
-            f"{'Dur. ventana (s sim)':>22} {'Pulsos est.':>12}"
+            f"{'Dur. ventana (s sim)':>22}"
         )
         print(encabezado)
         print("-" * len(encabezado))
@@ -248,7 +247,7 @@ class ColectorSenales:
             ta = f"{v['temp_apertura']:.2f}" if v["temp_apertura"] is not None else "?"
             tc = f"{v['temp_cierre']:.2f}" if v["temp_cierre"] is not None else "?"
             print(
-                f"{obj:>10} {ta:>12} {tc:>10} {v['duracion_sim']:>22.1f} {v['pulsos_estimados']:>12.1f}"
+                f"{obj:>10} {ta:>12} {tc:>10} {v['duracion_sim']:>22.1f}"
             )
 
 
@@ -299,6 +298,9 @@ class DobleOsciloscopio:
             "NR_PT": self._nr_pt,
             "CH_SCALE": 0.05,
             "HOR_SCALE": 1e-5,
+            "acq_mode": "AVERAGE",
+            "numavg": 10000,
+            "adquisiciones_promediadas": 50,
         }
         raw = (np.random.randn(self._nr_pt) * 100).astype(np.int16)
         return CapturaOscil(
@@ -307,6 +309,9 @@ class DobleOsciloscopio:
 
     def cancelar_espera(self) -> None:
         pass
+
+    def reanudar_adquisicion(self) -> bool:
+        return True
 
 
 class DobleMonitor:
@@ -353,7 +358,7 @@ def caso_1_barrido_nominal() -> ResultadoCaso:
         colector.ventanas[i]["objetivo"] > colector.ventanas[i + 1]["objetivo"]
         for i in range(n - 1)
     )
-    pulsos_ok = n > 0 and all(v["pulsos_estimados"] > 0 for v in colector.ventanas)
+    abiertas_ok = n > 0 and all(v["duracion_sim"] > 0 for v in colector.ventanas)
 
     duraciones_ok = True
     notas = []
@@ -366,8 +371,8 @@ def caso_1_barrido_nominal() -> ResultadoCaso:
                 f"< mitad de la esperada {esperado:.1f} s sim"
             )
 
-    aprobado = n == 7 and orden_ok and duraciones_ok and pulsos_ok
-    detalle = f"ventanas={n} orden_descendente={orden_ok} duraciones_ok={duraciones_ok} pulsos_ok={pulsos_ok}"
+    aprobado = n == 7 and orden_ok and duraciones_ok and abiertas_ok
+    detalle = f"ventanas={n} orden_descendente={orden_ok} duraciones_ok={duraciones_ok} abiertas_ok={abiertas_ok}"
     if notas:
         detalle += "; " + "; ".join(notas)
     return ResultadoCaso("Caso 1 — Barrido nominal", aprobado, detalle)
@@ -814,7 +819,10 @@ def nivel_dos_cadena_completa() -> ResultadoCaso:
             )
 
         n_filas = len(filas)
-        pulsos_ok = all(float(f["pulsos_estimados"] or 0) > 0 for f in filas)
+        adquisicion_ok = all(
+            f["acq_mode"] and f["numavg"] and int(f["adquisiciones_promediadas"] or 0) > 0
+            for f in filas
+        )
         temps = [float(f["temperatura"]) for f in filas]
         monotona_ok = all(temps[i] > temps[i + 1] for i in range(len(temps) - 1))
 
@@ -822,12 +830,12 @@ def nivel_dos_cadena_completa() -> ResultadoCaso:
         abre_ok = store2.abrir_sesion(store.csv_path)
 
         print(
-            f"  filas CSV: {n_filas}, pulsos_ok={pulsos_ok}, "
+            f"  filas CSV: {n_filas}, adquisicion_ok={adquisicion_ok}, "
             f"temp_monotona={monotona_ok}, abrir_sesion_ok={abre_ok}"
         )
 
-        aprobado = n_filas == 7 and pulsos_ok and monotona_ok and abre_ok
-        detalle = f"filas={n_filas} pulsos_ok={pulsos_ok} monotona_ok={monotona_ok} abre_ok={abre_ok}"
+        aprobado = n_filas == 7 and adquisicion_ok and monotona_ok and abre_ok
+        detalle = f"filas={n_filas} adquisicion_ok={adquisicion_ok} monotona_ok={monotona_ok} abre_ok={abre_ok}"
         return ResultadoCaso("Nivel 2 — Cadena completa", aprobado, detalle)
 
 

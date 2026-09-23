@@ -36,10 +36,12 @@ CSV_HEADER = [
     "NR_PT",
     "CH_SCALE",
     "HOR_SCALE",
+    "acq_mode",
+    "numavg",
+    "adquisiciones_promediadas",
     "output_level",
     "eo_delay_us",
     "burst_mode",
-    "pulsos_estimados",
     "archivo_npy",
 ]
 
@@ -66,11 +68,10 @@ class PaqueteMedicion:
     timestamp: str
     temperatura: float
     modo: str  # "manual" | "tiempo" | "temperatura"
-    wfmpre: dict  # XINCR, XZERO, PT_OFF, YMULT, YOFF, YZERO, NR_PT
+    wfmpre: dict  # XINCR, XZERO, PT_OFF, YMULT, YOFF, YZERO, NR_PT, acq_mode, numavg, adquisiciones_promediadas
     raw_data: np.ndarray
     error_flag: int  # 0 = limpio, 1 = medición con advertencia
     error_desc: str = field(default="")  # descripción legible del error
-    pulsos_estimados: int | None = field(default=None)  # solo modo temperatura
     output_level: str | None = field(default=None)  # nivel de energía del láser
     eo_delay_us: int | None = field(default=None)  # retardo EO en µs
     burst_mode: str | None = field(default=None)  # modo de disparo del láser
@@ -88,6 +89,7 @@ class Almacenamiento(QObject):
         self._session_id: str | None = None
         self._sesion_dir: Path | None = None
         self._csv_path: Path | None = None
+        self._header: list[str] = CSV_HEADER
         self._medicion_idx: int = 0
 
     @property
@@ -130,6 +132,7 @@ class Almacenamiento(QObject):
         self._session_id = sid
         self._sesion_dir = sesion_dir
         self._csv_path = csv_path
+        self._header = CSV_HEADER
         self._medicion_idx = 0
         self._escribir_metadatos(metadatos or {})
         self.sesion_lista.emit(sid)
@@ -212,11 +215,13 @@ class Almacenamiento(QObject):
         sid = csv_path.stem
 
         with open(csv_path, "r", encoding="utf-8") as f:
-            n_filas = sum(1 for _ in f) - 1
+            header = next(csv.reader(f))
+            n_filas = sum(1 for _ in f)
 
         self._session_id = sid
         self._sesion_dir = sesion_dir
         self._csv_path = csv_path
+        self._header = header
         self._medicion_idx = max(n_filas, 0)
         self.sesion_lista.emit(sid)
         return True
@@ -243,35 +248,27 @@ class Almacenamiento(QObject):
             logger.error("guardar .npy [%s]: %s", medicion_id, e)
             self.guardado_err.emit(f"Error al guardar .npy ({medicion_id}): {e}")
 
-        w = paquete.wfmpre
-        fila = [
-            paquete.timestamp,
-            self._session_id,
-            medicion_id,
-            paquete.temperatura,
-            paquete.modo,
-            paquete.error_flag,
-            paquete.error_desc,
-            w.get("XINCR", ""),
-            w.get("XZERO", ""),
-            w.get("PT_OFF", ""),
-            w.get("YMULT", ""),
-            w.get("YOFF", ""),
-            w.get("YZERO", ""),
-            w.get("NR_PT", ""),
-            w.get("CH_SCALE", ""),
-            w.get("HOR_SCALE", ""),
-            paquete.output_level if paquete.output_level is not None else "",
-            paquete.eo_delay_us if paquete.eo_delay_us is not None else "",
-            paquete.burst_mode if paquete.burst_mode is not None else "",
-            paquete.pulsos_estimados if paquete.pulsos_estimados is not None else "",
-            npy_nombre if npy_ok else "",
-        ]
+        fila = dict(paquete.wfmpre)
+        fila.update({
+            "timestamp": paquete.timestamp,
+            "session_id": self._session_id,
+            "medicion_id": medicion_id,
+            "temperatura": paquete.temperatura,
+            "modo": paquete.modo,
+            "error_flag": paquete.error_flag,
+            "error_desc": paquete.error_desc,
+            "output_level": paquete.output_level if paquete.output_level is not None else "",
+            "eo_delay_us": paquete.eo_delay_us if paquete.eo_delay_us is not None else "",
+            "burst_mode": paquete.burst_mode if paquete.burst_mode is not None else "",
+            "archivo_npy": npy_nombre if npy_ok else "",
+        })
 
         csv_ok = True
         try:
             with open(self._csv_path, "a", newline="", encoding="utf-8") as f:
-                csv.writer(f).writerow(fila)
+                csv.DictWriter(
+                    f, fieldnames=self._header, restval="", extrasaction="ignore"
+                ).writerow(fila)
         except OSError as e:
             csv_ok = False
             logger.error("guardar CSV [%s]: %s", medicion_id, e)

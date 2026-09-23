@@ -16,7 +16,7 @@ Modo por temperatura:
   Trigger emite iniciar_acumulacion() cuando temp ≤ T_obj + 0.1.
   Trigger emite detener_y_capturar()  cuando temp ≤ T_obj - 0.1.
   Worker controla la ventana de integración del osciloscopio.
-  pulsos_estimados = (t_fin - t_inicio) × LASER_HZ se guarda en CSV.
+  Cada captura guarda ACQ:MODE, NUMAVG y el ACQ:NUMACQ? del osciloscopio.
 
 El láser corre continuo toda la secuencia: START en iniciar_secuencia(),
 Modo Seguro al finalizar o abortar. No hay START/STOP por medición.
@@ -25,7 +25,6 @@ Modo Seguro al finalizar o abortar. No hay START/STOP por medición.
 from __future__ import annotations
 from app.osciloscopio.control_osciloscopio import NUMAVG_TIEMPO
 
-import time
 from datetime import datetime
 
 from PySide6.QtCore import QObject, Signal, Slot, QThread, QMetaObject, Qt
@@ -33,8 +32,6 @@ from PySide6.QtCore import QObject, Signal, Slot, QThread, QMetaObject, Qt
 from app.almacenamiento.almacenamiento import Almacenamiento, PaqueteMedicion
 from app.config import TEMP_COM_PORT
 from app.medicion.trigger import TriggerWorker
-
-LASER_HZ = 10.0
 
 
 class MedicionWorker(QObject):
@@ -72,7 +69,6 @@ class MedicionWorker(QObject):
         self._activo = False
         self._realizadas = 0
         self._con_flag = 0
-        self._t_inicio_acum: float | None = None
         self._intervalo_excedido: float = 0.0
 
     @Slot()
@@ -115,7 +111,7 @@ class MedicionWorker(QObject):
         self.captura_iniciando.emit()
         captura = self._oscil.capturar_modo_tiempo()
         self.captura_terminada.emit()
-        self._procesar_captura(captura, pulsos_estimados=None)
+        self._procesar_captura(captura)
 
     @Slot()
     def on_iniciar_acumulacion(self):
@@ -123,10 +119,7 @@ class MedicionWorker(QObject):
         if not self._activo:
             return
         self.captura_iniciando.emit()
-        ok = self._oscil.acq_run()
-        if ok:
-            self._t_inicio_acum = time.monotonic()
-        else:
+        if not self._oscil.acq_run():
             self.captura_terminada.emit()
             self.error.emit("Error al iniciar ACQ:STATE RUN en modo temperatura.")
 
@@ -135,15 +128,9 @@ class MedicionWorker(QObject):
         """Modo temperatura: cierra la compuerta y captura."""
         if not self._activo:
             return
-
-        t_fin = time.monotonic()
-        t_inicio = self._t_inicio_acum if self._t_inicio_acum is not None else t_fin
-        pulsos = int((t_fin - t_inicio) * LASER_HZ)
-        self._t_inicio_acum = None
-
         captura = self._oscil.acq_stop_and_capture()
         self.captura_terminada.emit()
-        self._procesar_captura(captura, pulsos_estimados=pulsos)
+        self._procesar_captura(captura)
 
     @Slot(float)
     def on_intervalo_excedido(self, exceso_s: float):
@@ -159,7 +146,7 @@ class MedicionWorker(QObject):
 
     # ── Procesamiento de captura ──────────────────────────────────────────────
 
-    def _procesar_captura(self, captura, pulsos_estimados: int | None):
+    def _procesar_captura(self, captura):
         error_flag = 0
         errores: list[str] = []
 
@@ -167,6 +154,9 @@ class MedicionWorker(QObject):
             error_flag = 1
             errores.append("captura fallida")
             self.error.emit("Captura fallida — se registra con error_flag=1.")
+        elif captura.error_flag:
+            error_flag = 1
+            errores.append(captura.error_desc or "captura con advertencia")
 
         temp, _, es_fresco = self._leer_temperatura()
         if not es_fresco:
@@ -194,7 +184,6 @@ class MedicionWorker(QObject):
                 raw_data=captura.raw_data,
                 error_flag=error_flag,
                 error_desc=error_desc,
-                pulsos_estimados=pulsos_estimados,
                 output_level=params.get("output_level"),
                 eo_delay_us=params.get("eo_delay_us"),
                 burst_mode=params.get("burst_mode"),
@@ -212,12 +201,14 @@ class MedicionWorker(QObject):
     def _finalizar(self):
         self._activo = False
         self._safe.activar()
+        self._oscil.reanudar_adquisicion()
         self.secuencia_terminada.emit(self._realizadas, self._con_flag)
 
     def _abortar(self, msg: str):
         self._activo = False
         self.error.emit(msg)
         self._safe.activar()
+        self._oscil.reanudar_adquisicion()
         self.secuencia_abortada.emit(msg)
 
     # ── Helpers ───────────────────────────────────────────────────────────────

@@ -418,6 +418,7 @@ class VentanaOsciloscopio(QMainWindow):
             return
         self._btn_capturar.setEnabled(False)
         self._btn_guardar.setEnabled(False)
+        self._habilitar_ajustes(False)
 
         worker = _CapturaWorker(self._oscil)
         thread = QThread(self)
@@ -433,10 +434,21 @@ class VentanaOsciloscopio(QMainWindow):
         actualizar_boton_conexion(
             self._btn_conexion, MOTIVO_CAPTURA, "Dirección IP del osciloscopio")
 
+    def _habilitar_ajustes(self, habilitar: bool):
+        """
+        Durante una captura el controlador retiene el osciloscopio hasta
+        completar el promedio; cambiar canal o adquisición en ese lapso
+        dejaría a la interfaz esperando el fin de la captura.
+        """
+        self._btn_ch1.setEnabled(habilitar)
+        self._btn_ch2.setEnabled(habilitar)
+        self._btn_aplicar.setEnabled(habilitar and self._oscil.conectado)
+
     @Slot(object, object)
     def _on_captura_terminada(self, captura, escala):
         self._captura_thread = None
         self._captura_worker = None
+        self._habilitar_ajustes(True)
         actualizar_boton_conexion(self._btn_conexion, None, "Dirección IP del osciloscopio")
         self._btn_capturar.setEnabled(self._oscil.conectado and self._canal_sel is not None)
 
@@ -496,6 +508,7 @@ class VentanaOsciloscopio(QMainWindow):
             wfmpre      = self._ultima_captura.wfmpre,
             raw_data    = self._ultima_captura.raw_data,
             error_flag  = self._ultima_captura.error_flag,
+            error_desc  = self._ultima_captura.error_desc,
         )
         mid = self._store.guardar(paquete)
         if mid:
@@ -522,6 +535,7 @@ class VentanaOsciloscopio(QMainWindow):
             return
         self._cerrado = True
         if self._captura_thread is not None and self._captura_thread.isRunning():
+            self._oscil.cancelar_espera()
             self._captura_thread.quit()
             self._captura_thread.wait(2000)
         if self._oscil.conectado:

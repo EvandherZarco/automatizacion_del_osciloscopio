@@ -1149,6 +1149,7 @@ class VentanaAmbos(QMainWindow):
             return
         self._btn_capturar.setEnabled(False)
         self._btn_guardar_manual.setEnabled(False)
+        self._habilitar_ajustes_oscil(False)
         self._reiniciar_timer_inactividad()
 
         worker = _CapturaWorker(self._oscil)
@@ -1164,10 +1165,21 @@ class VentanaAmbos(QMainWindow):
         thread.start()
         self._actualizar_btn_conexion()
 
+    def _habilitar_ajustes_oscil(self, habilitar: bool):
+        """
+        Durante una captura manual el controlador retiene el osciloscopio
+        hasta completar el promedio; cambiar canal o adquisición en ese
+        lapso dejaría a la interfaz esperando el fin de la captura.
+        """
+        self._btn_p_ch1.setEnabled(habilitar)
+        self._btn_p_ch2.setEnabled(habilitar)
+        self._btn_p_aplicar_oscil.setEnabled(habilitar and self._oscil.conectado)
+
     @Slot(object, object)
     def _on_captura_terminada(self, captura, escala):
         self._captura_thread = None
         self._captura_worker = None
+        self._habilitar_ajustes_oscil(True)
         self._actualizar_btn_conexion()
         self._btn_capturar.setEnabled(self._oscil.conectado and self._canal_sel is not None)
 
@@ -1260,7 +1272,7 @@ class VentanaAmbos(QMainWindow):
         if not temp_fresca:
             errores.append(f"ESP32 sin respuesta ({self._temp.puerto})")
         if self._ultima_captura.error_flag:
-            errores.append("captura con advertencia")
+            errores.append(self._ultima_captura.error_desc or "captura con advertencia")
 
         paquete = PaqueteMedicion(
             timestamp   = datetime.now().strftime("%Y-%m-%dT%H:%M:%S"),
@@ -1486,6 +1498,7 @@ class VentanaAmbos(QMainWindow):
     def _on_stop_emergencia(self):
         self._timer_inactividad.stop()
         if self._captura_thread is not None and self._captura_thread.isRunning():
+            self._oscil.cancelar_espera()
             self._captura_thread.quit()
             self._captura_thread.wait(2000)
             self._captura_thread = None
@@ -1614,6 +1627,7 @@ class VentanaAmbos(QMainWindow):
         self._timer_monitor_laser.stop()
         self._timer_temperatura.stop()
         if self._captura_thread is not None and self._captura_thread.isRunning():
+            self._oscil.cancelar_espera()
             self._captura_thread.quit()
             self._captura_thread.wait(2000)
         self._medicion.detener()
