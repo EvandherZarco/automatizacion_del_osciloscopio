@@ -574,11 +574,9 @@ class VentanaLaser(QMainWindow):
 
     def _actualizar_monitoreo(self):
         t = self._laser.read_cooling_temp()
-        if t is not None:
-            self._card_t_actual._lbl_valor.setText(f"{t:.1f}")
+        self._card_t_actual._lbl_valor.setText(f"{t:.1f}" if t is not None else "—")
         p = self._laser.read_pulse_counter()
-        if p is not None:
-            self._card_pulsos._lbl_valor.setText(f"{p:,}")
+        self._card_pulsos._lbl_valor.setText(f"{p:,}" if p is not None else "—")
         self._card_t_obj._lbl_valor.setText(f"{self._spin_cooling.value():.1f}")
 
     def _set_log(self, texto: str):

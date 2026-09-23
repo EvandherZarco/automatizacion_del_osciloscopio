@@ -57,6 +57,8 @@ TEMPERATURA_UI_MS      = 1_000
 _ESTILO_TEMP_VIVA = "font-size: 15px; font-weight: bold; color: #00bfff;"
 _ESTILO_TEMP_SIN_LECTURA = "font-size: 15px; font-weight: bold; color: #666;"
 
+_GEOMETRIA_VACIA = "no registrado"
+
 _EVENTOS_ACTIVIDAD = (
     QEvent.Type.MouseButtonPress,
     QEvent.Type.KeyPress,
@@ -285,8 +287,11 @@ class VentanaAmbos(QMainWindow):
 
     def _panel_geometria(self) -> QGroupBox:
         g = QGroupBox()
-        lay = QHBoxLayout(g)
+        v = QVBoxLayout(g)
+        v.setSpacing(8)
+        lay = QHBoxLayout()
         lay.setSpacing(12)
+        v.addLayout(lay)
 
         hdr = QLabel("📐  Geometría de la sesión")
         hdr.setStyleSheet("font-weight: bold; font-size: 14px;")
@@ -307,7 +312,32 @@ class VentanaAmbos(QMainWindow):
         lay.addLayout(col_volumen, 1)
 
         lay.addStretch(2)
+
+        self._lbl_geometria_bloqueada = QLabel(
+            "🔒  Geometría fija para esta sesión. "
+            "Para cambiarla: Inicio → Láser + Osciloscopio."
+        )
+        self._lbl_geometria_bloqueada.setWordWrap(True)
+        self._lbl_geometria_bloqueada.setStyleSheet(
+            "color: #ffc800; font-size: 12px; font-weight: bold;"
+        )
+        self._lbl_geometria_bloqueada.setVisible(False)
+        v.addWidget(self._lbl_geometria_bloqueada)
         return g
+
+    def _bloquear_geometria(self):
+        """
+        Al crear la sesión la geometría queda escrita en sus metadatos y no se
+        vuelve a leer: los campos dejan de ser editables para que un cambio
+        posterior no parezca registrado.
+        """
+        detalle = f"Registrada en los metadatos de la sesión {self._store.session_id}."
+        for campo in (self._edit_hidrofono_mm, self._edit_volumen_ml):
+            campo.setEnabled(False)
+            campo.setPlaceholderText(_GEOMETRIA_VACIA)
+            campo.setToolTip(detalle)
+        self._lbl_geometria_bloqueada.setToolTip(detalle)
+        self._lbl_geometria_bloqueada.setVisible(True)
 
     def _panel_laser_params(self) -> QGroupBox:
         g = QGroupBox()
@@ -1036,11 +1066,9 @@ class VentanaAmbos(QMainWindow):
 
     def _actualizar_monitoreo_laser(self):
         t = self._laser.read_cooling_temp()
-        if t is not None:
-            self._card_t_actual._lbl_valor.setText(f"{t:.1f}")
+        self._card_t_actual._lbl_valor.setText(f"{t:.1f}" if t is not None else "—")
         p = self._laser.read_pulse_counter()
-        if p is not None:
-            self._card_pulsos._lbl_valor.setText(f"{p:,}")
+        self._card_pulsos._lbl_valor.setText(f"{p:,}" if p is not None else "—")
         self._card_t_obj._lbl_valor.setText(f"{self._spin_p_cooling.value():.1f}")
 
     # ══════════════════════════════════════════════════════════════════════════
@@ -1198,8 +1226,8 @@ class VentanaAmbos(QMainWindow):
             "laser_output_level": params.get("output_level"),
             "laser_eo_delay_us": params.get("eo_delay_us"),
             "laser_burst_mode": params.get("burst_mode"),
-            "separacion_hidrofono_haz_mm": self._edit_hidrofono_mm.text().strip(),
-            "volumen_vertido_ml": self._edit_volumen_ml.text().strip(),
+            "separacion_hidrofono_haz_mm": self._edit_hidrofono_mm.text().strip() or _GEOMETRIA_VACIA,
+            "volumen_vertido_ml": self._edit_volumen_ml.text().strip() or _GEOMETRIA_VACIA,
         }
 
     @Slot()
@@ -1217,6 +1245,7 @@ class VentanaAmbos(QMainWindow):
             ):
                 QMessageBox.critical(self, "Error", "No se pudo crear la sesión.")
                 return
+            self._bloquear_geometria()
 
         temp, _, temp_fresca = self._temp.consultar()
         params = self._laser.leer_parametros()

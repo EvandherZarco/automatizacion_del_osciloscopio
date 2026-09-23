@@ -146,6 +146,10 @@ QSpinBox:disabled, QDoubleSpinBox:disabled {
     border-color: #333;
 }
 
+QLineEdit:disabled {
+    color: #666;
+}
+
 QSpinBox::up-button, QSpinBox::down-button,
 QDoubleSpinBox::up-button, QDoubleSpinBox::down-button {
     background-color: #333;
