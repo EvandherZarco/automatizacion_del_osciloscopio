@@ -164,6 +164,7 @@ class ColectorSenales:
         self.advertencias: list[str] = []
         self._actual: dict | None = None
         self.terminada = False
+        self.motivo_aborto = ""
 
         tw.iniciar_acumulacion.connect(self._on_iniciar)
         tw.detener_y_capturar.connect(self._on_detener)
@@ -228,8 +229,9 @@ class ColectorSenales:
                 if self._pendientes:
                     self._pendientes.popleft()
 
-    def _on_terminada(self):
+    def _on_terminada(self, motivo_aborto: str):
         self.terminada = True
+        self.motivo_aborto = motivo_aborto
 
     def imprimir_tabla(self):
         encabezado = (
@@ -522,10 +524,12 @@ def caso_5_desconexion_permanente() -> ResultadoCaso:
     for a in colector.advertencias:
         print(f"  [advertencia] {a}")
 
-    fin_emitida = any("Se termina la secuencia" in a for a in colector.advertencias)
-    aprobado = fin_emitida and colector.terminada and duracion_real < 30.0
+    abortada = "Secuencia abortada" in colector.motivo_aborto
+    fin_emitida = any("Secuencia abortada" in a for a in colector.advertencias)
+    aprobado = abortada and fin_emitida and colector.terminada and duracion_real < 30.0
     detalle = (
-        f"advertencia_fin_emitida={fin_emitida} secuencia_terminada={colector.terminada} "
+        f"abortada={abortada} advertencia_fin_emitida={fin_emitida} "
+        f"secuencia_terminada={colector.terminada} "
         f"duracion_real={duracion_real:.1f}s"
     )
     return ResultadoCaso("Caso 5 — Desconexión permanente", aprobado, detalle)

@@ -515,9 +515,9 @@ class VentanaAmbos(QMainWindow):
         self._plot_manual = pg.PlotWidget(background="#0d1117")
         self._plot_manual.setMaximumHeight(180)
         self._plot_manual.showGrid(x=True, y=True, alpha=0.12)
-        self._plot_manual.setLabel("bottom", "Tiempo", units="µs",
+        self._plot_manual.setLabel("bottom", "Tiempo", units="s",
                                    **{"color": "#333", "font-size": "9px"})
-        self._plot_manual.setLabel("left", "Voltaje", units="mV",
+        self._plot_manual.setLabel("left", "Voltaje", units="V",
                                    **{"color": "#333", "font-size": "9px"})
         self._curva_manual = self._plot_manual.plot(pen=pg.mkPen("#00bfff", width=1.5))
         self._lbl_canal_m  = pg.TextItem("", anchor=(0, 0), color="#00bfff")
@@ -1094,21 +1094,21 @@ class VentanaAmbos(QMainWindow):
         self._ultima_captura = captura
         self._btn_guardar_manual.setEnabled(True)
 
-        t_us = t[mask] * 1e6
-        v_mv = v[mask] * 1e3
-        self._curva_manual.setData(t_us, v_mv)
+        t_s = t[mask]
+        v_v = v[mask]
+        self._curva_manual.setData(t_s, v_v)
 
         if escala is not None:
-            vdiv_mv = escala["vdiv_v"] * 1e3
-            tdiv_us = escala["tdiv_s"] * 1e6
-            t_mid = (t_us[0] + t_us[-1]) / 2
-            y_mid = captura.wfmpre["YZERO"] * 1e3
-            self._plot_manual.setXRange(t_mid - 5 * tdiv_us, t_mid + 5 * tdiv_us, padding=0)
-            self._plot_manual.setYRange(y_mid - 4 * vdiv_mv, y_mid + 4 * vdiv_mv, padding=0)
+            vdiv = escala["vdiv_v"]
+            tdiv = escala["tdiv_s"]
+            t_mid = (t_s[0] + t_s[-1]) / 2
+            y_mid = captura.wfmpre["YZERO"]
+            self._plot_manual.setXRange(t_mid - 5 * tdiv, t_mid + 5 * tdiv, padding=0)
+            self._plot_manual.setYRange(y_mid - 4 * vdiv, y_mid + 4 * vdiv, padding=0)
         else:
-            self._plot_manual.setXRange(float(t_us[0]), float(t_us[-1]), padding=0.05)
-            v_min, v_max = float(v_mv.min()), float(v_mv.max())
-            margen = max((v_max - v_min) * 0.1, 1e-6)
+            self._plot_manual.setXRange(float(t_s[0]), float(t_s[-1]), padding=0.05)
+            v_min, v_max = float(v_v.min()), float(v_v.max())
+            margen = max((v_max - v_min) * 0.1, 1e-9)
             self._plot_manual.setYRange(v_min - margen, v_max + margen, padding=0)
 
         vr = self._plot_manual.viewRange()

@@ -27,7 +27,7 @@ Modo por temperatura:
   rango más ancho que el nominal, y se avisa al cerrar.
 
   La ausencia sostenida de lecturas frescas emite advertencia y, si se
-  prolonga, termina la secuencia en lugar de esperar indefinidamente.
+  prolonga, aborta la secuencia en lugar de esperar indefinidamente.
 
 Toda la lógica corre en su propio QThread (iniciar() es el loop bloqueante).
 Las señales hacia MedicionWorker son conexiones en cola (queued) automáticamente
@@ -46,7 +46,7 @@ POLL_TEMP_S = 0.5  # intervalo de sondeo de temperatura en modo por temperatura
 VENTANA_MEDIANA = 3  # lecturas usadas por el filtro de mediana móvil
 CONFIRMACIONES_UMBRAL = 2  # lecturas consecutivas que validan un cruce
 TIMEOUT_ADVERTENCIA_S = 30.0  # sin lectura fresca: se avisa
-TIMEOUT_ABORTO_S = 300.0  # sin lectura fresca: se termina la secuencia
+TIMEOUT_ABORTO_S = 300.0  # sin lectura fresca: se aborta la secuencia
 MARGEN_UMBRAL = 0.1  # semiancho de la banda alrededor del objetivo
 
 
@@ -55,7 +55,7 @@ class TriggerWorker(QObject):
     medir_ahora = Signal()  # modo tiempo: dispara una medición completa
     iniciar_acumulacion = Signal()  # modo temperatura: ACQ:STATE RUN
     detener_y_capturar = Signal()  # modo temperatura: ACQ:STATE STOP + CURVE?
-    secuencia_terminada = Signal()  # fin normal o detenida externamente
+    secuencia_terminada = Signal(str)  # motivo de aborto; vacío si fue fin normal o detención externa
     intervalo_excedido = Signal(float)  # segundos que la captura excedió el intervalo
     advertencia = Signal(str)  # incidencias no fatales durante la secuencia
     barrido_iniciado = Signal(float, float, float)  # modo temperatura: (t_inicial, t_final, paso) en uso
@@ -90,6 +90,7 @@ class TriggerWorker(QObject):
         self._temp_worker = temp_worker
         self._activo = False
         self._capturando = False
+        self._motivo_aborto = ""
         self._buffer_temp: deque[float] = deque(maxlen=VENTANA_MEDIANA)
 
     @Slot()
@@ -115,6 +116,7 @@ class TriggerWorker(QObject):
         o directamente desde el QThread si se prefiere.
         """
         self._activo = True
+        self._motivo_aborto = ""
         self._buffer_temp.clear()
 
         if self._modo == "tiempo":
@@ -122,7 +124,7 @@ class TriggerWorker(QObject):
         else:
             self._loop_temperatura()
 
-        self.secuencia_terminada.emit()
+        self.secuencia_terminada.emit(self._motivo_aborto)
 
     # ── Modo por tiempo ────────────────────────────────────────────────────────
 
@@ -307,10 +309,11 @@ class TriggerWorker(QObject):
             if temp is None:
                 silencio = ahora - ultimo_dato
                 if silencio > TIMEOUT_ABORTO_S:
-                    self.advertencia.emit(
+                    self._motivo_aborto = (
                         f"Sin lectura de temperatura durante {silencio:.0f} s. "
-                        "Se termina la secuencia."
+                        "Secuencia abortada."
                     )
+                    self.advertencia.emit(self._motivo_aborto)
                     self._activo = False
                     return False
                 if silencio > TIMEOUT_ADVERTENCIA_S and not advertido:

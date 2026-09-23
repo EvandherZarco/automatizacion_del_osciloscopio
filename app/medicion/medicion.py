@@ -149,10 +149,13 @@ class MedicionWorker(QObject):
     def on_intervalo_excedido(self, exceso_s: float):
         self._intervalo_excedido = exceso_s
 
-    @Slot()
-    def on_secuencia_terminada(self):
-        """El Trigger señaliza que terminó su loop."""
-        self._finalizar()
+    @Slot(str)
+    def on_secuencia_terminada(self, motivo_aborto: str):
+        """El Trigger señaliza que terminó su loop, con motivo si lo abortó."""
+        if motivo_aborto:
+            self._abortar(motivo_aborto)
+        else:
+            self._finalizar()
 
     # ── Procesamiento de captura ──────────────────────────────────────────────
 
