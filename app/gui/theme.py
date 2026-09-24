@@ -104,6 +104,12 @@ QPushButton[activo_amber="true"] {
     color: #ff9800;
 }
 
+QGroupBox#panel_oscil QPushButton[activo="true"]:disabled {
+    background-color: #222;
+    border-color: #2c4a57;
+    color: #4d6b77;
+}
+
 QPushButton[peligro="true"] {
     background-color: #2a1a1a;
     border-color: #f44336;

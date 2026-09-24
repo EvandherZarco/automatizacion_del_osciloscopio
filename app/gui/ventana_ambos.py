@@ -471,6 +471,7 @@ class VentanaAmbos(QMainWindow):
 
     def _panel_oscil_params(self) -> QGroupBox:
         g = QGroupBox()
+        g.setObjectName("panel_oscil")
         lay = QVBoxLayout(g)
         lay.setSpacing(8)
 
