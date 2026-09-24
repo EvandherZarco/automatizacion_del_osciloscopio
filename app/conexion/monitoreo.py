@@ -104,7 +104,7 @@ class MonitoreoConexion(QObject):
     esp32_reconectado = Signal()
 
     error_flag_activo = Signal(bool)
-    seguridad_activada = Signal(str)
+    seguridad_activada = Signal(str, dict)
 
     def __init__(
         self,
@@ -260,8 +260,8 @@ class MonitoreoConexion(QObject):
                 "%s no reconectado tras %d intentos.", dispositivo, MAX_REINTENTOS
             )
             if es_critico:
-                self._safe.activar()
-                self.seguridad_activada.emit(dispositivo)
+                resultados = self._safe.activar()
+                self.seguridad_activada.emit(dispositivo, resultados)
 
     def _set_error_flag(self, valor: bool):
         if self._error_flag != valor:

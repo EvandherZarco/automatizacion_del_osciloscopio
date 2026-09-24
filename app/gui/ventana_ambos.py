@@ -35,7 +35,9 @@ from app.osciloscopio.control_osciloscopio import (
 )
 from app.temperatura.temperatura import TempWorker
 from app.almacenamiento.almacenamiento import Almacenamiento, PaqueteMedicion
-from app.modo_seguro.modo_seguro import ModoSeguro
+from app.modo_seguro.modo_seguro import (
+    ModoSeguro, ETIQUETAS_COMANDOS, COMANDOS_DETIENEN_HAZ,
+)
 from app.conexion.monitoreo import MonitoreoConexion, EstadoMonitoreo
 from app.medicion.medicion import Medicion
 from app.gui.visualizacion import VisualizacionWidget
@@ -1618,16 +1620,36 @@ class VentanaAmbos(QMainWindow):
         self._fijar_estado_laser("STOP")
         self._timer_inactividad.stop()
 
-    @Slot(str)
-    def _on_seguridad_activada(self, dispositivo: str):
+    @Slot(str, dict)
+    def _on_seguridad_activada(self, dispositivo: str, resultados: dict):
         if dispositivo == "laser":
             self._fijar_estado_laser(None)
             detalle = f"Láser: sin respuesta en {config_usuario.obtener('LASER_COM_PORT')}."
         else:
             detalle = f"Osciloscopio: sin respuesta en {self._oscil.host}."
+        if not all(resultados.get(cmd) for cmd in COMANDOS_DETIENEN_HAZ):
+            estado = (
+                "No se pudo confirmar que el láser quedó en modo seguro: "
+                "revise el control físico del láser. El haz puede seguir activo."
+            )
+        elif not all(resultados.get(cmd) for cmd in ETIQUETAS_COMANDOS):
+            estado = (
+                "Se enviaron STOP y E OFF, los comandos que detienen el haz, pero "
+                "no se envió un parámetro de configuración. No afecta la emisión: "
+                "ajústelo en el panel del láser antes de volver a encenderlo."
+            )
+        else:
+            estado = "Se enviaron al láser los cuatro comandos de modo seguro."
+        comandos = "\n".join(
+            f"•  {etiqueta}: "
+            f"{'enviado' if resultados.get(cmd) else 'no enviado'}"
+            for cmd, etiqueta in ETIQUETAS_COMANDOS.items()
+        )
         QMessageBox.critical(
             self, "Dispositivo crítico desconectado",
-            f"{detalle}\n\nEl láser fue puesto en modo seguro.\n\n"
+            f"{detalle}\n\n{estado}\n\n{comandos}\n\n"
+            "«Enviado» indica que la orden salió hacia el láser; "
+            "no se verificó su respuesta.\n\n"
             "Revise el cable y el puerto o la dirección en Conexión "
             "(botón de la barra superior).",
         )
