@@ -189,7 +189,7 @@ class MonitoreoConexion(QObject):
         _, _, es_fresco = self._temp.consultar()
 
         resultados = {
-            "laser": self._laser.conectado,
+            "laser": self._laser.ping(),
             "oscil": self._oscil.conectado,
             "esp32": es_fresco,
         }

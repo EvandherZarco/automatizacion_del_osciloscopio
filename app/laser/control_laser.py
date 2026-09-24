@@ -380,11 +380,22 @@ class LaserController(QObject):
         return True, buf.value.decode("ascii", errors="replace").strip()
 
     def ping(self) -> bool:
-        """Verifica que el láser responde. Usado por el monitor de conexión."""
+        """
+        Verifica que el láser responde. Usado por el monitor de conexión.
+        Si State no responde tras los reintentos, libera el puerto y marca el
+        láser como desconectado para que la reconexión pueda volver a abrirlo.
+        """
+        if not self._connected:
+            return False
         for _ in range(_MAX_PING_RETRIES):
             ok, val = self._get_reg(_REG_STATE)
             if ok and val:
                 return True
+        self.desconectar()
+        self.error.emit(
+            f"Láser: sin respuesta al leer {_REG_STATE} en {LASER_COM_PORT}. "
+            "Verificar cable RS-232 y que el láser esté encendido."
+        )
         return False
 
     def _emit_fatal(self, msg: str) -> None:
