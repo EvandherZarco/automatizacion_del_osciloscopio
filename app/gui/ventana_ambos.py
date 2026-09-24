@@ -133,6 +133,7 @@ class VentanaAmbos(QMainWindow):
         self._geometria_confirmada = False
         self._advertencias: list[str] = []
         self._ultima_captura    = None
+        self._captura_pendiente = False
         self._canal_sel: str | None = None
         self._output_sel        = "E Adjust"
         self._burst_sel         = "Continuous"
@@ -1157,6 +1158,7 @@ class VentanaAmbos(QMainWindow):
         if not self._confirmar_geometria():
             return
         self._btn_capturar.setEnabled(False)
+        self._captura_pendiente = False
         self._btn_guardar_manual.setEnabled(False)
         self._habilitar_ajustes_oscil(False)
         self._reiniciar_timer_inactividad()
@@ -1190,6 +1192,9 @@ class VentanaAmbos(QMainWindow):
         Durante una secuencia automática el osciloscopio lo configura y lo
         lee el worker de medición: canal, adquisición, promedios y captura
         manual quedan bloqueados hasta que la secuencia termina o se aborta.
+        Guardar también se bloquea, porque escribiría en la sesión al mismo
+        tiempo que el worker; al terminar vuelve solo si quedó una captura
+        manual sin guardar.
         """
         self._habilitar_ajustes_oscil(habilitar)
         habilitar = habilitar and not self._secuencia_running
@@ -1199,6 +1204,7 @@ class VentanaAmbos(QMainWindow):
         self._btn_capturar.setEnabled(
             habilitar and self._oscil.conectado and self._canal_sel is not None
         )
+        self._btn_guardar_manual.setEnabled(habilitar and self._captura_pendiente)
 
     @Slot(object, object)
     def _on_captura_terminada(self, captura, escala):
@@ -1226,7 +1232,8 @@ class VentanaAmbos(QMainWindow):
             return
 
         self._ultima_captura = captura
-        self._btn_guardar_manual.setEnabled(True)
+        self._captura_pendiente = True
+        self._btn_guardar_manual.setEnabled(not self._secuencia_running)
 
         t_s = t[mask]
         v_v = v[mask]
@@ -1321,6 +1328,7 @@ class VentanaAmbos(QMainWindow):
         )
         mid = self._store.guardar(paquete)
         if mid:
+            self._captura_pendiente = False
             self._btn_guardar_manual.setEnabled(False)
             self._sesion_activa = True
             self._btn_iniciar_seq.setEnabled(True)
