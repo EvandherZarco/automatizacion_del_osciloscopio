@@ -36,7 +36,8 @@ class ModoSeguro(QObject):
         Envía los cuatro comandos de seguridad al láser en orden.
         Siempre intenta todos, incluso si alguno falla.
         Emite completado(True, []) en éxito o completado(False, [lista]) en fallo parcial.
-        Retorna el resultado de cada comando (clave → confirmado por el láser).
+        Retorna el resultado de cada comando (clave → enviado sin error). Un envío
+        exitoso no implica que el láser lo haya aplicado: la escritura no espera respuesta.
         """
         self.activado.emit()
 
