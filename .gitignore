@@ -154,3 +154,4 @@ main.pdf
 
 # Configuracion local por maquina
 app/config_local.py
+*.bbl-SAVE-ERROR 
