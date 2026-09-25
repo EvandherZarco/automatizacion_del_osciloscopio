@@ -380,6 +380,10 @@ class Medicion(QObject):
         worker.medicion_completada.connect(self._on_medicion_completada)
         worker.secuencia_terminada.connect(self._on_secuencia_terminada)
         worker.secuencia_abortada.connect(self._on_secuencia_abortada)
+        # Incidencias no fatales del worker (captura fallida, fallo puntual
+        # de hardware) — antes no llegaban a ningún lado, igual que las del
+        # trigger.
+        worker.error.connect(self._on_advertencia)
 
         # Monitor: pausar/reanudar pings alrededor de cada captura
         worker.captura_iniciando.connect(self._monitor.pausar_pings)

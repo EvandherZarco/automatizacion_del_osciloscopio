@@ -135,6 +135,10 @@ class VentanaAmbos(QMainWindow):
         self._advertencias: list[str] = []
         self._ultima_captura    = None
         self._captura_pendiente = False
+        # Temperatura y parámetros del láser tal como estaban en el instante
+        # de la captura, no al pulsar Guardar (que puede llegar bastante
+        # después): la señal se correlaciona con la muestra en ese momento.
+        self._captura_metadatos: dict | None = None
         self._canal_sel: str | None = None
         self._output_sel        = "E Adjust"
         self._burst_sel         = "Continuous"
@@ -768,6 +772,9 @@ class VentanaAmbos(QMainWindow):
         self._medicion.secuencia_abortada.connect(self._on_secuencia_abortada)
         self._medicion.advertencia.connect(self._on_advertencia)
 
+        # Almacenamiento — fallos de guardado (manual o de la secuencia)
+        self._store.guardado_err.connect(self._set_log)
+
         # Topbar
         self._btn_volver.clicked.connect(self._on_volver)
         self._btn_conexion.clicked.connect(self._abrir_conexion)
@@ -1270,6 +1277,18 @@ class VentanaAmbos(QMainWindow):
         self._captura_pendiente = True
         self._btn_guardar_manual.setEnabled(not self._secuencia_running)
 
+        temp, _, temp_fresca = self._temp.consultar()
+        lecturas, repetidos, sensores_frescos = self._temp.consultar_sensores()
+        if not sensores_frescos:
+            lecturas, repetidos = None, None
+        self._captura_metadatos = {
+            "temp": temp,
+            "temp_fresca": temp_fresca,
+            "lecturas": lecturas,
+            "repetidos": repetidos,
+            "params": self._laser.leer_parametros(),
+        }
+
         t_s = t[mask]
         v_v = v[mask]
         self._curva_manual.setData(t_s, v_v)
@@ -1329,11 +1348,14 @@ class VentanaAmbos(QMainWindow):
                 return
             self._bloquear_geometria()
 
-        temp, _, temp_fresca = self._temp.consultar()
-        lecturas, repetidos, sensores_frescos = self._temp.consultar_sensores()
-        if not sensores_frescos:
-            lecturas, repetidos = None, None
-        params = self._laser.leer_parametros()
+        # Tomados en _on_captura_terminada, no aquí: guardar puede llegar
+        # bastante después de capturar y la muestra ya pudo cambiar.
+        meta = self._captura_metadatos or {}
+        temp = meta.get("temp")
+        temp_fresca = meta.get("temp_fresca", False)
+        lecturas = meta.get("lecturas")
+        repetidos = meta.get("repetidos")
+        params = meta.get("params") or {}
 
         errores: list[str] = []
         if self._monitor.error_flag:

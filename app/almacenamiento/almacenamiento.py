@@ -260,6 +260,9 @@ class Almacenamiento(QObject):
         npy_nombre = f"{medicion_id}.npy"
         npy_path = self._sesion_dir / npy_nombre
 
+        error_flag = paquete.error_flag
+        error_desc = paquete.error_desc
+
         npy_ok = True
         try:
             np.save(npy_path, paquete.raw_data)
@@ -267,6 +270,12 @@ class Almacenamiento(QObject):
             npy_ok = False
             logger.error("guardar .npy [%s]: %s", medicion_id, e)
             self.guardado_err.emit(f"Error al guardar .npy ({medicion_id}): {e}")
+            # Sin archivo de forma de onda la fila no puede quedar como
+            # limpia: se fuerza error_flag, si no la medición se vería
+            # idéntica a una exitosa pese a no tener datos que graficar.
+            error_flag = 1
+            desc_npy = f"no se pudo guardar la forma de onda (.npy): {e}"
+            error_desc = f"{error_desc}; {desc_npy}" if error_desc else desc_npy
 
         fila = dict(paquete.wfmpre)
         fila.update({
@@ -275,8 +284,8 @@ class Almacenamiento(QObject):
             "medicion_id": medicion_id,
             "temperatura": paquete.temperatura,
             "modo": paquete.modo,
-            "error_flag": paquete.error_flag,
-            "error_desc": paquete.error_desc,
+            "error_flag": error_flag,
+            "error_desc": error_desc,
             "output_level": paquete.output_level if paquete.output_level is not None else "",
             "eo_delay_us": paquete.eo_delay_us if paquete.eo_delay_us is not None else "",
             "burst_mode": paquete.burst_mode if paquete.burst_mode is not None else "",
@@ -291,22 +300,20 @@ class Almacenamiento(QObject):
             fila[f"t_s{i}"] = _celda(t)
             fila[f"s{i}_repetido"] = "" if repetido is None else int(repetido)
 
-        csv_ok = True
         try:
             with open(self._csv_path, "a", newline="", encoding="utf-8") as f:
                 csv.DictWriter(
                     f, fieldnames=self._header, restval="", extrasaction="ignore"
                 ).writerow(fila)
         except OSError as e:
-            csv_ok = False
             logger.error("guardar CSV [%s]: %s", medicion_id, e)
             self.guardado_err.emit(f"Error al escribir CSV ({medicion_id}): {e}")
+            # Sin fila en el CSV no hay registro de la medición: a
+            # diferencia del .npy, esto sí es una falla total.
+            return None
 
-        if npy_ok and csv_ok:
-            self.guardado_ok.emit(medicion_id)
-            return medicion_id
-
-        return None
+        self.guardado_ok.emit(medicion_id)
+        return medicion_id
 
     # ──────────────────────────────────────────────────────────────────────────
     # LECTURA (para Visualización)
