@@ -139,6 +139,13 @@ class VentanaAmbos(QMainWindow):
         self._detencion_solicitada = False
         self._iniciando_secuencia = False
         self._geometria_confirmada = False
+        # True cuando el timeout de respaldo del stop de emergencia liberó
+        # la GUI sin confirmación del worker: el hilo anterior puede seguir
+        # vivo (verificado: thread.quit()+wait() no detiene un bucle sin
+        # sleep ni chequeo de _activo). Bloquea "Iniciar secuencia" hasta
+        # reiniciar la app — no hay forma segura de verificar desde la GUI
+        # que aquel hilo realmente terminó.
+        self._modo_degradado = False
         self._advertencias: list[str] = []
         self._ultima_captura    = None
         self._captura_pendiente = False
@@ -1403,8 +1410,9 @@ class VentanaAmbos(QMainWindow):
         if mid:
             self._captura_pendiente = False
             self._btn_guardar_manual.setEnabled(False)
-            self._btn_iniciar_seq.setEnabled(True)
-            self._btn_iniciar_seq.setToolTip("")
+            self._btn_iniciar_seq.setEnabled(not self._modo_degradado)
+            if not self._modo_degradado:
+                self._btn_iniciar_seq.setToolTip("")
             self._set_log(f"Guardado: {mid}")
             self._tab_viz.cargar_sesion_activa()
 
@@ -1434,6 +1442,16 @@ class VentanaAmbos(QMainWindow):
             self._reiniciar_timer_inactividad()
 
     def _intentar_iniciar_secuencia(self):
+        if self._modo_degradado:
+            QMessageBox.critical(
+                self, "Reinicio necesario",
+                "Un stop de emergencia previo no pudo confirmar que la "
+                "secuencia anterior terminó, y su hilo puede seguir vivo en "
+                "segundo plano. Reinicie la aplicación antes de iniciar una "
+                "nueva secuencia.",
+            )
+            return
+
         if not self._laser.conectado:
             QMessageBox.warning(self, "Láser desconectado",
                                 "El láser debe estar conectado para iniciar la secuencia.")
@@ -1453,6 +1471,20 @@ class VentanaAmbos(QMainWindow):
         if por_temp and not self._temp.esta_conectado():
             QMessageBox.warning(self, "ESP32 desconectado",
                                 "El módulo de temperatura debe estar conectado para este modo.")
+            return
+
+        if por_temp and self._spin_t_paso.value() <= 0:
+            # Con paso 0 (u otro valor que no reduzca la temperatura
+            # objetivo, p. ej. uno que redondeando a 4 decimales no cambie
+            # el valor) TriggerWorker._generar_objetivos() nunca termina de
+            # generar objetivos ni revisa _activo: la secuencia no arranca
+            # nunca y detener()/el stop de emergencia no pueden alcanzarla.
+            QMessageBox.warning(
+                self, "Configuración no realizable",
+                "El paso de temperatura debe ser mayor que 0 °C.\n\n"
+                "Con paso 0 la secuencia nunca terminaría de generar sus "
+                "objetivos de temperatura.",
+            )
             return
 
         detalle_duracion = ""
@@ -1597,7 +1629,7 @@ class VentanaAmbos(QMainWindow):
         detalle.setLineWrapMode(QTextEdit.WidgetWidth)
 
     def _reset_ui_auto(self, estado: str | None = None):
-        self._btn_iniciar_seq.setEnabled(self._sesion_activa)
+        self._btn_iniciar_seq.setEnabled(self._sesion_activa and not self._modo_degradado)
         self._btn_detener_seq.setEnabled(False)
         self._btn_por_tiempo.setEnabled(True)
         self._btn_por_temp.setEnabled(True)
@@ -1659,27 +1691,40 @@ class VentanaAmbos(QMainWindow):
         TIMEOUT_DETENCION_SECUENCIA_MS: el worker/trigger de la secuencia
         anterior puede seguir vivo o bloqueado, pero el láser ya recibió las
         órdenes de modo seguro al pulsar el stop (_safe.activar(), síncrono,
-        no depende de que el worker responda). Esto solo libera la GUI —
-        dejando explícito que no hay confirmación de que aquella secuencia
-        terminó — en vez de dejarla deshabilitada indefinidamente.
+        no depende de que el worker responda).
+
+        Verificado en aislado: un QThread con un bucle sin sleep ni chequeo
+        de _activo NO se detiene con thread.quit()+wait() — que es
+        exactamente lo que hace Medicion._limpiar_threads() al iniciar la
+        siguiente secuencia — y sigue consumiendo CPU en segundo plano
+        indefinidamente. Por eso esto no se limita a liberar la GUI: entra
+        en modo degradado y bloquea "Iniciar secuencia" hasta que la
+        aplicación se reinicie, porque no hay forma de verificar desde aquí
+        que aquel hilo realmente terminó, y arrancar una secuencia nueva
+        sobre un hilo zombie sería peor que el bloqueo original.
         """
         if not self._secuencia_running:
             return
         self._secuencia_running = False
-        self._reset_ui_auto("Secuencia: estado del worker incierto tras el paro de emergencia.")
+        self._modo_degradado = True
+        self._reset_ui_auto("Secuencia: estado del worker incierto — reinicie la aplicación.")
+        self._btn_iniciar_seq.setToolTip(
+            "Bloqueado: un stop de emergencia previo no confirmó el fin de la "
+            "secuencia anterior. Reinicie la aplicación para volver a habilitarlo."
+        )
         segundos = TIMEOUT_DETENCION_SECUENCIA_MS // 1000
-        self._set_log(f"⚠ Secuencia sin confirmar tras {segundos} s — estado incierto")
+        self._set_log(f"⚠ Secuencia sin confirmar tras {segundos} s — reinicie la aplicación")
         QMessageBox.warning(
-            self, "Estado de la secuencia incierto",
+            self, "Reinicie la aplicación",
             f"Pasaron {segundos} s desde el stop de emergencia sin que la "
             "secuencia anterior confirmara haber terminado.\n\n"
-            "El láser ya recibió las órdenes de modo seguro. La interfaz se "
-            "libera para que pueda seguir usándola, pero no hay garantía de "
-            "que el proceso de medición anterior haya terminado limpiamente "
-            "(pudo quedar bloqueado esperando al osciloscopio o en un error "
-            "no previsto).\n\n"
-            "Revise el osciloscopio y, si algo se ve inconsistente, reinicie "
-            "la aplicación antes de iniciar una nueva secuencia.",
+            "El láser ya recibió las órdenes de modo seguro: eso no depende "
+            "de esto. Pero el hilo de aquella secuencia probablemente sigue "
+            "vivo en segundo plano consumiendo CPU — no hay una forma segura "
+            "de comprobar desde la interfaz que terminó, y cerrar la ventana "
+            "tampoco lo garantiza.\n\n"
+            "REINICIE LA APLICACIÓN antes de iniciar una nueva secuencia. "
+            "\"Iniciar secuencia\" queda bloqueado hasta entonces.",
         )
 
     # ══════════════════════════════════════════════════════════════════════════
@@ -1781,6 +1826,18 @@ class VentanaAmbos(QMainWindow):
 
     @Slot()
     def _on_volver(self):
+        if self._modo_degradado:
+            QMessageBox.warning(
+                self, "Reinicie la aplicación",
+                "Esta sesión quedó en modo degradado: el hilo de la "
+                "secuencia anterior probablemente sigue vivo en segundo "
+                "plano, consumiendo CPU.\n\n"
+                "Vuelva al inicio y CIERRE la aplicación por completo. "
+                "Abrir de nuevo \"Láser + Osciloscopio\" sin reiniciar el "
+                "programa no elimina ese hilo — solo abre controladores "
+                "nuevos que competirían con él por el mismo láser y el "
+                "mismo osciloscopio reales.",
+            )
         if self._secuencia_running:
             resp = QMessageBox.question(
                 self, "Secuencia en curso",
