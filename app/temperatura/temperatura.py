@@ -234,11 +234,17 @@ class TempWorker(QObject):
 
             while self._activo:
                 linea = self._leer_linea()
+                # ultimo_dato solo avanza con una trama que efectivamente se
+                # interpretó: una racha de bytes corruptos o mal formados no
+                # es silencio, pero tampoco es una lectura viva, y antes no
+                # activaba TIMEOUT_SILENCIO — el hilo se quedaba girando sin
+                # rendirse nunca.
+                resultado = parsear_trama(linea) if linea is not None else None
 
-                if linea is None:
+                if resultado is None:
                     if time.monotonic() - ultimo_dato > TIMEOUT_SILENCIO:
                         self.error.emit(
-                            f"ESP32 en {self._puerto} sin respuesta "
+                            f"ESP32 en {self._puerto} sin tramas válidas "
                             f"por {TIMEOUT_SILENCIO:.0f} s."
                         )
                         self.desconectado.emit()
@@ -246,10 +252,6 @@ class TempWorker(QObject):
                     continue
 
                 ultimo_dato = time.monotonic()
-                resultado = parsear_trama(linea)
-                if resultado is None:
-                    continue
-
                 temp, sensores = resultado
                 self._registrar(linea, temp, sensores)
                 self.trigger.emit(temp)

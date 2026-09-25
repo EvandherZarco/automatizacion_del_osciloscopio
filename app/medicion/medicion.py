@@ -178,6 +178,11 @@ class MedicionWorker(QObject):
             temp = float("nan")
             errores.append(f"ESP32 sin respuesta ({TEMP_COM_PORT})")
         lecturas, repetidos = self._leer_sensores()
+        if lecturas is not None:
+            ausentes = [i + 1 for i, v in enumerate(lecturas) if v is None]
+            if ausentes:
+                error_flag = 1
+                errores.append(f"sensor(es) DS18B20 ausente(s): {ausentes}")
 
         t_apertura, t_cierre, duracion = (
             self._t_apertura, self._t_cierre, self._duracion_ventana

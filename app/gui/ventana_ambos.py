@@ -754,6 +754,7 @@ class VentanaAmbos(QMainWindow):
         self._temp.trigger.connect(lambda _t: self._actualizar_temperatura())
         self._temp.desconectado.connect(self._on_esp32_desconectado)
         self._temp.conectado.connect(self._on_esp32_conectado)
+        self._temp.error.connect(self._set_log)
         self._btn_reconectar_esp32.clicked.connect(self._reconectar_esp32)
 
         # Monitor seguridad
@@ -1343,6 +1344,10 @@ class VentanaAmbos(QMainWindow):
                 errores.append("conexión con error al momento de guardar")
         if not temp_fresca:
             errores.append(f"ESP32 sin respuesta ({self._temp.puerto})")
+        if lecturas is not None:
+            ausentes = [i + 1 for i, v in enumerate(lecturas) if v is None]
+            if ausentes:
+                errores.append(f"sensor(es) DS18B20 ausente(s): {ausentes}")
         if self._ultima_captura.error_flag:
             errores.append(self._ultima_captura.error_desc or "captura con advertencia")
 
