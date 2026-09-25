@@ -230,6 +230,13 @@ class OsciloscopioController(QObject):
     def desconectar(self) -> None:
         with QMutexLocker(self._mutex):
             if self._inst:
+                # Si una secuencia dejó ACQ:MODE/NUMAVG reconfigurados y se
+                # desconecta sin pasar por reanudar_adquisicion() (p. ej. se
+                # cierra la ventana a media secuencia), el osciloscopio se
+                # queda con esos valores: la siguiente captura manual, que
+                # respeta la configuración vigente, espera a completar un
+                # promedio de miles de disparos que nunca llega.
+                self._restaurar_adquisicion_previa(self._inst)
                 try:
                     self._inst.close()
                 except Exception:
@@ -403,14 +410,31 @@ class OsciloscopioController(QObject):
         Tiempo aproximado de una captura en modo tiempo, en segundos.
         Suma el promediado (numavg disparos a la frecuencia del laser,
         cuantizado por el periodo de polling) y la transferencia de la
-        forma de onda por VXI-11.
+        forma de onda por VXI-11. Relee NR_PT del osciloscopio en vez de
+        usar el valor cacheado al conectar: el usuario puede haber
+        cambiado la longitud de registro desde entonces.
         """
         n = max(1, int(numavg))
         t_promedio = n / FREC_DISPARO_HZ
         t_promedio = math.ceil(t_promedio / POLL_INTERVAL_S) * POLL_INTERVAL_S
-        puntos = self._nr_pt if self._nr_pt > 0 else 0
+        puntos = self._leer_nr_pt_actual()
         t_transfer = (puntos * 2) / TRANSFER_BYTES_POR_S
         return t_promedio + t_transfer + OVERHEAD_TRANSFERENCIA_S
+
+    def _leer_nr_pt_actual(self) -> int:
+        """
+        Relee WFMPRE:NR_PT? y actualiza la caché que usan otros mensajes.
+        Si la lectura falla, se queda con el último valor conocido en vez
+        de bloquear la validación por un tropiezo de comunicación.
+        """
+        with QMutexLocker(self._mutex):
+            if not self._inst:
+                return self._nr_pt
+            try:
+                self._nr_pt = int(self._inst.ask("WFMPRE:NR_PT?").strip())
+            except Exception:
+                pass
+            return self._nr_pt
 
     def capturar_modo_tiempo(self) -> CapturaOscil | None:
         """
@@ -498,18 +522,23 @@ class OsciloscopioController(QObject):
         with QMutexLocker(self._mutex):
             if not self._inst:
                 return False
-            previa, self._adquisicion_previa = self._adquisicion_previa, None
-            if previa is not None:
-                modo, numavg = previa
-                try:
-                    self._inst.write("ACQ:STATE STOP")
-                    self._inst.write(f"ACQ:MODE {modo}")
-                    self._inst.write(f"ACQ:NUMAVG {numavg}")
-                except Exception as exc:
-                    self._emit_capture_warning(
-                        f"No se pudo restaurar ACQ:MODE {modo} / NUMAVG {numavg}: {exc}"
-                    )
+            self._restaurar_adquisicion_previa(self._inst)
             return self._reanudar_freerun(self._inst)
+
+    def _restaurar_adquisicion_previa(self, inst: vxi11.Instrument) -> None:
+        """Llamar con el mutex ya tomado. No hace nada si no hay nada que restaurar."""
+        previa, self._adquisicion_previa = self._adquisicion_previa, None
+        if previa is None:
+            return
+        modo, numavg = previa
+        try:
+            inst.write("ACQ:STATE STOP")
+            inst.write(f"ACQ:MODE {modo}")
+            inst.write(f"ACQ:NUMAVG {numavg}")
+        except Exception as exc:
+            self._emit_capture_warning(
+                f"No se pudo restaurar ACQ:MODE {modo} / NUMAVG {numavg}: {exc}"
+            )
 
     # ── Helpers internos ──────────────────────────────────────────────────────
 
@@ -714,7 +743,9 @@ class OsciloscopioController(QObject):
                 return wfmpre
             except Exception as exc:
                 if intento == MAX_REINTENTOS - 1:
-                    self._emit_capture_warning(
+                    # Se agotaron los reintentos: no es un tropiezo puntual
+                    # de la captura, el enlace VXI-11 ya no responde.
+                    self._emit_conn_error(
                         f"No se pudieron leer parámetros WFMPRE: {exc}"
                     )
         return None
@@ -729,7 +760,9 @@ class OsciloscopioController(QObject):
                     return resultado
             except Exception as exc:
                 if intento == MAX_REINTENTOS - 1:
-                    self._emit_capture_warning(f"Error al leer CURVE: {exc}")
+                    # Igual que en WFMPRE: agotados los reintentos, se trata
+                    # como enlace caído, no como advertencia de la captura.
+                    self._emit_conn_error(f"Error al leer CURVE: {exc}")
         return None
 
     def _parsear_curve(self, raw_bytes: bytes) -> np.ndarray | None:
@@ -761,8 +794,20 @@ class OsciloscopioController(QObject):
         return voltaje, tiempo
 
     def _emit_conn_error(self, msg: str) -> None:
-        """Error de conexión o comunicación — desconecta el instrumento lógicamente."""
+        """
+        Error de conexión o comunicación — desconecta el instrumento lógicamente.
+        Llamar con el mutex ya tomado. Suelta también el enlace VXI-11: si
+        _inst se quedara apuntando al enlace muerto, CH1/CH2 y otros
+        comandos seguirían intentando escribirle y podrían colgar la GUI
+        hasta el timeout de 30 s.
+        """
         self._connected = False
+        if self._inst is not None:
+            try:
+                self._inst.close()
+            except Exception:
+                pass
+            self._inst = None
         self.led_rojo.emit()
         self.error.emit(msg)
 
