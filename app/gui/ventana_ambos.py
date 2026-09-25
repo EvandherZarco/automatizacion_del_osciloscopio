@@ -131,7 +131,6 @@ class VentanaAmbos(QMainWindow):
         self._secuencia_running = False
         self._detencion_solicitada = False
         self._iniciando_secuencia = False
-        self._sesion_activa     = False
         self._geometria_confirmada = False
         self._advertencias: list[str] = []
         self._ultima_captura    = None
@@ -168,6 +167,15 @@ class VentanaAmbos(QMainWindow):
         self._iniciar_app()
 
         QApplication.instance().installEventFilter(self)
+
+    @property
+    def _sesion_activa(self) -> bool:
+        """
+        Refleja en vivo la sesión que Almacenamiento tiene abierta, en lugar
+        de una copia local: si "Abrir CSV…" reimporta otra sesión, esto se
+        entera de inmediato en vez de seguir creyendo activa la anterior.
+        """
+        return self._store.activo
 
     # ══════════════════════════════════════════════════════════════════════════
     # UI
@@ -1004,13 +1012,17 @@ class VentanaAmbos(QMainWindow):
         if resp != QMessageBox.Ok:
             return
         if self._laser.start():
-            self._fijar_estado_laser("RUN")
+            # El envío del comando no confirma el estado: se marca incierto
+            # y se lee de inmediato en vez de asumir RUN.
+            self._fijar_estado_laser(None)
+            self._leer_estado_laser()
             self._reiniciar_timer_inactividad()
 
     @Slot()
     def _on_laser_detener(self):
         if self._laser.stop():
-            self._fijar_estado_laser("STOP")
+            self._fijar_estado_laser(None)
+            self._leer_estado_laser()
             self._timer_inactividad.stop()
 
     def _fijar_estado_laser(self, estado: str | None):
@@ -1053,21 +1065,34 @@ class VentanaAmbos(QMainWindow):
 
     @Slot()
     def _on_aplicar_laser(self):
-        self._laser.set_output_level(self._output_sel)
-        self._laser.set_burst_mode(self._burst_sel)
+        resultados = {
+            "Output level": self._laser.set_output_level(self._output_sel),
+            "Burst mode":   self._laser.set_burst_mode(self._burst_sel),
+        }
         if self._burst_sel != "Continuous":
-            self._laser.set_burst_length(self._spin_p_burst_len.value())
-        self._laser.set_cooling_temp(self._spin_p_cooling.value())
-        self._laser.set_eo_delay(self._spin_p_eo.value())
-        self._set_log("Parámetros del láser aplicados")
+            resultados["Burst length"] = self._laser.set_burst_length(self._spin_p_burst_len.value())
+        resultados["Cooling T"] = self._laser.set_cooling_temp(self._spin_p_cooling.value())
+        resultados["EO delay"]  = self._laser.set_eo_delay(self._spin_p_eo.value())
+
+        fallidos = [nombre for nombre, ok in resultados.items() if not ok]
+        if fallidos:
+            self._set_log(f"⚠ Parámetros del láser: fallaron {', '.join(fallidos)}")
+        else:
+            self._set_log("Parámetros del láser aplicados")
 
     def _leer_estado_laser(self):
         ok, val = self._laser.leer_estado()
         leido = ok and bool(val.strip())
-        anterior = self._laser_estado_txt
+        anterior_txt = self._laser_estado_txt
+        anterior_running = self._laser_running
         self._fijar_estado_laser(val.strip().upper() if leido else None)
-        if anterior != self._laser_estado_txt:
+        if anterior_txt != self._laser_estado_txt:
             self._set_log(f"State → {self._laser_estado_txt}")
+        if anterior_running != self._laser_running:
+            # La confirmación de RUN/STOP puede llegar por este polling en
+            # vez de por un clic: sin esto el vigía de inactividad se queda
+            # con el estado viejo hasta la próxima interacción del usuario.
+            self._reiniciar_timer_inactividad()
         self._timer_estado_laser.setInterval(ESTADO_LASER_MS if leido else MONITOREO_LASER_MS)
 
     def _actualizar_monitoreo_laser(self):
@@ -1082,10 +1107,17 @@ class VentanaAmbos(QMainWindow):
     # ══════════════════════════════════════════════════════════════════════════
 
     def _sel_canal(self, canal: str):
+        if not self._oscil.set_canal(canal):
+            # El osciloscopio se quedó en el canal anterior: la selección
+            # visible debe reflejar eso, no lo que el usuario pidió.
+            canal_real = self._oscil.canal
+            self._canal_sel = canal_real if self._oscil.conectado else None
+            set_btn_activo(self._btn_p_ch1, canal_real == "CH1", "azul")
+            set_btn_activo(self._btn_p_ch2, canal_real == "CH2", "azul")
+            return
         self._canal_sel = canal
         set_btn_activo(self._btn_p_ch1, canal == "CH1", "azul")
         set_btn_activo(self._btn_p_ch2, canal == "CH2", "azul")
-        self._oscil.set_canal(canal)
         if self._oscil.conectado:
             self._btn_capturar.setEnabled(True)
 
@@ -1332,7 +1364,6 @@ class VentanaAmbos(QMainWindow):
         if mid:
             self._captura_pendiente = False
             self._btn_guardar_manual.setEnabled(False)
-            self._sesion_activa = True
             self._btn_iniciar_seq.setEnabled(True)
             self._btn_iniciar_seq.setToolTip("")
             self._set_log(f"Guardado: {mid}")
@@ -1428,6 +1459,7 @@ class VentanaAmbos(QMainWindow):
         self._btn_por_tiempo.setEnabled(False)
         self._btn_por_temp.setEnabled(False)
         self._habilitar_panel_oscil(False)
+        self._tab_viz.fijar_reimportacion_habilitada(False)
         self._lbl_progreso.setText("Secuencia en curso…")
         self._monitor.set_estado(EstadoMonitoreo.ENTRE_MEDICIONES)
 
@@ -1529,6 +1561,7 @@ class VentanaAmbos(QMainWindow):
         self._btn_por_tiempo.setEnabled(True)
         self._btn_por_temp.setEnabled(True)
         self._habilitar_panel_oscil(True)
+        self._tab_viz.fijar_reimportacion_habilitada(True)
         if estado is not None:
             self._lbl_progreso.setText(estado)
         self._monitor.set_estado(EstadoMonitoreo.REPOSO)
@@ -1548,15 +1581,30 @@ class VentanaAmbos(QMainWindow):
             self._captura_thread.wait(2000)
             self._captura_thread = None
             self._captura_worker = None
-        estado = None
-        if self._secuencia_running:
+
+        habia_secuencia = self._secuencia_running
+        if habia_secuencia:
             self._detencion_solicitada = True
             self._medicion.detener()
-            self._secuencia_running = False
-            estado = "Secuencia detenida por el usuario."
-        self._safe.activar()
-        self._reset_ui_auto(estado)
-        self._set_log("⚠ Stop emergencia — modo seguro activado")
+            # _secuencia_running y el resto de la UI no se liberan aquí: el
+            # worker y el trigger siguen vivos hasta que confirman su fin
+            # con secuencia_ok/secuencia_abortada (_on_secuencia_ok /
+            # _on_secuencia_abortada, ya conectados, llaman a
+            # _reset_ui_auto). Hacerlo antes dejaría "Iniciar secuencia"
+            # habilitado mientras el hilo anterior todavía corre, y una
+            # nueva secuencia podría arrancar encima de la que se está
+            # deteniendo.
+            self._lbl_progreso.setText("Deteniendo secuencia…")
+
+        resultados = self._safe.activar()
+        if not habia_secuencia:
+            self._reset_ui_auto()
+
+        fallidos = [k for k, v in resultados.items() if not v]
+        if fallidos:
+            self._set_log(f"⚠ Stop emergencia — modo seguro con fallos: {', '.join(fallidos)}")
+        else:
+            self._set_log("⚠ Stop emergencia — modo seguro activado")
 
     # ══════════════════════════════════════════════════════════════════════════
     # INACTIVIDAD
@@ -1614,11 +1662,12 @@ class VentanaAmbos(QMainWindow):
 
     @Slot(bool, list)
     def _on_modo_seguro(self, todo_ok: bool, fallidos: list):
-        if "stop" in fallidos:
-            self._fijar_estado_laser(None)
-            return
-        self._fijar_estado_laser("STOP")
+        # El envío de STOP sin error no confirma que el láser ya se detuvo:
+        # se marca incierto y se lee el estado real de inmediato.
         self._timer_inactividad.stop()
+        self._fijar_estado_laser(None)
+        if self._laser.conectado:
+            self._leer_estado_laser()
 
     @Slot(str, dict)
     def _on_seguridad_activada(self, dispositivo: str, resultados: dict):
