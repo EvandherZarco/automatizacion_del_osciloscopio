@@ -1827,17 +1827,29 @@ class VentanaAmbos(QMainWindow):
     @Slot()
     def _on_volver(self):
         if self._modo_degradado:
-            QMessageBox.warning(
-                self, "Reinicie la aplicación",
+            # Bloqueo duro, no solo aviso: "Volver" reabre la pantalla de
+            # bienvenida sin cerrar el proceso (BienvenidaWindow queda
+            # oculta, no cerrada — ver bienvenida.py), así que un clic en
+            # "Láser + Osciloscopio" ahí crearía una VentanaAmbos nueva con
+            # controladores nuevos mientras el hilo zombie de esta sigue
+            # vivo compitiendo por el mismo hardware real. No deja sin
+            # salida: cerrar esta ventana por la X del sistema operativo
+            # (no pasa por aquí) sí termina el proceso completo, porque
+            # BienvenidaWindow oculta no cuenta como ventana visible y
+            # QApplication.quitOnLastWindowClosed queda en su valor por
+            # defecto (True).
+            QMessageBox.critical(
+                self, "Reinicio necesario",
                 "Esta sesión quedó en modo degradado: el hilo de la "
                 "secuencia anterior probablemente sigue vivo en segundo "
                 "plano, consumiendo CPU.\n\n"
-                "Vuelva al inicio y CIERRE la aplicación por completo. "
-                "Abrir de nuevo \"Láser + Osciloscopio\" sin reiniciar el "
-                "programa no elimina ese hilo — solo abre controladores "
-                "nuevos que competirían con él por el mismo láser y el "
-                "mismo osciloscopio reales.",
+                "\"Volver\" queda bloqueado — no reduce el riesgo, porque la "
+                "pantalla de inicio seguiría permitiendo abrir una ventana "
+                "nueva sobre ese hilo.\n\n"
+                "Cierre la aplicación por completo con la X de esta ventana "
+                "y vuelva a abrirla.",
             )
+            return
         if self._secuencia_running:
             resp = QMessageBox.question(
                 self, "Secuencia en curso",
