@@ -111,6 +111,7 @@ class Almacenamiento(QObject):
         self._csv_path: Path | None = None
         self._header: list[str] = CSV_HEADER
         self._medicion_idx: int = 0
+        self._reabierta: bool = False
 
     @property
     def session_id(self) -> str | None:
@@ -123,6 +124,40 @@ class Almacenamiento(QObject):
     @property
     def activo(self) -> bool:
         return self._session_id is not None
+
+    @property
+    def reabierta(self) -> bool:
+        """
+        True si la sesión activa se abrió desde un CSV existente
+        (abrir_sesion), False si se creó en esta ejecución (nueva_sesion).
+        """
+        return self._reabierta
+
+    def fecha_creacion(self) -> str | None:
+        """
+        Fecha de creación de la sesión activa, tomada de fecha_creacion en
+        metadatos_sesion.txt o, si ese archivo no existe o no la trae, del
+        prefijo AAAAMMDD_HHMMSS del session_id. None si ninguna de las dos
+        fuentes la da: quien la muestre debe decir que no está disponible
+        en vez de inventarla.
+        """
+        if self._sesion_dir is None or self._session_id is None:
+            return None
+        try:
+            with open(self._sesion_dir / "metadatos_sesion.txt", "r", encoding="utf-8") as f:
+                for linea in f:
+                    if linea.startswith("fecha_creacion:"):
+                        valor = linea.split(":", 1)[1].strip()
+                        try:
+                            return datetime.fromisoformat(valor).strftime("%Y-%m-%d %H:%M")
+                        except ValueError:
+                            break
+        except OSError:
+            pass
+        try:
+            return datetime.strptime(self._session_id[:15], "%Y%m%d_%H%M%S").strftime("%Y-%m-%d %H:%M")
+        except ValueError:
+            return None
 
     # ──────────────────────────────────────────────────────────────────────────
     # INICIALIZACIÓN DE SESIÓN
@@ -154,6 +189,7 @@ class Almacenamiento(QObject):
         self._csv_path = csv_path
         self._header = CSV_HEADER
         self._medicion_idx = 0
+        self._reabierta = False
         self._escribir_metadatos(metadatos or {})
         self.sesion_lista.emit(sid)
         return True
@@ -243,6 +279,7 @@ class Almacenamiento(QObject):
         self._csv_path = csv_path
         self._header = header
         self._medicion_idx = max(n_filas, 0)
+        self._reabierta = True
         self.sesion_lista.emit(sid)
         return True
 

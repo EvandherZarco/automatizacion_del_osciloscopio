@@ -146,6 +146,12 @@ class VentanaAmbos(QMainWindow):
         # reiniciar la app — no hay forma segura de verificar desde la GUI
         # que aquel hilo realmente terminó.
         self._modo_degradado = False
+        # Una sesión abierta con "Abrir CSV…" puede ser de otro día: antes
+        # de escribir en ella (Guardar o una secuencia) se pregunta una vez
+        # por reapertura. Se limpia cada vez que Almacenamiento cambia de
+        # sesión (sesion_lista), así que reabrir, aunque sea el mismo CSV,
+        # vuelve a preguntar.
+        self._reapertura_confirmada = False
         self._advertencias: list[str] = []
         self._ultima_captura    = None
         self._captura_pendiente = False
@@ -793,6 +799,7 @@ class VentanaAmbos(QMainWindow):
 
         # Almacenamiento — fallos de guardado (manual o de la secuencia)
         self._store.guardado_err.connect(self._set_log)
+        self._store.sesion_lista.connect(self._on_sesion_lista)
 
         # Topbar
         self._btn_volver.clicked.connect(self._on_volver)
@@ -1332,6 +1339,38 @@ class VentanaAmbos(QMainWindow):
         self._lbl_tdiv_m.setPos((xr[0] + xr[1]) / 2, yr[0])
         self._lbl_tdiv_m.setText(formatear_tdiv(escala["tdiv_s"]) if escala is not None else "")
 
+    @Slot(str)
+    def _on_sesion_lista(self, _session_id: str):
+        self._reapertura_confirmada = False
+
+    def _confirmar_sesion_reabierta(self) -> bool:
+        """
+        Con una sesión abierta desde "Abrir CSV…", Guardar y las secuencias
+        agregan filas a esa sesión, que puede ser de otro día: se pregunta
+        antes de la primera escritura en vez de asumir que es lo que se
+        quiere. Un Sí vale para el resto de esa reapertura; un No (o Esc, o
+        cerrar el diálogo) cancela solo esta escritura, y la próxima vuelve
+        a preguntar. Sin sesión reabierta no pregunta nada.
+        """
+        if not self._store.reabierta or self._reapertura_confirmada:
+            return True
+        creada = self._store.fecha_creacion()
+        detalle = f"creada el {creada}" if creada else "fecha de creación no disponible"
+        resp = QMessageBox.question(
+            self, "Guardar en sesión reabierta",
+            f"Vas a guardar en la sesión {self._store.session_id} ({detalle}), "
+            "no en una nueva.\n\n"
+            "Esta sesión se abrió con \"Abrir CSV…\": las capturas manuales "
+            "y las secuencias automáticas se agregarán a ese archivo junto a "
+            "sus mediciones anteriores, sin volver a preguntar, hasta que se "
+            "abra o se cree otra sesión.\n\n"
+            "¿Continuar?",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No,
+        )
+        self._reapertura_confirmada = resp == QMessageBox.Yes
+        return self._reapertura_confirmada
+
     def _metadatos_instrumental(self) -> dict:
         """
         Identidad del instrumental al momento de crear la sesión. Se registra
@@ -1366,6 +1405,9 @@ class VentanaAmbos(QMainWindow):
                 QMessageBox.critical(self, "Error", "No se pudo crear la sesión.")
                 return
             self._bloquear_geometria()
+        elif not self._confirmar_sesion_reabierta():
+            self._set_log("Guardado cancelado: la sesión reabierta no se modificó.")
+            return
 
         # Tomados en _on_captura_terminada, no aquí: guardar puede llegar
         # bastante después de capturar y la muestra ya pudo cambiar.
@@ -1510,6 +1552,10 @@ class VentanaAmbos(QMainWindow):
                 f"{n_med} mediciones cada {intervalo:.1f} s.\n"
                 f"Duración estimada: {self._formato_duracion(total_s)}.\n\n"
             )
+
+        if not self._confirmar_sesion_reabierta():
+            self._set_log("Secuencia no iniciada: la sesión reabierta no se modificó.")
+            return
 
         resp = QMessageBox.warning(
             self, "Iniciar secuencia automática",

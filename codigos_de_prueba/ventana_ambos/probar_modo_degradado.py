@@ -121,6 +121,7 @@ class _LaserFalsoParams:
 
 class _StoreFalso:
     activo = True
+    reabierta = False
     session_id = "s"
 
     def guardar(self, _paquete):
