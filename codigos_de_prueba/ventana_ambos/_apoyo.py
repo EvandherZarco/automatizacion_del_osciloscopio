@@ -27,9 +27,13 @@ codigos_de_prueba/probar_config_usuario.py pero para VentanaAmbos:
     interceptados: no bloquean esperando un clic real y registran
     (tipo, título, texto) de cada una para que la prueba pueda revisar
     qué se mostró.
+  - Los QFileDialog.getExistingDirectory/getOpenFileName quedan
+    interceptados de la misma forma y responden como si el usuario
+    cancelara: una prueba que llegue a uno por error falla en vez de
+    quedarse colgada esperando una carpeta.
 
 Requiere las mismas dependencias que la propia app (PySide6, pyqtgraph,
-numpy) — las del venv del proyecto. No instala nada nuevo: el vxi11 falso
+numpy, scipy) — las del venv del proyecto. No instala nada nuevo: el vxi11 falso
 sólo reemplaza el módulo en sys.modules durante esta ejecución.
 """
 
@@ -83,7 +87,7 @@ def _instalar_vxi11_falso() -> None:
 
 _instalar_vxi11_falso()
 
-from PySide6.QtWidgets import QApplication, QMessageBox  # noqa: E402 (después del stub)
+from PySide6.QtWidgets import QApplication, QFileDialog, QMessageBox  # noqa: E402 (después del stub)
 
 
 def app_qt() -> QApplication:
@@ -102,6 +106,7 @@ class CajasCapturadas:
     def __init__(self):
         self.llamadas: list[tuple[str, str, str]] = []
         self._originales: dict[str, object] = {}
+        self._dialogos_originales: dict[str, object] = {}
 
     def _fabricar(self, tipo: str, boton_devuelto):
         def _f(*a, **_kw):
@@ -111,7 +116,20 @@ class CajasCapturadas:
             return boton_devuelto
         return staticmethod(_f)
 
+    def _fabricar_dialogo(self, tipo: str, respuesta):
+        def _f(*a, **_kw):
+            titulo = str(a[1]) if len(a) > 1 else ""
+            self.llamadas.append((tipo, titulo, ""))
+            return respuesta
+        return staticmethod(_f)
+
     def instalar(self) -> None:
+        self._dialogos_originales = {
+            "getExistingDirectory": QFileDialog.getExistingDirectory,
+            "getOpenFileName": QFileDialog.getOpenFileName,
+        }
+        QFileDialog.getExistingDirectory = self._fabricar_dialogo("carpeta", "")
+        QFileDialog.getOpenFileName = self._fabricar_dialogo("archivo", ("", ""))
         self._originales = {
             "warning": QMessageBox.warning,
             "critical": QMessageBox.critical,
@@ -130,6 +148,8 @@ class CajasCapturadas:
     def desinstalar(self) -> None:
         for nombre, original in self._originales.items():
             setattr(QMessageBox, nombre, original)
+        for nombre, original in self._dialogos_originales.items():
+            setattr(QFileDialog, nombre, original)
 
     def limpiar(self) -> None:
         self.llamadas.clear()
