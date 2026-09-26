@@ -55,6 +55,13 @@ INTERVALO_MIN_TIEMPO_S = 15.0
 MONITOREO_LASER_MS     = 10_000
 ESTADO_LASER_MS        = 1_000
 TEMPERATURA_UI_MS      = 1_000
+# Red de seguridad del stop de emergencia: si tras pedir la detención no
+# llega secuencia_ok ni secuencia_abortada en este plazo (el worker/trigger
+# pudo quedar bloqueado o colgado), la GUI se libera igual en vez de quedar
+# deshabilitada para siempre. Generoso a propósito — bastante por encima del
+# peor caso normal de una sola captura (~90 s, POLL_TIMEOUT_S) — para no
+# disparar en falso sobre una detención legítima pero lenta.
+TIMEOUT_DETENCION_SECUENCIA_MS = 150_000
 
 _ESTILO_TEMP_VIVA = "font-size: 15px; font-weight: bold; color: #00bfff;"
 _ESTILO_TEMP_SIN_LECTURA = "font-size: 15px; font-weight: bold; color: #666;"
@@ -131,11 +138,21 @@ class VentanaAmbos(QMainWindow):
         self._secuencia_running = False
         self._detencion_solicitada = False
         self._iniciando_secuencia = False
-        self._sesion_activa     = False
         self._geometria_confirmada = False
+        # True cuando el timeout de respaldo del stop de emergencia liberó
+        # la GUI sin confirmación del worker: el hilo anterior puede seguir
+        # vivo (verificado: thread.quit()+wait() no detiene un bucle sin
+        # sleep ni chequeo de _activo). Bloquea "Iniciar secuencia" hasta
+        # reiniciar la app — no hay forma segura de verificar desde la GUI
+        # que aquel hilo realmente terminó.
+        self._modo_degradado = False
         self._advertencias: list[str] = []
         self._ultima_captura    = None
         self._captura_pendiente = False
+        # Temperatura y parámetros del láser tal como estaban en el instante
+        # de la captura, no al pulsar Guardar (que puede llegar bastante
+        # después): la señal se correlaciona con la muestra en ese momento.
+        self._captura_metadatos: dict | None = None
         self._canal_sel: str | None = None
         self._output_sel        = "E Adjust"
         self._burst_sel         = "Continuous"
@@ -163,11 +180,25 @@ class VentanaAmbos(QMainWindow):
         self._timer_temperatura.setInterval(TEMPERATURA_UI_MS)
         self._timer_temperatura.timeout.connect(self._actualizar_temperatura)
 
+        self._timer_fallback_detencion = QTimer(self)
+        self._timer_fallback_detencion.setSingleShot(True)
+        self._timer_fallback_detencion.setInterval(TIMEOUT_DETENCION_SECUENCIA_MS)
+        self._timer_fallback_detencion.timeout.connect(self._on_timeout_detencion_secuencia)
+
         self._construir_ui()
         self._conectar_signals()
         self._iniciar_app()
 
         QApplication.instance().installEventFilter(self)
+
+    @property
+    def _sesion_activa(self) -> bool:
+        """
+        Refleja en vivo la sesión que Almacenamiento tiene abierta, en lugar
+        de una copia local: si "Abrir CSV…" reimporta otra sesión, esto se
+        entera de inmediato en vez de seguir creyendo activa la anterior.
+        """
+        return self._store.activo
 
     # ══════════════════════════════════════════════════════════════════════════
     # UI
@@ -746,6 +777,7 @@ class VentanaAmbos(QMainWindow):
         self._temp.trigger.connect(lambda _t: self._actualizar_temperatura())
         self._temp.desconectado.connect(self._on_esp32_desconectado)
         self._temp.conectado.connect(self._on_esp32_conectado)
+        self._temp.error.connect(self._set_log)
         self._btn_reconectar_esp32.clicked.connect(self._reconectar_esp32)
 
         # Monitor seguridad
@@ -758,6 +790,9 @@ class VentanaAmbos(QMainWindow):
         self._medicion.secuencia_ok.connect(self._on_secuencia_ok)
         self._medicion.secuencia_abortada.connect(self._on_secuencia_abortada)
         self._medicion.advertencia.connect(self._on_advertencia)
+
+        # Almacenamiento — fallos de guardado (manual o de la secuencia)
+        self._store.guardado_err.connect(self._set_log)
 
         # Topbar
         self._btn_volver.clicked.connect(self._on_volver)
@@ -1004,13 +1039,17 @@ class VentanaAmbos(QMainWindow):
         if resp != QMessageBox.Ok:
             return
         if self._laser.start():
-            self._fijar_estado_laser("RUN")
+            # El envío del comando no confirma el estado: se marca incierto
+            # y se lee de inmediato en vez de asumir RUN.
+            self._fijar_estado_laser(None)
+            self._leer_estado_laser()
             self._reiniciar_timer_inactividad()
 
     @Slot()
     def _on_laser_detener(self):
         if self._laser.stop():
-            self._fijar_estado_laser("STOP")
+            self._fijar_estado_laser(None)
+            self._leer_estado_laser()
             self._timer_inactividad.stop()
 
     def _fijar_estado_laser(self, estado: str | None):
@@ -1053,21 +1092,34 @@ class VentanaAmbos(QMainWindow):
 
     @Slot()
     def _on_aplicar_laser(self):
-        self._laser.set_output_level(self._output_sel)
-        self._laser.set_burst_mode(self._burst_sel)
+        resultados = {
+            "Output level": self._laser.set_output_level(self._output_sel),
+            "Burst mode":   self._laser.set_burst_mode(self._burst_sel),
+        }
         if self._burst_sel != "Continuous":
-            self._laser.set_burst_length(self._spin_p_burst_len.value())
-        self._laser.set_cooling_temp(self._spin_p_cooling.value())
-        self._laser.set_eo_delay(self._spin_p_eo.value())
-        self._set_log("Parámetros del láser aplicados")
+            resultados["Burst length"] = self._laser.set_burst_length(self._spin_p_burst_len.value())
+        resultados["Cooling T"] = self._laser.set_cooling_temp(self._spin_p_cooling.value())
+        resultados["EO delay"]  = self._laser.set_eo_delay(self._spin_p_eo.value())
+
+        fallidos = [nombre for nombre, ok in resultados.items() if not ok]
+        if fallidos:
+            self._set_log(f"⚠ Parámetros del láser: fallaron {', '.join(fallidos)}")
+        else:
+            self._set_log("Parámetros del láser aplicados")
 
     def _leer_estado_laser(self):
         ok, val = self._laser.leer_estado()
         leido = ok and bool(val.strip())
-        anterior = self._laser_estado_txt
+        anterior_txt = self._laser_estado_txt
+        anterior_running = self._laser_running
         self._fijar_estado_laser(val.strip().upper() if leido else None)
-        if anterior != self._laser_estado_txt:
+        if anterior_txt != self._laser_estado_txt:
             self._set_log(f"State → {self._laser_estado_txt}")
+        if anterior_running != self._laser_running:
+            # La confirmación de RUN/STOP puede llegar por este polling en
+            # vez de por un clic: sin esto el vigía de inactividad se queda
+            # con el estado viejo hasta la próxima interacción del usuario.
+            self._reiniciar_timer_inactividad()
         self._timer_estado_laser.setInterval(ESTADO_LASER_MS if leido else MONITOREO_LASER_MS)
 
     def _actualizar_monitoreo_laser(self):
@@ -1082,10 +1134,17 @@ class VentanaAmbos(QMainWindow):
     # ══════════════════════════════════════════════════════════════════════════
 
     def _sel_canal(self, canal: str):
+        if not self._oscil.set_canal(canal):
+            # El osciloscopio se quedó en el canal anterior: la selección
+            # visible debe reflejar eso, no lo que el usuario pidió.
+            canal_real = self._oscil.canal
+            self._canal_sel = canal_real if self._oscil.conectado else None
+            set_btn_activo(self._btn_p_ch1, canal_real == "CH1", "azul")
+            set_btn_activo(self._btn_p_ch2, canal_real == "CH2", "azul")
+            return
         self._canal_sel = canal
         set_btn_activo(self._btn_p_ch1, canal == "CH1", "azul")
         set_btn_activo(self._btn_p_ch2, canal == "CH2", "azul")
-        self._oscil.set_canal(canal)
         if self._oscil.conectado:
             self._btn_capturar.setEnabled(True)
 
@@ -1237,6 +1296,18 @@ class VentanaAmbos(QMainWindow):
         self._captura_pendiente = True
         self._btn_guardar_manual.setEnabled(not self._secuencia_running)
 
+        temp, _, temp_fresca = self._temp.consultar()
+        lecturas, repetidos, sensores_frescos = self._temp.consultar_sensores()
+        if not sensores_frescos:
+            lecturas, repetidos = None, None
+        self._captura_metadatos = {
+            "temp": temp,
+            "temp_fresca": temp_fresca,
+            "lecturas": lecturas,
+            "repetidos": repetidos,
+            "params": self._laser.leer_parametros(),
+        }
+
         t_s = t[mask]
         v_v = v[mask]
         self._curva_manual.setData(t_s, v_v)
@@ -1296,11 +1367,14 @@ class VentanaAmbos(QMainWindow):
                 return
             self._bloquear_geometria()
 
-        temp, _, temp_fresca = self._temp.consultar()
-        lecturas, repetidos, sensores_frescos = self._temp.consultar_sensores()
-        if not sensores_frescos:
-            lecturas, repetidos = None, None
-        params = self._laser.leer_parametros()
+        # Tomados en _on_captura_terminada, no aquí: guardar puede llegar
+        # bastante después de capturar y la muestra ya pudo cambiar.
+        meta = self._captura_metadatos or {}
+        temp = meta.get("temp")
+        temp_fresca = meta.get("temp_fresca", False)
+        lecturas = meta.get("lecturas")
+        repetidos = meta.get("repetidos")
+        params = meta.get("params") or {}
 
         errores: list[str] = []
         if self._monitor.error_flag:
@@ -1311,6 +1385,10 @@ class VentanaAmbos(QMainWindow):
                 errores.append("conexión con error al momento de guardar")
         if not temp_fresca:
             errores.append(f"ESP32 sin respuesta ({self._temp.puerto})")
+        if lecturas is not None:
+            ausentes = [i + 1 for i, v in enumerate(lecturas) if v is None]
+            if ausentes:
+                errores.append(f"sensor(es) DS18B20 ausente(s): {ausentes}")
         if self._ultima_captura.error_flag:
             errores.append(self._ultima_captura.error_desc or "captura con advertencia")
 
@@ -1332,9 +1410,9 @@ class VentanaAmbos(QMainWindow):
         if mid:
             self._captura_pendiente = False
             self._btn_guardar_manual.setEnabled(False)
-            self._sesion_activa = True
-            self._btn_iniciar_seq.setEnabled(True)
-            self._btn_iniciar_seq.setToolTip("")
+            self._btn_iniciar_seq.setEnabled(not self._modo_degradado)
+            if not self._modo_degradado:
+                self._btn_iniciar_seq.setToolTip("")
             self._set_log(f"Guardado: {mid}")
             self._tab_viz.cargar_sesion_activa()
 
@@ -1364,6 +1442,16 @@ class VentanaAmbos(QMainWindow):
             self._reiniciar_timer_inactividad()
 
     def _intentar_iniciar_secuencia(self):
+        if self._modo_degradado:
+            QMessageBox.critical(
+                self, "Reinicio necesario",
+                "Un stop de emergencia previo no pudo confirmar que la "
+                "secuencia anterior terminó, y su hilo puede seguir vivo en "
+                "segundo plano. Reinicie la aplicación antes de iniciar una "
+                "nueva secuencia.",
+            )
+            return
+
         if not self._laser.conectado:
             QMessageBox.warning(self, "Láser desconectado",
                                 "El láser debe estar conectado para iniciar la secuencia.")
@@ -1383,6 +1471,20 @@ class VentanaAmbos(QMainWindow):
         if por_temp and not self._temp.esta_conectado():
             QMessageBox.warning(self, "ESP32 desconectado",
                                 "El módulo de temperatura debe estar conectado para este modo.")
+            return
+
+        if por_temp and self._spin_t_paso.value() <= 0:
+            # Con paso 0 (u otro valor que no reduzca la temperatura
+            # objetivo, p. ej. uno que redondeando a 4 decimales no cambie
+            # el valor) TriggerWorker._generar_objetivos() nunca termina de
+            # generar objetivos ni revisa _activo: la secuencia no arranca
+            # nunca y detener()/el stop de emergencia no pueden alcanzarla.
+            QMessageBox.warning(
+                self, "Configuración no realizable",
+                "El paso de temperatura debe ser mayor que 0 °C.\n\n"
+                "Con paso 0 la secuencia nunca terminaría de generar sus "
+                "objetivos de temperatura.",
+            )
             return
 
         detalle_duracion = ""
@@ -1428,6 +1530,7 @@ class VentanaAmbos(QMainWindow):
         self._btn_por_tiempo.setEnabled(False)
         self._btn_por_temp.setEnabled(False)
         self._habilitar_panel_oscil(False)
+        self._tab_viz.fijar_reimportacion_habilitada(False)
         self._lbl_progreso.setText("Secuencia en curso…")
         self._monitor.set_estado(EstadoMonitoreo.ENTRE_MEDICIONES)
 
@@ -1478,6 +1581,7 @@ class VentanaAmbos(QMainWindow):
 
     @Slot(int)
     def _on_secuencia_ok(self, n_flags: int):
+        self._timer_fallback_detencion.stop()
         self._secuencia_running = False
         if self._detencion_solicitada:
             titulo, estado = "Secuencia detenida", "Secuencia detenida por el usuario."
@@ -1495,6 +1599,7 @@ class VentanaAmbos(QMainWindow):
 
     @Slot(str)
     def _on_secuencia_abortada(self, motivo: str):
+        self._timer_fallback_detencion.stop()
         self._secuencia_running = False
         self._reset_ui_auto("Secuencia abortada.")
         caja = QMessageBox(QMessageBox.Critical, "Secuencia abortada", motivo, QMessageBox.Ok, self)
@@ -1524,11 +1629,12 @@ class VentanaAmbos(QMainWindow):
         detalle.setLineWrapMode(QTextEdit.WidgetWidth)
 
     def _reset_ui_auto(self, estado: str | None = None):
-        self._btn_iniciar_seq.setEnabled(self._sesion_activa)
+        self._btn_iniciar_seq.setEnabled(self._sesion_activa and not self._modo_degradado)
         self._btn_detener_seq.setEnabled(False)
         self._btn_por_tiempo.setEnabled(True)
         self._btn_por_temp.setEnabled(True)
         self._habilitar_panel_oscil(True)
+        self._tab_viz.fijar_reimportacion_habilitada(True)
         if estado is not None:
             self._lbl_progreso.setText(estado)
         self._monitor.set_estado(EstadoMonitoreo.REPOSO)
@@ -1548,15 +1654,78 @@ class VentanaAmbos(QMainWindow):
             self._captura_thread.wait(2000)
             self._captura_thread = None
             self._captura_worker = None
-        estado = None
-        if self._secuencia_running:
+
+        habia_secuencia = self._secuencia_running
+        if habia_secuencia:
             self._detencion_solicitada = True
             self._medicion.detener()
-            self._secuencia_running = False
-            estado = "Secuencia detenida por el usuario."
-        self._safe.activar()
-        self._reset_ui_auto(estado)
-        self._set_log("⚠ Stop emergencia — modo seguro activado")
+            # _secuencia_running y el resto de la UI no se liberan aquí: el
+            # worker y el trigger siguen vivos hasta que confirman su fin
+            # con secuencia_ok/secuencia_abortada (_on_secuencia_ok /
+            # _on_secuencia_abortada, ya conectados, llaman a
+            # _reset_ui_auto). Hacerlo antes dejaría "Iniciar secuencia"
+            # habilitado mientras el hilo anterior todavía corre, y una
+            # nueva secuencia podría arrancar encima de la que se está
+            # deteniendo.
+            self._lbl_progreso.setText("Deteniendo secuencia…")
+            # Red de seguridad: si el worker/trigger quedara bloqueado (p. ej.
+            # un bucle que no revisa _activo, o la captura tarda más de lo
+            # normal) y nunca confirma el fin, esto libera la GUI de todos
+            # modos en vez de dejarla deshabilitada para siempre.
+            self._timer_fallback_detencion.start()
+
+        resultados = self._safe.activar()
+        if not habia_secuencia:
+            self._reset_ui_auto()
+
+        fallidos = [k for k, v in resultados.items() if not v]
+        if fallidos:
+            self._set_log(f"⚠ Stop emergencia — modo seguro con fallos: {', '.join(fallidos)}")
+        else:
+            self._set_log("⚠ Stop emergencia — modo seguro activado")
+
+    @Slot()
+    def _on_timeout_detencion_secuencia(self):
+        """
+        No llegó secuencia_ok ni secuencia_abortada tras el plazo de
+        TIMEOUT_DETENCION_SECUENCIA_MS: el worker/trigger de la secuencia
+        anterior puede seguir vivo o bloqueado, pero el láser ya recibió las
+        órdenes de modo seguro al pulsar el stop (_safe.activar(), síncrono,
+        no depende de que el worker responda).
+
+        Verificado en aislado: un QThread con un bucle sin sleep ni chequeo
+        de _activo NO se detiene con thread.quit()+wait() — que es
+        exactamente lo que hace Medicion._limpiar_threads() al iniciar la
+        siguiente secuencia — y sigue consumiendo CPU en segundo plano
+        indefinidamente. Por eso esto no se limita a liberar la GUI: entra
+        en modo degradado y bloquea "Iniciar secuencia" hasta que la
+        aplicación se reinicie, porque no hay forma de verificar desde aquí
+        que aquel hilo realmente terminó, y arrancar una secuencia nueva
+        sobre un hilo zombie sería peor que el bloqueo original.
+        """
+        if not self._secuencia_running:
+            return
+        self._secuencia_running = False
+        self._modo_degradado = True
+        self._reset_ui_auto("Secuencia: estado del worker incierto — reinicie la aplicación.")
+        self._btn_iniciar_seq.setToolTip(
+            "Bloqueado: un stop de emergencia previo no confirmó el fin de la "
+            "secuencia anterior. Reinicie la aplicación para volver a habilitarlo."
+        )
+        segundos = TIMEOUT_DETENCION_SECUENCIA_MS // 1000
+        self._set_log(f"⚠ Secuencia sin confirmar tras {segundos} s — reinicie la aplicación")
+        QMessageBox.warning(
+            self, "Reinicie la aplicación",
+            f"Pasaron {segundos} s desde el stop de emergencia sin que la "
+            "secuencia anterior confirmara haber terminado.\n\n"
+            "El láser ya recibió las órdenes de modo seguro: eso no depende "
+            "de esto. Pero el hilo de aquella secuencia probablemente sigue "
+            "vivo en segundo plano consumiendo CPU — no hay una forma segura "
+            "de comprobar desde la interfaz que terminó, y cerrar la ventana "
+            "tampoco lo garantiza.\n\n"
+            "REINICIE LA APLICACIÓN antes de iniciar una nueva secuencia. "
+            "\"Iniciar secuencia\" queda bloqueado hasta entonces.",
+        )
 
     # ══════════════════════════════════════════════════════════════════════════
     # INACTIVIDAD
@@ -1614,11 +1783,12 @@ class VentanaAmbos(QMainWindow):
 
     @Slot(bool, list)
     def _on_modo_seguro(self, todo_ok: bool, fallidos: list):
-        if "stop" in fallidos:
-            self._fijar_estado_laser(None)
-            return
-        self._fijar_estado_laser("STOP")
+        # El envío de STOP sin error no confirma que el láser ya se detuvo:
+        # se marca incierto y se lee el estado real de inmediato.
         self._timer_inactividad.stop()
+        self._fijar_estado_laser(None)
+        if self._laser.conectado:
+            self._leer_estado_laser()
 
     @Slot(str, dict)
     def _on_seguridad_activada(self, dispositivo: str, resultados: dict):
@@ -1656,6 +1826,30 @@ class VentanaAmbos(QMainWindow):
 
     @Slot()
     def _on_volver(self):
+        if self._modo_degradado:
+            # Bloqueo duro, no solo aviso: "Volver" reabre la pantalla de
+            # bienvenida sin cerrar el proceso (BienvenidaWindow queda
+            # oculta, no cerrada — ver bienvenida.py), así que un clic en
+            # "Láser + Osciloscopio" ahí crearía una VentanaAmbos nueva con
+            # controladores nuevos mientras el hilo zombie de esta sigue
+            # vivo compitiendo por el mismo hardware real. No deja sin
+            # salida: cerrar esta ventana por la X del sistema operativo
+            # (no pasa por aquí) sí termina el proceso completo, porque
+            # BienvenidaWindow oculta no cuenta como ventana visible y
+            # QApplication.quitOnLastWindowClosed queda en su valor por
+            # defecto (True).
+            QMessageBox.critical(
+                self, "Reinicio necesario",
+                "Esta sesión quedó en modo degradado: el hilo de la "
+                "secuencia anterior probablemente sigue vivo en segundo "
+                "plano, consumiendo CPU.\n\n"
+                "\"Volver\" queda bloqueado — no reduce el riesgo, porque la "
+                "pantalla de inicio seguiría permitiendo abrir una ventana "
+                "nueva sobre ese hilo.\n\n"
+                "Cierre la aplicación por completo con la X de esta ventana "
+                "y vuelva a abrirla.",
+            )
+            return
         if self._secuencia_running:
             resp = QMessageBox.question(
                 self, "Secuencia en curso",
@@ -1691,6 +1885,7 @@ class VentanaAmbos(QMainWindow):
         self._timer_estado_laser.stop()
         self._timer_monitor_laser.stop()
         self._timer_temperatura.stop()
+        self._timer_fallback_detencion.stop()
         if self._captura_thread is not None and self._captura_thread.isRunning():
             self._oscil.cancelar_espera()
             self._captura_thread.quit()

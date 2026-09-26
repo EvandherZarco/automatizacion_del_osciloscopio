@@ -160,6 +160,14 @@ class VisualizacionWidget(QWidget):
         self._sesion_dir = csv_path.parent if csv_path else None
         self._poblar_tabla(filas)
 
+    def fijar_reimportacion_habilitada(self, habilitar: bool) -> None:
+        """
+        Reimportar cambia la sesión activa de Almacenamiento, compartida con
+        Medición: hacerlo mientras una secuencia automática está en curso
+        desviaría sus filas hacia la sesión recién abierta.
+        """
+        self._btn_reimportar.setEnabled(habilitar)
+
     def _reimportar(self):
         ruta, _ = QFileDialog.getOpenFileName(
             self, "Abrir sesión", str(Path.home()), "CSV (*.csv)"
