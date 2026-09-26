@@ -31,6 +31,10 @@ Casos:
    10. Sin metadatos y con un session_id sin fecha, el diálogo dice
        "fecha de creación no disponible" en vez de inventarla.
    11. Crear una sesión nueva después de reabrir otra deja de preguntar.
+   12. La pregunta de sesión reabierta va después de aceptar "Iniciar
+       secuencia automática": si esa confirmación se cancela, no se
+       pregunta nada, la reapertura queda sin confirmar y el siguiente
+       Guardar pregunta.
 
 Uso:
     venv\\Scripts\\python codigos_de_prueba\\ventana_ambos\\probar_guardar_sesion_reabierta.py
@@ -56,13 +60,14 @@ from PySide6.QtWidgets import QFileDialog, QMessageBox  # noqa: E402
 
 from app.almacenamiento.almacenamiento import Almacenamiento, PaqueteMedicion  # noqa: E402
 
-CASOS_ESPERADOS = {str(i) for i in range(1, 12)}
+CASOS_ESPERADOS = {str(i) for i in range(1, 13)}
 TITULO = "Guardar en sesión reabierta"
+TITULO_SECUENCIA = "Iniciar secuencia automática"
 
 _ventana = None
 _cajas: CajasCapturadas | None = None
 _preguntas: list[tuple] = []
-_respuesta = {"boton": QMessageBox.No}
+_respuesta = {"boton": QMessageBox.No, "secuencia": QMessageBox.Ok}
 
 
 def verificar(condicion, mensaje):
@@ -132,6 +137,13 @@ class _MedicionEspia:
 def _question(*a, **_kw):
     _preguntas.append(a)
     return _respuesta["boton"]
+
+
+def _warning(*a, **_kw):
+    _preguntas.append(a)
+    if len(a) > 1 and a[1] == TITULO_SECUENCIA:
+        return _respuesta["secuencia"]
+    return QMessageBox.Ok
 
 
 def _preguntas_reabierta() -> list[tuple]:
@@ -324,6 +336,39 @@ def caso_7_secuencia_como_primera_escritura():
     print("     secuencia primero: No → no arranca; Sí → arranca; Guardar después sin pregunta")
 
 
+def caso_12_cancelar_secuencia_no_confirma():
+    _reabrir(_sesion_vieja())
+    _preguntas.clear()
+    _respuesta["boton"] = QMessageBox.Yes
+    _respuesta["secuencia"] = QMessageBox.Cancel
+    try:
+        llamadas = _iniciar_secuencia()
+    finally:
+        _respuesta["secuencia"] = QMessageBox.Ok
+    titulos = [a[1] for a in _preguntas if len(a) > 1]
+
+    verificar(llamadas == 0, f"la secuencia arrancó pese a cancelar (Medicion.iniciar {llamadas} veces)")
+    verificar(TITULO_SECUENCIA in titulos, f"no se mostró la confirmación de secuencia: {titulos}")
+    verificar(TITULO not in titulos,
+              "se preguntó por la sesión reabierta antes de aceptar la secuencia")
+    verificar(not _ventana._reapertura_confirmada, "la reapertura quedó confirmada sin que arrancara nada")
+
+    _preguntas.clear()
+    _respuesta["boton"] = QMessageBox.No
+    _capturar_y_guardar()
+    verificar(len(_preguntas_reabierta()) == 1, "tras cancelar la secuencia, Guardar no preguntó")
+
+    _preguntas.clear()
+    _respuesta["boton"] = QMessageBox.Yes
+    llamadas = _iniciar_secuencia()
+    titulos = [a[1] for a in _preguntas if len(a) > 1]
+    verificar(llamadas == 1, "con la secuencia aceptada y Sí, la secuencia no arrancó")
+    verificar(titulos.index(TITULO_SECUENCIA) < titulos.index(TITULO),
+              f"orden de diálogos {titulos}: la pregunta de sesión reabierta debe ir después")
+    print("     Cancelar secuencia: sin pregunta ni confirmación; Guardar luego pregunta; "
+          "al aceptar, la pregunta va después")
+
+
 def caso_8_texto_y_boton_por_defecto():
     _reabrir(_sesion_vieja())
     _preguntas.clear()
@@ -389,6 +434,8 @@ CASOS = (
     ("9", "Sin metadatos: fecha desde el session_id", caso_9_fecha_desde_session_id),
     ("10", "Sin ninguna fuente: 'fecha de creación no disponible'", caso_10_fecha_no_disponible),
     ("11", "Sesión nueva tras reabrir: deja de preguntar", caso_11_sesion_nueva_tras_reabrir_no_pregunta),
+    ("12", "Cancelar 'Iniciar secuencia' no confirma la reapertura",
+     caso_12_cancelar_secuencia_no_confirma),
 )
 
 
@@ -402,6 +449,7 @@ def main():
     _cajas = CajasCapturadas()
     _ventana = crear_ventana_ambos(_cajas)
     QMessageBox.question = staticmethod(_question)
+    QMessageBox.warning = staticmethod(_warning)
     _ventana._monitor = _MonitorPasivo()
     app = app_qt()
 

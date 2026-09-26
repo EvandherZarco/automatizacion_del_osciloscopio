@@ -1553,10 +1553,6 @@ class VentanaAmbos(QMainWindow):
                 f"Duración estimada: {self._formato_duracion(total_s)}.\n\n"
             )
 
-        if not self._confirmar_sesion_reabierta():
-            self._set_log("Secuencia no iniciada: la sesión reabierta no se modificó.")
-            return
-
         resp = QMessageBox.warning(
             self, "Iniciar secuencia automática",
             f"{detalle_duracion}"
@@ -1564,6 +1560,12 @@ class VentanaAmbos(QMainWindow):
             QMessageBox.Ok | QMessageBox.Cancel,
         )
         if resp != QMessageBox.Ok:
+            return
+
+        # Después de aceptar la secuencia, no antes: así un Sí a escribir en
+        # la sesión reabierta solo queda registrado si la secuencia arranca.
+        if not self._confirmar_sesion_reabierta():
+            self._set_log("Secuencia no iniciada: la sesión reabierta no se modificó.")
             return
 
         self._secuencia_running = True
