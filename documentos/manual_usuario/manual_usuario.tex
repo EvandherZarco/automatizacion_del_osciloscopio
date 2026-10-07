@@ -1,0 +1,750 @@
+\documentclass[11pt]{article}
+
+% Preámbulo
+\usepackage[a5paper,left=12mm,right=12mm,top=14mm,bottom=16mm,headheight=14pt,headsep=4mm,footskip=8mm]{geometry}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[spanish, mexico]{babel}
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage{amssymb}
+\usepackage{siunitx}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{array}
+\usepackage{longtable}
+\usepackage{enumitem}
+\usepackage[table]{xcolor}
+\usepackage{tikz}
+\usetikzlibrary{babel}
+\usepackage[most]{tcolorbox}
+\usepackage{titlesec}
+\usepackage{needspace}
+\usepackage{tocloft}
+\usepackage{fancyhdr}
+\usepackage[colorlinks=true,linkcolor=acc,urlcolor=acc,citecolor=acc,
+  pdftitle={Manual de usuario --- Sistema de medición fotoacústica},
+  pdfauthor={Evandher Joel Zarco Hernández}]{hyperref}
+\usepackage[spanish]{cleveref}
+
+% Colores
+\definecolor{ink}{HTML}{1B2430}
+\definecolor{mute}{HTML}{5A6675}
+\definecolor{acc}{HTML}{0B5CAB}
+\definecolor{warn}{HTML}{A15C00}
+\definecolor{bad}{HTML}{B3261E}
+\definecolor{okc}{HTML}{1E6B3A}
+\definecolor{line}{HTML}{C9D1DA}
+\definecolor{soft}{HTML}{F2F5F9}
+\definecolor{warnbg}{HTML}{FFF6E8}
+\definecolor{badbg}{HTML}{FDECEA}
+\definecolor{okbg}{HTML}{EAF6EE}
+\definecolor{btnbg}{HTML}{E9EEF5}
+\definecolor{btnframe}{HTML}{B8C4D2}
+\definecolor{btnink}{HTML}{13273D}
+\definecolor{svbg}{HTML}{FFF0C2}
+\definecolor{svframe}{HTML}{D9B441}
+\definecolor{svink}{HTML}{6B4E00}
+\definecolor{ledg}{HTML}{2E9E4F}
+\definecolor{ledr}{HTML}{D23A2F}
+\definecolor{ledn}{HTML}{8A8F96}
+\definecolor{fieldline}{HTML}{8794A3}
+\definecolor{shotframe}{HTML}{9AA7B6}
+\definecolor{shotbg}{HTML}{FAFBFD}
+
+\color{ink}
+\sisetup{range-phrase={ -- }, range-units=single}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{2.5mm}
+\linespread{1.08}
+\setcounter{secnumdepth}{1}
+\setcounter{tocdepth}{1}
+\addto\captionsspanish{\renewcommand{\contentsname}{Contenido}}
+\crefname{section}{sección}{secciones}
+\Crefname{section}{Sección}{Secciones}
+\crefname{appendix}{anexo}{anexos}
+\Crefname{appendix}{Anexo}{Anexos}
+
+% Títulos
+\titleformat{\section}{\needspace{11\baselineskip}\LARGE\bfseries\color{acc}}{\thesection.}{0.35em}{}
+\titlespacing*{\section}{0pt}{7mm}{3mm}
+\titleformat{\subsection}{\needspace{5\baselineskip}\large\bfseries\color{ink}}{}{0pt}{}[{\vspace{0.6mm}\color{line}\titlerule[0.6pt]}]
+\titlespacing*{\subsection}{0pt}{5mm}{1.5mm}
+\titleformat{\subsubsection}{\needspace{4\baselineskip}\normalsize\bfseries\color{acc}}{}{0pt}{}
+\titlespacing*{\subsubsection}{0pt}{4mm}{0.5mm}
+
+% Índice
+\setlength{\cftbeforesecskip}{1.6mm}
+\setlength{\cftsecnumwidth}{1.9em}
+\renewcommand{\cftsecaftersnum}{.}
+\renewcommand{\cftsecfont}{\normalsize}
+\renewcommand{\cftsecpagefont}{\normalsize}
+\renewcommand{\cftsecleader}{\cftdotfill{\cftdotsep}}
+\renewcommand{\cfttoctitlefont}{\LARGE\bfseries\color{acc}}
+\setlength{\cftbeforetoctitleskip}{0pt}
+\setlength{\cftaftertoctitleskip}{3mm}
+
+% Encabezado y pie
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\footnotesize\color{mute}\nouppercase{\leftmark}}
+\fancyfoot[C]{\small\color{mute}\thepage}
+\renewcommand{\headrulewidth}{0pt}
+\renewcommand{\sectionmark}[1]{\markboth{\thesection.\ #1}{}}
+
+% Macros de la interfaz
+\newtcbox{\btnbox}{on line, colback=btnbg, colframe=btnframe, coltext=btnink,
+  boxrule=0.4pt, arc=1.6pt, left=1.3pt, right=1.3pt, top=0.4pt, bottom=0.4pt,
+  boxsep=0pt, fontupper=\ttfamily\footnotesize}
+\newcommand{\btn}[1]{\btnbox{#1}}
+\DeclareRobustCommand{\led}[1]{\tikz[baseline=-0.55ex]\fill[led#1] (0,0) circle (1.3mm);}
+\newtcbox{\svbox}{on line, colback=svbg, colframe=svframe, coltext=svink,
+  boxrule=0.4pt, arc=1.4pt, left=1.2pt, right=1.2pt, top=0.3pt, bottom=0.3pt,
+  boxsep=0pt, fontupper=\scriptsize}
+\newcommand{\sv}[1]{\svbox{#1}}
+\DeclareRobustCommand{\casilla}{\tikz[baseline=-0.5mm]\draw[ink!80,line width=0.4pt] (0,0) rectangle (3.4mm,3.4mm);\hspace{1.5mm}}
+\newcommand{\campo}[1]{\par\noindent{\footnotesize\color{mute}#1}\par\nointerlineskip
+  \vspace{3.9mm}\noindent{\color{fieldline}\rule{\linewidth}{0.5pt}}\par\vspace{1mm}}
+\newcommand{\lineablanco}{\par\nointerlineskip\vspace{5.6mm}\noindent{\color{fieldline}\rule{\linewidth}{0.5pt}}\par}
+\newcommand{\hueco}[1]{\rule[-0.4ex]{#1}{0.4pt}}
+\newtcolorbox{marcadorbox}{enhanced, colback=shotbg, frame hidden, sharp corners,
+  borderline={0.9pt}{0pt}{shotframe, dashed}, halign=center, valign=center,
+  top=7mm, bottom=7mm, left=4mm, right=4mm, before skip=3mm, after skip=3mm,
+  fontupper=\small\color{mute}}
+\newcommand{\marcador}[1]{\begin{marcadorbox}#1\end{marcadorbox}}
+\newcommand{\captura}[2]{\par\needspace{0.35\textheight}\begin{center}
+  \fcolorbox{black!25}{white}{\includegraphics[width=\dimexpr\linewidth-2\fboxsep-2\fboxrule\relax]{#1}}\\[1.5mm]
+  {\small\itshape\color{black!65}#2}
+\end{center}}
+\newcommand{\cod}[1]{\texttt{#1}}
+\newcommand{\bs}{\textbackslash\allowbreak}
+
+% Cuadros de aviso
+\tcbset{aviso/.style n args={3}{enhanced, colback=#2, frame hidden, sharp corners,
+  borderline west={1.6mm}{0pt}{#1}, boxrule=0pt, left=3mm, right=3mm, top=1.6mm, bottom=1.6mm,
+  before skip=3mm, after skip=3mm, fontupper=\normalsize,
+  before upper={\parfillskip=0pt plus 1fil\relax{\color{#1}\small\scshape #3}\par\vspace{0.6mm}},
+  parbox=false, before upper app={\setlength{\parskip}{1.5mm}}}}
+\newtcolorbox{nota}[1]{aviso={acc}{soft}{#1}}
+\newtcolorbox{advertencia}[1]{aviso={warn}{warnbg}{#1}}
+\newtcolorbox{cuidado}[1]{aviso={bad}{badbg}{#1}}
+\newtcolorbox{okbox}[1]{aviso={okc}{okbg}{#1}}
+
+% Listas
+\DeclareRobustCommand{\pasocirculo}[1]{\tikz[baseline=(n.base)]\node[circle, fill=acc, text=white,
+  inner sep=0pt, minimum size=5.6mm, font=\footnotesize\bfseries\sffamily] (n) {#1};}
+\newlist{pasos}{enumerate}{1}
+\setlist[pasos]{label=\pasocirculo{\arabic*}, ref=\arabic*, leftmargin=8mm, labelsep=2.4mm,
+  itemsep=1.6mm, topsep=1mm, parsep=0pt}
+\newlist{checklist}{itemize}{1}
+\setlist[checklist]{label=\casilla, leftmargin=5.2mm, labelsep=0.6mm, itemsep=1mm, topsep=0.5mm}
+\setlist[itemize]{leftmargin=5mm, itemsep=1mm, topsep=0.5mm, parsep=0pt, label=\textbullet}
+
+% Tablas
+\newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
+\newcolumntype{Y}{>{\raggedright\arraybackslash}X}
+\newenvironment{tabla}[1]
+  {\par\nopagebreak\smallskip\noindent\small\renewcommand{\arraystretch}{1.25}\tabularx{\linewidth}{#1}}
+  {\endtabularx\par\smallskip}
+
+% Anexos
+\newcommand{\anexospacing}{%
+  \titlespacing*{\subsection}{0pt}{2.6mm}{1mm}%
+  \titleformat{\subsection}{\normalsize\bfseries\color{ink}}{}{0pt}{}[{\vspace{0.4mm}\color{line}\titlerule[0.6pt]}]}
+\newcommand{\anexo}[3]{%
+  \refstepcounter{section}\phantomsection
+  \addcontentsline{toc}{section}{Anexo #1 --- #2#3}%
+  \markboth{Anexo #1}{}%
+  {\raggedright\Large\bfseries\color{acc}Anexo #1 --- #2\par}\vspace{1.5mm}}
+
+\begin{document}
+
+% Portada
+\begin{titlepage}
+\pagestyle{empty}
+\thispagestyle{empty}
+\centering
+\vspace*{8mm}
+{\fontsize{24}{28}\selectfont\bfseries\color{acc}Manual de usuario\par}
+\vspace{4mm}
+{\large\color{mute}Sistema de medición fotoacústica\\láser + osciloscopio + temperatura\par}
+\vspace{8mm}
+Automatización de un sistema fotoacústico\\para la caracterización de líquidos\par
+\vspace{8mm}
+{\small\renewcommand{\arraystretch}{1.3}
+\begin{tabularx}{0.86\linewidth}{>{\bfseries}L{2.7cm}Y}
+\toprule
+Para & Operación del sistema sin programar\\
+\midrule
+Versión del software & rama \cod{main}, commit \cod{c67ae06}\newline(congelada el 30-sep-2026)\\
+\midrule
+Versión del manual & 2\\
+\midrule
+Autor del sistema & Evandher Joel Zarco Hernández\\
+\midrule
+Asesor & M. en C. Arturo Ronquillo Arvizu\\
+\bottomrule
+\end{tabularx}\par}
+\vspace{5mm}
+\raggedright
+\begin{advertencia}{Cómo leer este manual}
+Lo marcado con \sv{sin verificar} es información que no se ha comprobado con el equipo real. Los cuadros \textbf{CUIDADO} hablan del láser: léelos siempre.
+\end{advertencia}
+\end{titlepage}
+
+% Contenido
+\setcounter{page}{2}
+\hypersetup{linkcolor=ink}
+\markboth{Contenido}{}
+\tableofcontents
+\hypersetup{linkcolor=acc}
+\vspace{2mm}
+{\small\color{mute}Los anexos A--C están pensados para anotarse a mano o con el lápiz de la tablet.\par}
+
+% 1
+\clearpage
+\section[Antes de empezar (checklist)]{Antes de empezar}\label{sec:antes}
+\markboth{\thesection.\ Antes de empezar}{}
+\begin{cuidado}{Cuidado --- láser}
+El láser dispara cuando pulsas \btn{$\blacktriangleright$ Iniciar} y aceptas el aviso, y durante toda una secuencia automática. Antes: protecciones puestas y el haz en su trayectoria. El láser también puede encenderse desde su control externo (CAN) sin pasar por la aplicación. El programa avisa, pero no sustituye la revisión visual.
+\end{cuidado}
+\textbf{Marca cada punto.}
+\begin{checklist}
+  \item Osciloscopio encendido y con el programa \textbf{TekScope} abierto.
+  \item Servidor de red del osciloscopio iniciado: \textbf{Utilities $\rightarrow$ LAN Server Status $\rightarrow$ Start}. Es un procedimiento del laboratorio: la aplicación no lo configura ni lo comprueba. \sv{sin verificar: texto exacto del menú}
+  \item Cable Ethernet del osciloscopio conectado.
+  \item Láser encendido y su cable serie (RS-232) conectado a la PC.
+  \item ESP32 conectado por USB y los cuatro sensores S1--S4 colocados en la muestra.
+  \item Muestra en la celda, con la \textbf{separación hidrófono--haz} medida (mm) y el \textbf{volumen} vertido (mL).
+  \item Temperatura de la muestra entre 10 y 50~\si{\degreeCelsius}: fuera de ese rango la aplicación descarta la lectura.
+  \item Escalas y trigger ajustados \textbf{en el osciloscopio}, con el trigger en \textbf{Normal} (\S\ref{sec:que-hace}).
+  \item Hoja de sesión (Anexo A) a la mano.
+\end{checklist}
+
+% 2
+\section[Qué hace el sistema y qué no hace]{Qué hace el sistema y qué no}\label{sec:que-hace}
+\markboth{\thesection.\ Qué hace el sistema y qué no}{}
+\subsection*{Qué hace}
+\begin{itemize}
+  \item Controla el láser (encender, detener, parámetros) y lee su estado.
+  \item Captura la señal del osciloscopio, manualmente o en secuencia (por tiempo o por temperatura).
+  \item Lee la temperatura de la muestra con cuatro sensores (S1--S4).
+  \item Guarda cada medición con sus metadatos, y \textbf{marca} con \cod{error\_flag} las mediciones sospechosas en lugar de ocultarlas; por ejemplo, una captura en la que el osciloscopio no hizo una adquisición nueva.
+\end{itemize}
+\subsection*{Qué no hace}
+\begin{itemize}
+  \item \textbf{No cambia la escala vertical, la horizontal ni el trigger} del osciloscopio. Se ajustan en el equipo; la aplicación las lee y las guarda con cada medición.
+  \item Lo que sí cambia en el osciloscopio: el canal que transfiere, el modo de adquisición y el número de promedios (al pulsar \btn{Aplicar parámetros} y durante las secuencias; al terminar una secuencia devuelve el modo que había), y lo pone en RUN o STOP para capturar.
+  \item No confirma que el láser haya obedecido una orden: que una orden se \textit{envió} no significa que se aplicó. El estado del láser (RUN/STOP) se lee aparte.
+  \item No interpreta la señal ni calcula propiedades del líquido: entrega datos.
+\end{itemize}
+\begin{nota}{Canales}
+CH1 = hidrófono (señal). CH2 = señal de trigger. Cada captura transfiere solo el canal elegido. La aplicación no deja capturar hasta que elijas un canal.
+\end{nota}
+\begin{nota}{Osciloscopio}
+Se validó con osciloscopios de la serie TDS5000B disponibles en el laboratorio; la automatización solo emplea los canales 1 y 2, comunes a todos los modelos de la serie. El modelo conectado queda registrado en los metadatos de cada sesión.
+\end{nota}
+\begin{nota}{Trigger}
+Se recomienda \textbf{Normal}. Con \textbf{Auto}, el osciloscopio adquiere aunque no llegue un pulso del láser, y esas adquisiciones se mezclan con las del láser. En una sesión de prueba con el trigger en Normal se midió una tasa de adquisición de unas 9.3 adquisiciones por segundo; es un dato del osciloscopio, no la tasa de repetición del láser. La aplicación usa ese valor para estimar cuánto dura una captura con promedios.
+\end{nota}
+
+% 3
+\section{Arranque}\label{sec:arranque}
+\begin{pasos}
+  \item Cumple el checklist del \S\ref{sec:antes}.
+  \item Haz doble clic en \cod{iniciar.bat} (en la carpeta del programa).
+  \item Se abre una \textbf{ventana negra} junto con la aplicación. \textbf{No cierres la ventana negra}: es el programa corriendo. Si el programa termina con un error, la ventana negra se queda abierta con el mensaje: tómale una foto.
+  \item En la pantalla de inicio elige \btn{Láser + Osciloscopio} (es la única que usa temperatura y secuencias).
+  \item La aplicación intenta conectar los tres equipos. Si alguno no responde aparece \textbf{«Dispositivo sin conexión»} con la lista de equipos y el puerto o dirección que se probó.
+\end{pasos}
+\captura{figuras/inicio.png}{Pantalla de inicio. Para medir, elige \btn{Láser + Osciloscopio}.}
+\subsection*{Primera vez o equipo nuevo: \btn{Conexión}}
+Este botón está en la pantalla de inicio y en la barra superior de la ventana principal. Sirve para elegir el puerto del ESP32, el puerto del láser y la dirección IP del osciloscopio.
+\begin{itemize}
+  \item \btn{Probar conexión} revisa los valores escritos en el diálogo; \btn{Guardar} los conserva. Se guardan en la carpeta del usuario y se aplican en la siguiente conexión de cada equipo; no hay que repetirlo cada día.
+  \item Si falta un puerto: \textit{«Seleccione un puerto para: \ldots»}.
+  \item IP del osciloscopio usada en el laboratorio: \cod{192.168.1.1}. Cámbiala solo si cambia el equipo.
+  \item Los puertos COM pueden cambiar si desconectas y vuelves a conectar USB; usa \btn{Actualizar lista} y vuelve a elegirlos.
+  \item El botón está bloqueado mientras el láser está en RUN (o su estado no se pudo confirmar), durante una secuencia o durante una captura.
+\end{itemize}
+\begin{advertencia}{Aviso del diálogo}
+El diálogo recuerda que el láser puede estar emitiendo por su control CAN externo aunque la aplicación no esté conectada a él. Antes de probar la conexión, verifica que el láser esté detenido y las protecciones colocadas.
+\end{advertencia}
+
+% 4
+\section{La ventana principal y los LEDs}\label{sec:ventana}
+\captura{figuras/ventana_principal.png}{Ventana «Láser + Osciloscopio» con los tres equipos y los cuatro sensores en verde.}
+\subsection*{Barra superior}
+\begin{tabla}{L{3.3cm}Y}
+\toprule
+\textbf{Elemento} & \textbf{Qué indica}\\
+\midrule
+\led{g} \textbf{Láser}, \textbf{Osciloscopio}, \textbf{ESP32} & \led{g} verde = conectado y respondiendo. Amarillo = reintentando la conexión, o advertencia en la última orden o captura. \led{r} rojo = sin conexión. \led{n} gris = aún sin estado.\\
+\midrule
+\textbf{S1 S2 S3 S4} & Un LED por sensor. Verde = lectura válida. Rojo = ese sensor no responde o está fuera de 10--50~\si{\degreeCelsius}. Gris = no hay lectura reciente del ESP32.\\
+\midrule
+\btn{$\circlearrowleft$ Reconectar} & Aparece junto al ESP32 si está desconectado.\\
+\midrule
+Número azul \textbf{«xx.xx~\si{\degreeCelsius}»} & Temperatura de la muestra (promedio que envía el ESP32), actualizada cada segundo. Si se pone gris y muestra \textbf{«---»}, no hay lectura de los últimos 3~s.\\
+\midrule
+\btn{$\triangle$ Stop emergencia} & Siempre habilitado. Ver \S\ref{sec:emergencia}.\\
+\bottomrule
+\end{tabla}
+\subsection*{Las tres pestañas y la barra inferior}
+\begin{itemize}
+  \item \btn{$\equiv$ Parámetros} --- láser, osciloscopio y geometría de la sesión.
+  \item \btn{$\star$ Medición} --- captura manual y secuencia automática.
+  \item \btn{$\approx$ Visualizar datos} --- tabla y gráfica de lo guardado.
+  \item La \textbf{barra inferior} muestra el último mensaje del programa (órdenes enviadas, fallos, avisos).
+\end{itemize}
+\begin{nota}{Iconos}
+En este manual los iconos de los botones se representan con símbolos aproximados; en la pantalla pueden verse distintos o no aparecer.
+\end{nota}
+\subsection*{Cómo vigila la aplicación los equipos}
+\begin{itemize}
+  \item \textbf{Láser}: la aplicación le pregunta su estado. La etiqueta de estado del panel del láser se actualiza cada segundo; además, el monitor de conexión lo consulta cada 5~s (cada 1~s durante una secuencia, con pausa mientras el osciloscopio captura).
+  \item \textbf{Osciloscopio}: el monitor no le envía consultas; usa el resultado de la última comunicación. Una desconexión se detecta cuando falla una orden o una captura.
+  \item \textbf{ESP32}: se considera conectado mientras llegue una lectura de temperatura reciente (menos de 3~s).
+  \item Si un equipo falla, su LED pasa a amarillo y la aplicación hace hasta 3 intentos de reconexión. Si no lo logra, el LED pasa a rojo. Si el equipo es el láser o el osciloscopio, además se envía el modo seguro al láser y aparece \textbf{«Dispositivo crítico desconectado»} (\S\ref{sec:falla}). Si es el ESP32, no se envía el modo seguro: aparece \btn{$\circlearrowleft$ Reconectar}.
+\end{itemize}
+
+% 5
+\section{Preparar parámetros}\label{sec:parametros}
+\subsection*{Geometría de la sesión (hazlo antes de la primera captura)}
+En \btn{$\equiv$ Parámetros}, sección \textbf{Geometría de la sesión}, la aplicación registra dos magnitudes:
+\begin{itemize}
+  \item \textbf{Separación hidrófono--haz (mm)}
+  \item \textbf{Volumen vertido (mL)}
+\end{itemize}
+Son opcionales, pero \textbf{se escriben en los metadatos al crearse la sesión (primer \btn{Guardar}) y no se pueden añadir después}. Al crearse la sesión los dos campos se bloquean y aparece \textit{«Geometría fija para esta sesión. Para cambiarla: Inicio $\rightarrow$ Láser + Osciloscopio.»}
+
+Si al pulsar \btn{$\odot$ Capturar}, antes de que exista la sesión, falta alguno de los dos, la aplicación pregunta \textbf{«Geometría incompleta»}:
+\begin{itemize}
+  \item \btn{Cancelar y llenarlos} (opción por defecto) --- vuelve a la pestaña Parámetros para llenarlos.
+  \item \btn{Continuar sin ellos} --- no vuelve a preguntar; en los metadatos quedan como «no registrado».
+\end{itemize}
+Con una sesión reabierta (\textit{Abrir CSV\ldots}, \S\ref{sec:datos}) lo que escribas en estos campos no se registra.
+\subsection*{Láser}
+\begin{tabla}{L{1.75cm}L{3.2cm}Y}
+\toprule
+\textbf{Control} & \textbf{Opciones / rango} & \textbf{Nota}\\
+\midrule
+Output level & \btn{E OFF} \btn{E Adjust} \btn{E Max} & E OFF = sin energía de salida.\\
+\midrule
+Burst mode & \btn{Continuous} \btn{Burst}\newline\btn{Trigger} & Las mediciones usan Continuous.\\
+\midrule
+Burst length & 1 -- 30000 & Solo con Burst o Trigger; con Continuous el campo está apagado.\\
+\midrule
+Set cooling T & 10.0 -- 50.0~\si{\degreeCelsius} & \textbf{Temperatura del agua de enfriamiento del láser, no de la muestra.}\\
+\midrule
+Adj.\ EO delay & 800 -- 8000~\si{\micro\second} (defecto 3800) & Retardo EO del modo E Adjust. 3800 es también el valor del modo seguro.\\
+\bottomrule
+\end{tabla}
+Pulsa \btn{Aplicar parámetros} para enviarlos. Si alguno falla, la barra inferior dice \textit{«Parámetros del láser: fallaron \ldots»}. Con el láser en marcha, o si su estado no se pudo confirmar, los parámetros están \textbf{bloqueados} (\textit{«Detén el láser para modificar parámetros»}): detén, cambia, aplica y vuelve a iniciar.
+\begin{pasos}
+  \item Pulsa \btn{$\blacktriangleright$ Iniciar}. Aparece \textbf{«Encender el láser»} --- \textit{«El láser está a punto de disparar. Verifique que las protecciones estén en su lugar.»} Pulsa \btn{Ok} solo si es cierto.
+  \item La etiqueta de estado del panel del láser pasa a \textbf{RUN} cuando el láser lo confirma: la aplicación lee su estado en lugar de suponerlo. Un \textbf{«?»} significa que el estado no se pudo leer.
+  \item Las tarjetas de monitoreo muestran la temperatura del agua de enfriamiento, el valor fijado en el panel y el contador de pulsos de la lámpara (cada 10~s).
+  \item \btn{$\square$ Detener} envía solo STOP. Para el modo seguro completo usa\newline \btn{$\triangle$ Stop emergencia}.
+\end{pasos}
+\begin{cuidado}{Aviso de inactividad: no es un paro automático}
+Con el láser en RUN y sin secuencia en curso, si pasa 1 minuto sin clics, teclas ni rueda del ratón en la aplicación (mover el ratón no cuenta), aparece \textbf{«¿Sigues usando el láser?»} --- \textit{«No se ha detectado actividad en 1 minuto. El láser se detendrá si no confirmas.»}
+
+El diálogo \textbf{espera la respuesta sin límite de tiempo}. El láser solo se detiene si alguien contesta \btn{No} (se envía el modo seguro, igual que con el Stop emergencia). \textbf{Si nadie contesta, el láser sigue disparando.} Con \btn{Yes} el conteo vuelve a empezar. Mientras el diálogo está abierto, el resto de la ventana no responde. No dejes el láser disparando sin nadie frente al equipo.
+\end{cuidado}
+\subsection*{Osciloscopio}
+\begin{itemize}
+  \item \textbf{Canal}: \btn{CH1} hidrófono o \btn{CH2} trigger. Se envía al osciloscopio al elegirlo.
+  \item \textbf{Adquisición}: \btn{Sample} (una adquisición) o \btn{Average} con \textbf{Nº promedios} (2 -- 10000, defecto 100; el campo solo aparece con Average).
+  \item Pulsa \btn{Aplicar parámetros}.
+\end{itemize}
+Estos ajustes valen para la \textbf{captura manual}. Una secuencia automática configura su propio promediado (\S\ref{sec:secuencia}) y al terminar devuelve el modo que había.
+\begin{advertencia}{Revisa antes de aplicar}
+Comprueba que el modo marcado (Sample/Average) coincide con el que quieres. Al abrir la ventana, \textbf{Sample} aparece marcado sin leerse del equipo, y \textit{Aplicar} lo enviaría aunque el osciloscopio estuviera en Average.
+\end{advertencia}
+\begin{nota}{Average necesita láser disparando}
+En modo Average el promedio se llena con pulsos del láser, y la captura manual espera a completarlo: puede tardar varios segundos (espera máxima de 90~s). Con el láser en E OFF la medición se marca con error, por ejemplo: \textit{«osciloscopio sin adquisición nueva; promedio incompleto (0 de 16)»} (prueba con 16 promedios).
+\end{nota}
+
+% 6
+\section{Captura manual}\label{sec:captura}
+Sirve para \textbf{comprobar la señal} antes de una secuencia y es obligatoria como primer paso: \btn{$\blacktriangleright$ Iniciar secuencia} permanece apagado hasta que guardes una captura manual.
+\begin{pasos}
+  \item Pestaña \btn{$\star$ Medición}, panel \textbf{Modo Manual}.
+  \item Elige canal (\S\ref{sec:parametros}). Sin canal, \btn{$\odot$ Capturar} no se activa.
+  \item Pulsa \btn{$\odot$ Capturar}. Si es la primera captura y falta geometría, aparece «Geometría incompleta». La aplicación pone el osciloscopio en RUN si estaba detenido, espera una adquisición nueva (y el promedio completo en Average), lo detiene para leer la señal y lo devuelve a RUN. La señal aparece en la gráfica.
+  \item Revisa que se ve como esperas. Si no hay señal, revisa trigger, escalas y que el láser esté disparando. No muevas las perillas durante la captura: si la escala cambia, la captura se marca.
+  \item Pulsa \btn{$\boxminus$ Guardar}. La primera vez aparece \textbf{«Seleccionar carpeta de sesión»}: elige la carpeta donde se guardarán las sesiones; dentro se crea la carpeta de la sesión (\S\ref{sec:datos}). Si cancelas, no se guarda nada.
+\end{pasos}
+La temperatura y los parámetros del láser que se guardan son los del momento de la captura, no los del momento en que pulsas Guardar.
+\subsubsection*{Mensajes posibles}
+\begin{tabla}{L{4.6cm}Y}
+\toprule
+\textbf{Mensaje} & \textbf{Qué hacer}\\
+\midrule
+«Error de captura»: «No se pudo obtener la señal del osciloscopio.» & Revisa LED de osciloscopio, LAN Server y que haya señal. Repite.\\
+\midrule
+«Datos inválidos»: «La señal capturada no contiene datos válidos.» & Repite la captura; si persiste, anótalo en el Anexo C.\\
+\midrule
+«No se pudo crear la sesión.» & Elige otra carpeta en la que puedas escribir.\\
+\midrule
+«Guardar en sesión reabierta» (ver \S\ref{sec:datos}) & Lee con calma antes de contestar.\\
+\bottomrule
+\end{tabla}
+\begin{nota}{Una captura que sale marcada no se pierde}
+Si algo falló durante la captura, la fila se guarda con \cod{error\_flag = 1} y una descripción en \cod{error\_desc}, por ejemplo \textit{«ESP32 sin respuesta (COM\ldots)»} o \textit{«sensor(es) DS18B20 ausente(s): [2]»}. Anótala en el Anexo C.
+\end{nota}
+
+% 7
+\section[Secuencia automática (tiempo y temperatura)]{Secuencia automática}\label{sec:secuencia}
+\markboth{\thesection.\ Secuencia automática}{}
+Panel \textbf{Modo Automático} de la pestaña \btn{$\star$ Medición}. Elige el modo con \btn{Por tiempo} o \btn{Por temperatura}. Se abre en «Por tiempo».
+\subsection*{Requisitos para poder iniciar}
+\begin{tabla}{L{3.3cm}Y}
+\toprule
+\textbf{Si falta\ldots} & \textbf{La aplicación dice}\\
+\midrule
+Una captura manual guardada & El botón \textit{Iniciar secuencia} está apagado («Realiza y guarda una captura manual primero»).\\
+\midrule
+Láser conectado & «El láser debe estar conectado para iniciar la secuencia.»\\
+\midrule
+Láser encendido & «Enciende el láser antes de iniciar la secuencia automática.»\\
+\midrule
+Osciloscopio conectado & «El osciloscopio debe estar conectado para iniciar la secuencia.»\\
+\midrule
+ESP32 (solo por temperatura) & «El módulo de temperatura debe estar conectado para este modo.»\\
+\midrule
+Paso mayor que 0 (por temperatura) & «Configuración no realizable»: el paso debe ser mayor que 0~\si{\degreeCelsius}.\\
+\midrule
+Intervalo suficiente (por tiempo) & «Configuración no realizable», con el intervalo mínimo que sí cabe.\\
+\midrule
+Reinicio tras un stop sin confirmar & «Reinicio necesario» (\S\ref{sec:falla}).\\
+\bottomrule
+\end{tabla}
+\subsection*{Por tiempo}
+\begin{itemize}
+  \item \textbf{Nº mediciones} (1 -- 9999, defecto 10).
+  \item \textbf{Intervalo (s)} (15 -- 3600, defecto 60): tiempo entre el \textit{inicio} de una medición y el de la siguiente.
+  \item Cada medición usa \textbf{Average con 100 promedios}, sin importar lo elegido en el panel del osciloscopio. Antes de empezar, la aplicación estima cuánto tarda una captura; si no cabe en el intervalo, no deja iniciar.
+  \item Si una captura se pasa del intervalo, su fila lleva en \cod{error\_desc} la nota \textit{«captura excedió el intervalo por N~s»}.
+\end{itemize}
+\subsection*{Por temperatura}
+La muestra empieza caliente y \textbf{se enfría sola}; el sistema mide al pasar por cada temperatura objetivo, de la inicial hacia la final.
+\begin{itemize}
+  \item \textbf{T inicial (\si{\degreeCelsius})} (defecto 35), \textbf{T final (\si{\degreeCelsius})} (defecto 20), \textbf{Paso (\si{\degreeCelsius})} (defecto 1.0, mayor que 0). Los objetivos van de T inicial a T final, bajando un paso cada vez.
+  \item Para cada objetivo, el osciloscopio empieza a acumular (Average, hasta 10000 promedios) cuando la muestra baja a objetivo + 0.1~\si{\degreeCelsius}, y se detiene y captura cuando baja a objetivo $-$ 0.1~\si{\degreeCelsius}. Se guardan la temperatura al abrir y al cerrar esa ventana y su duración.
+  \item Los objetivos que la muestra ya rebasó al empezar se omiten, con un aviso.
+  \item El rango concreto del barrido \textbf{lo decide quien mide}, dentro de 10--50~\si{\degreeCelsius}; anótalo en el Anexo A.
+  \item Se recomiendan pasos de \textbf{0.5~\si{\degreeCelsius} o mayores}: los sensores digitales tienen exactitud y tiempo de conversión limitados. Con pasos menores de 0.2~\si{\degreeCelsius} las ventanas de objetivos vecinos se enciman.
+  \item El láser permanece disparando durante toda la secuencia.
+\end{itemize}
+\subsection*{Iniciar, vigilar, detener}
+\begin{pasos}
+  \item Pulsa \btn{$\blacktriangleright$ Iniciar secuencia}. Aparece \textbf{«Iniciar secuencia automática»} (en modo tiempo, con la duración estimada); \btn{Ok} para empezar.
+  \item Si la sesión se reabrió con \textit{Abrir CSV\ldots}, después de aceptar aparece «Guardar en sesión reabierta» (\S\ref{sec:datos}). Si contestas No, la secuencia no inicia.
+  \item El texto de progreso muestra \textit{Secuencia en curso\ldots}, la última medición y cuántas llevan error o advertencias.
+  \item Para parar: \btn{$\square$ Detener}.
+\end{pasos}
+\begin{advertencia}{Durante la secuencia}
+El panel del osciloscopio, \btn{Capturar}, \btn{Guardar}, \textit{Abrir CSV\ldots} y \btn{Conexión} quedan \textbf{bloqueados} a propósito. No muevas escalas ni trigger del equipo mientras corre: se guardarían con cada medición y mezclarían condiciones.
+\end{advertencia}
+\subsubsection*{Cómo termina}
+\begin{tabla}{L{3.1cm}Y}
+\toprule
+\textbf{Mensaje} & \textbf{Significa}\\
+\midrule
+\textbf{Secuencia completada} & Terminó. Indica cuántas mediciones tienen \cod{error\_flag} (o «Ninguna medición con error\_flag»). Revisa las marcadas en la tabla.\\
+\midrule
+\textbf{Secuencia detenida} & La detuviste tú.\\
+\midrule
+\textbf{Secuencia abortada} & El sistema la detuvo por un problema. El motivo está en el mensaje.\\
+\bottomrule
+\end{tabla}
+Si hubo advertencias, el mensaje final las lista (botón de detalles) y quedan en \cod{advertencias.log}.
+\begin{advertencia}{Al terminar, el láser queda en modo seguro}
+En los tres casos la aplicación envía el modo seguro al láser (STOP, EO delay 3800, E OFF, Continuous) y devuelve el osciloscopio al modo de adquisición que tenía. Para seguir midiendo: \btn{Aplicar parámetros} del láser otra vez (el Output level quedó en E OFF) y \btn{$\blacktriangleright$ Iniciar}.
+\end{advertencia}
+\begin{advertencia}{Temperatura perdida}
+\textbf{Por temperatura}: si el ESP32 deja de enviar temperatura, a los 30~s se avisa («Lectura de temperatura interrumpida. La secuencia continúa en espera.»); a los 300~s la secuencia se aborta con \textit{«Sin lectura de temperatura durante 300~s. Secuencia abortada.»} \textbf{Por tiempo}: la secuencia sigue y las filas sin temperatura se marcan con \cod{error\_flag}. Revisa el USB del ESP32 y \btn{$\circlearrowleft$ Reconectar}.
+\end{advertencia}
+
+% 8
+\section[Datos: dónde quedan, ver, reabrir y exportar]{Datos}\label{sec:datos}
+\markboth{\thesection.\ Datos}{}
+\subsection*{Dónde quedan}
+Al primer \btn{Guardar} eliges una carpeta; dentro se crea una carpeta por sesión, \cod{AAAAMMDD\_HHMMSS\bs} (fecha y hora de creación). Conviene elegir siempre la misma carpeta. Contiene:
+\begin{itemize}
+  \item \cod{AAAAMMDD\_HHMMSS.csv} --- una fila por medición, con todos los metadatos (Anexo D).
+  \item \cod{\ldots\_m0001.npy}, \cod{\ldots\_m0002.npy}, \ldots{} --- la forma de onda de cada medición, en los valores crudos del osciloscopio.
+  \item \cod{metadatos\_sesion.txt} --- identificador y fecha de la sesión, modelo e identificación del osciloscopio, canal, parámetros del láser y geometría \textbf{al crear la sesión}, y los datos de cada barrido por temperatura. Los parámetros del láser de cada medición están en el CSV.
+  \item \cod{advertencias.log} --- avisos ocurridos durante las secuencias (aparece solo si los hubo).
+  \item \cod{mat\bs} --- archivos de MATLAB, solo si usaste \btn{Convertir a MATLAB}.
+\end{itemize}
+\begin{advertencia}{No edites ni muevas archivos de una sesión en curso}
+Copia la carpeta cuando termines. No abras el CSV en Excel con la sesión activa.
+\end{advertencia}
+\subsection*{Ver lo guardado --- \btn{$\approx$ Visualizar datos}}
+Tabla de mediciones (ID, hora, temperatura, modo, error) y gráfica de la señal seleccionada. Las mediciones con \cod{error\_flag} aparecen marcadas. \btn{Convertir a MATLAB} crea en la carpeta de la sesión una subcarpeta \cod{mat} con un archivo \cod{.mat} por medición.
+\subsection*{Reabrir una sesión --- \btn{Abrir CSV\ldots}}
+Elige el CSV de una sesión anterior. Si no es del sistema: \textit{«Este CSV no corresponde a una sesión del sistema.»} Si falta un \cod{.npy}: \textit{«No se encontró el archivo .npy\ldots»} (los metadatos siguen disponibles). El botón está bloqueado durante una secuencia.
+\begin{cuidado}{Importante --- sesión reabierta}
+Si tras \textit{Abrir CSV\ldots} guardas una captura o inicias una secuencia, \textbf{las filas nuevas se escriben en esa sesión vieja}, mezclando días distintos. Por eso, antes de la primera escritura aparece \textbf{«Guardar en sesión reabierta»} --- \textit{«Vas a guardar en la sesión \ldots{} (creada el \ldots), no en una nueva\ldots»} con \btn{Yes}/\btn{No} (por defecto \textbf{No}). Un Yes vale para el resto de esa reapertura; un No cancela solo esa escritura. Contesta \textbf{Yes} solo si de verdad quieres seguir esa sesión. Para una sesión nueva, sal con \btn{$\leftarrow$ Volver} y entra otra vez a \btn{Láser + Osciloscopio}, o reinicia la aplicación sin abrir CSV.
+\end{cuidado}
+\subsection*{Exportar --- \btn{Exportar sesión\ldots}}
+Primero eliges la carpeta de destino; después pregunta si incluir también los \cod{.npy}: \textbf{Yes} = copia la carpeta completa de la sesión; \textbf{No} = solo el CSV. Para enviar una sesión completa, elige \textbf{Yes}.
+
+% 9
+\section{Si algo falla}\label{sec:falla}
+\begin{tabla}{L{3.6cm}Y}
+\toprule
+\textbf{Síntoma} & \textbf{Qué revisar}\\
+\midrule
+\led{r} Osciloscopio rojo\newline\textit{«Osciloscopio: sin respuesta en \ldots»} & 1) TekScope abierto. 2) LAN Server iniciado (\S\ref{sec:antes}). 3) Cable Ethernet. 4) IP en \btn{Conexión}.\\
+\midrule
+\led{r} ESP32 rojo / temperatura «---» & USB del ESP32, puerto en Conexión, \btn{$\circlearrowleft$ Reconectar}. Revisa que la muestra esté entre 10 y 50~\si{\degreeCelsius}.\\
+\midrule
+\led{r} Un solo sensor S\# en rojo & Revisa su conexión. La medición sigue, pero con ese sensor ausente se marca con error.\\
+\midrule
+\led{r} Láser rojo & Cable y puerto en Conexión. No inicies secuencia.\\
+\midrule
+\btn{Capturar} apagado & No has elegido canal, el osciloscopio está sin conexión, hay una captura en curso o una secuencia corriendo.\\
+\midrule
+\btn{Iniciar secuencia} apagado & Falta una captura manual guardada, o hay una secuencia en curso, o la aplicación pide reinicio (abajo).\\
+\midrule
+Parámetros del láser apagados & El láser está en marcha o su estado es «?»: detenlo primero.\\
+\midrule
+Fila marcada \textit{«osciloscopio sin adquisición nueva»} & El osciloscopio no adquirió durante la captura: láser apagado o en E OFF, o el trigger no se disparó. Revisa y repite.\\
+\midrule
+Fila marcada \textit{«escala cambiada durante la captura\ldots»} & Se movió una perilla mientras se capturaba. Repite sin tocar el equipo.\\
+\bottomrule
+\end{tabla}
+\subsection*{Mensajes que exigen reiniciar}
+\begin{cuidado}{«Reinicie la aplicación» / «Reinicio necesario»}
+Si tras un stop de emergencia la secuencia anterior no confirma haber terminado en 150~s, la aplicación queda bloqueada para secuencias nuevas. \textbf{Cierra la aplicación con la X} y ábrela de nuevo antes de iniciar otra secuencia. Las órdenes de modo seguro se enviaron al láser al pulsar el stop; esto es para evitar procesos viejos en segundo plano. «Volver» queda bloqueado en ese estado.
+\end{cuidado}
+\subsection*{«Dispositivo crítico desconectado»}
+Aparece cuando el láser o el osciloscopio se pierden y no reconectan tras 3 intentos. Dice qué equipo falló, si las órdenes que detienen el haz (STOP y E OFF) salieron, y la lista de las cuatro órdenes de modo seguro, cada una como \textit{enviado} o \textit{no enviado}. \textbf{«Enviado» significa que la orden salió hacia el láser; no se verificó su respuesta.} Si el mensaje dice \textit{«No se pudo confirmar que el láser quedó en modo seguro\ldots El haz puede seguir activo.»}, detén el láser en su control físico. Después revisa cable y puerto o IP en \btn{Conexión}. \sv{sin verificar en hardware real}
+\subsection*{Cómo leer \cod{error\_flag}}
+\cod{error\_flag = 0} medición normal. \cod{error\_flag = 1} algo no se pudo confirmar; \cod{error\_desc} dice qué. Ejemplos: \textit{«ESP32 sin respuesta (COM\ldots)»}, \textit{«sensor(es) DS18B20 ausente(s): [\ldots]»}, \textit{«osciloscopio sin adquisición nueva; promedio incompleto (0 de 16)»}. Una fila marcada \textbf{no es necesariamente mala}, pero \textbf{no la uses sin leer su descripción}. Lee \cod{error\_desc} también cuando \cod{error\_flag = 0}: la nota de intervalo excedido (\S\ref{sec:secuencia}) se escribe sin cambiar \cod{error\_flag}.
+
+% 10
+\section{Paro de emergencia y cierre}\label{sec:emergencia}
+\subsection*{\btn{$\triangle$ Stop emergencia} (arriba a la derecha)}
+Siempre habilitado. Cancela una captura en curso, detiene la secuencia y envía al láser las órdenes de \textbf{modo seguro}, en este orden: STOP, EO delay 3800~\si{\micro\second}, E OFF, Continuous. \textbf{No modifica ningún ajuste del osciloscopio.}
+
+La barra inferior dice si las órdenes salieron (\textit{«modo seguro activado»}) o cuáles fallaron. Que salieran no confirma que el láser las aplicó: la aplicación vuelve a leer su estado, así que revisa que la etiqueta del panel del láser diga \textbf{STOP}. Si dice «?», revisa el láser directamente.
+
+El modo seguro también se envía, sin pulsar el botón, cuando:
+\begin{itemize}
+  \item el láser o el osciloscopio no reconectan tras 3 intentos;
+  \item una secuencia termina, se detiene o se aborta;
+  \item sales con \btn{$\leftarrow$ Volver} o cierras la ventana, si el láser está conectado;
+  \item contestas \btn{No} al aviso de inactividad (\S\ref{sec:parametros}). Si nadie contesta, no se envía.
+\end{itemize}
+\subsection*{Salir con \btn{$\leftarrow$ Volver} o la X}
+Con \btn{$\leftarrow$ Volver} la aplicación pregunta:
+\begin{tabla}{L{5cm}Y}
+\toprule
+\textbf{Pregunta} & \textbf{Recomendación}\\
+\midrule
+«Secuencia en curso» --- «¿Detenerla y salir?» & Yes solo si quieres cancelar la secuencia; No te deja en la ventana.\\
+\midrule
+«Láser encendido» --- «El láser sigue disparando. ¿Detenerlo antes de salir?» & \textbf{Yes}. Cancel te deja en la ventana. Al salir, con Yes o con No, se envía el modo seguro.\\
+\bottomrule
+\end{tabla}
+Con la \textbf{X} de la ventana no hay preguntas: se detiene la secuencia, se envía el modo seguro al láser, se devuelve el osciloscopio al modo que tenía y se desconectan los equipos.
+\subsection*{Cierre del día}
+\begin{pasos}
+  \item Pulsa \btn{$\triangle$ Stop emergencia}; comprueba que la etiqueta del láser dice STOP y, en el propio láser, que quedó detenido.
+  \item Cierra la aplicación; luego la ventana negra.
+  \item Copia las carpetas de sesión del día a un USB o la nube.
+  \item Completa los anexos A y C.
+\end{pasos}
+
+% 11
+\section[Qué enviarle al autor al terminar]{Qué enviarle al autor}\label{sec:enviar}
+\markboth{\thesection.\ Qué enviarle al autor}{}
+\begin{checklist}
+  \item Carpetas completas de las sesiones del día (.csv, .npy, metadatos, advertencias).
+  \item Hojas de los anexos A y C (foto o PDF anotado).
+  \item Fotos del montaje y de la pantalla del osciloscopio (con hora visible).
+  \item Capturas de pantalla de cualquier mensaje de error inesperado.
+  \item Si usaste el método manual (sin la aplicación), los archivos que guardó el osciloscopio.
+\end{checklist}
+\begin{nota}{Reloj del osciloscopio}
+En una sesión el reloj del osciloscopio no coincidía con el de la PC. Anota ambas horas en el Anexo A para poder cuadrar fotos y datos.
+\end{nota}
+\appendix
+\renewcommand{\thesection}{\Alph{section}}
+
+% Anexo A
+\begingroup\anexospacing
+\newgeometry{left=9mm,right=9mm,top=10mm,bottom=12mm,headheight=12pt,headsep=3mm,footskip=6mm}
+\anexo{A}{Hoja de sesión}{ (para anotar)}\label{anx:sesion}
+\begingroup\setlength{\parskip}{0pt}
+\noindent\begin{minipage}[t]{0.48\linewidth}
+\campo{Fecha}
+\campo{Operador(es)}
+\campo{Hora de la PC}
+\campo{Hora del osciloscopio}
+\campo{ID de sesión}
+\campo{Muestra}
+\end{minipage}\hfill
+\begin{minipage}[t]{0.48\linewidth}
+\campo{Recipiente / celda}
+\campo{Volumen (mL)}
+\campo{Separación hidrófono--haz (mm)}
+\campo{T ambiente (\si{\degreeCelsius})}
+\campo{Sensores S1--S4 (posición)}
+\end{minipage}
+\subsection*{Láser}
+\noindent\begin{minipage}[t]{0.48\linewidth}
+\campo{Output level}
+\campo{Burst mode}
+\end{minipage}\hfill
+\begin{minipage}[t]{0.48\linewidth}
+\campo{Set cooling T (\si{\degreeCelsius})}
+\campo{Adj.\ EO delay (\si{\micro\second})}
+\end{minipage}
+\subsection*{Osciloscopio}
+\noindent\begin{minipage}[t]{0.48\linewidth}
+\campo{Modelo / serie}
+\campo{Canal hidrófono}
+\campo{Escala vertical}
+\end{minipage}\hfill
+\begin{minipage}[t]{0.48\linewidth}
+\campo{Escala horizontal}
+\campo{Trigger (modo / nivel)}
+\campo{Sample / Average (Nº)}
+\end{minipage}
+\subsection*{Secuencia}
+\noindent\begin{minipage}[t]{0.48\linewidth}
+\campo{Modo (tiempo / temp.)}
+\campo{Nº mediciones / Intervalo (s)}
+\end{minipage}\hfill
+\begin{minipage}[t]{0.48\linewidth}
+\campo{T inicial $\rightarrow$ T final (\si{\degreeCelsius})}
+\campo{Paso (\si{\degreeCelsius}) / T al arrancar}
+\end{minipage}
+\vspace{1mm}
+\campo{Notas}
+\lineablanco
+\lineablanco
+\endgroup
+
+% Anexo B
+\clearpage
+\anexo{B}{Protocolo sugerido: manual vs.\ automático}{ (para anotar)}\label{anx:protocolo}
+\begingroup\small\setlength{\parskip}{1.5mm}
+\begin{nota}{Es una propuesta}
+Lo define Arturo; edita, tacha o añade. Se escribe aquí para que ambas mediciones sean \textbf{comparables}.
+\end{nota}
+\textbf{Idea:} la misma muestra (agua destilada), el mismo montaje y el mismo día, medida primero con el método habitual (sin la aplicación) y luego con el sistema automatizado, y comparar.
+\subsection*{Condiciones que deben ser idénticas}
+\begin{checklist}
+  \item Misma muestra, mismo volumen y misma celda, sin moverla entre métodos.
+  \item Misma separación hidrófono--haz (medida y anotada una vez).
+  \item Mismos parámetros del láser (Anexo A).
+  \item Mismas escalas y trigger del osciloscopio.
+  \item Misma temperatura de muestra (anotar T al inicio de cada método).
+  \item Mismo número de capturas o promedios en cada método.
+\end{checklist}
+\subsection*{Orden propuesto}
+\begin{pasos}
+  \item Método habitual de Arturo: \hueco{8mm} capturas. Archivos: \hueco{4.2cm}
+  \item Sistema automatizado: captura manual de prueba + secuencia de \hueco{8mm} mediciones.
+\end{pasos}
+\vspace{1.5mm}
+\noindent{\renewcommand{\arraystretch}{1.2}%
+\begin{tabularx}{\linewidth}{|>{\bfseries\raggedright\arraybackslash}p{3.1cm}|Y|Y|}
+\hline
+\rowcolor{soft} & \textbf{Método habitual} & \textbf{Sistema automatizado}\\
+\hline
+\rule{0pt}{6.2mm}Hora inicio / fin (PC) & & \\ \hline
+\rule{0pt}{6.2mm}T de la muestra & & \\ \hline
+\rule{0pt}{6.2mm}Nº capturas & & \\ \hline
+\rule{0pt}{6.2mm}Vpp aproximado & & \\ \hline
+\rule{0pt}{6.2mm}Observaciones & & \\ \hline
+\end{tabularx}}
+\endgroup
+
+% Anexo C
+\clearpage
+\anexo{C}{Registro de capturas e incidencias}{ (para anotar)}\label{anx:registro}
+\begingroup\small\setlength{\parskip}{0pt}
+\subsection*{Capturas}
+\noindent{\renewcommand{\arraystretch}{1.15}%
+\begin{tabularx}{\linewidth}{|p{0.07\linewidth}|p{0.14\linewidth}|Y|p{0.085\linewidth}|p{0.15\linewidth}|Y|}
+\hline
+\rowcolor{soft}\footnotesize\bfseries Hora & \footnotesize\bfseries ID (m\#\#\#\#) & \footnotesize\bfseries Tipo (manual/seq) & \footnotesize\bfseries T (\si{\degreeCelsius}) & \footnotesize\bfseries error\_flag & \footnotesize\bfseries Comentario\\
+\hline
+\rule{0pt}{7.5mm} & & & & & \\ \hline
+\rule{0pt}{7.5mm} & & & & & \\ \hline
+\rule{0pt}{7.5mm} & & & & & \\ \hline
+\rule{0pt}{7.5mm} & & & & & \\ \hline
+\rule{0pt}{7.5mm} & & & & & \\ \hline
+\end{tabularx}}
+\subsection*{Incidencias}
+\noindent{\renewcommand{\arraystretch}{1.15}%
+\begin{tabularx}{\linewidth}{|L{0.1\linewidth}|Y|Y|}
+\hline
+\rowcolor{soft}\footnotesize\bfseries Hora & \footnotesize\bfseries Qué pasó (mensaje exacto si hay) & \footnotesize\bfseries Qué hiciste\\
+\hline
+\rule{0pt}{9mm} & & \\ \hline
+\rule{0pt}{9mm} & & \\ \hline
+\rule{0pt}{9mm} & & \\ \hline
+\rule{0pt}{9mm} & & \\ \hline
+\end{tabularx}}
+\subsection*{Cierre}
+\begin{checklist}[itemsep=1.5mm]
+  \item Láser en STOP / E OFF
+  \item Aplicación cerrada
+  \item Carpetas de sesión copiadas
+  \item Fotos tomadas
+\end{checklist}
+\endgroup
+
+% Anexo D
+\endgroup
+\restoregeometry
+\anexo{D}{Columnas del CSV}{}\label{anx:csv}
+{\small\renewcommand{\arraystretch}{1.12}
+\begin{longtable}{@{}>{\raggedright\arraybackslash}p{4.3cm}>{\raggedright\arraybackslash}p{\dimexpr\linewidth-4.3cm-2\tabcolsep\relax}@{}}
+\toprule
+\textbf{Columna} & \textbf{Qué es}\\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Columna} & \textbf{Qué es}\\
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+timestamp, session\_id, medicion\_id & Cuándo y a qué sesión/medición pertenece la fila.\\
+\midrule
+temperatura & Temperatura de la muestra (promedio enviado por el ESP32, \si{\degreeCelsius}). Vacía o \cod{nan} si no hubo lectura reciente.\\
+\midrule
+t\_s1 \ldots{} t\_s4 & Lectura de cada sensor; vacía si el sensor estaba ausente.\\
+\midrule
+s1\_repetido \ldots{} s4\_repetido & Indica si el sensor repitió el valor de la lectura anterior.\\
+\midrule
+t\_apertura, t\_cierre, duracion\_ventana\_s & En modo temperatura: temperatura al abrir y al cerrar la ventana de adquisición, y cuánto duró (s).\\
+\midrule
+modo & manual, tiempo o temperatura.\\
+\midrule
+error\_flag, error\_desc & 0/1 y la descripción (\S\ref{sec:falla}).\\
+\midrule
+XINCR, XZERO, PT\_OFF, YMULT, YOFF, YZERO, NR\_PT & Datos que da el osciloscopio para convertir los números del \cod{.npy} a tiempo y voltaje.\\
+\midrule
+CH\_SCALE, HOR\_SCALE & Escalas vertical y horizontal leídas del equipo.\\
+\midrule
+acq\_mode, numavg & Modo de adquisición (Sample/Average) y número de promedios configurado en el osciloscopio. \cod{numavg} se registra aunque el modo sea Sample; en ese caso no se aplica.\\
+\midrule
+adquisiciones\_promediadas & Contador de adquisiciones del osciloscopio leído antes de transferir la señal. No se reinicia en cada captura; sirve para comprobar que hubo adquisiciones nuevas.\\
+\midrule
+output\_level, eo\_delay\_us, burst\_mode & Parámetros del láser leídos al momento de la captura.\\
+\midrule
+archivo\_npy & Nombre del archivo con la forma de onda; vacío si no se pudo guardar.\\
+\end{longtable}}
+
+\end{document}
