@@ -1,0 +1,141 @@
+% =========================================================
+\chapter{Manual de usuario}
+\label{ap:manual_usuario}
+% =========================================================
+
+El sistema descrito en el \cref{cap:resultados} lo opera en el
+laboratorio una persona que no programa. Para ella se redactó un manual
+de usuario completo, que se entrega como documento aparte
+(\texttt{documentos/manual\_usuario/manual\_usuario.pdf}) y corresponde
+a la versión congelada del software: rama \texttt{main}, commit
+\texttt{c67ae06}. Este apéndice resume su contenido, en particular el
+flujo de operación, los diálogos que el operador encontrará y las
+limitaciones conocidas, contrastados con el código de esa versión; los
+detalles de cada pantalla y las hojas de registro están en el manual
+completo.
+
+\section*{Flujo de operación}
+
+\begin{enumerate}[leftmargin=*, itemsep=0pt, topsep=2pt]
+  \item \textbf{Verificación previa.} Osciloscopio encendido, con su
+    servidor de red iniciado y el cable Ethernet conectado; láser y
+    ESP32 conectados por USB, con los sensores S1--S4 en la muestra.
+    Escalas, posición horizontal y disparo se ajustan en el propio
+    osciloscopio: la aplicación no los modifica, solo los lee y los
+    registra con cada medición.
+  \item \textbf{Arranque.} Se ejecuta \texttt{iniciar.bat}, que abre
+    la aplicación junto con una consola que no debe cerrarse, y en la
+    pantalla de inicio se elige \emph{Láser + Osciloscopio}, la única
+    ventana con temperatura y secuencias automáticas.
+  \item \textbf{Conexión.} La primera vez, o si cambia un puerto, el
+    diálogo \emph{Conexión} fija los puertos COM del ESP32 y del láser
+    y la IP del osciloscopio, y los guarda. Cada equipo tiene un
+    indicador: verde (conectado), amarillo (reconectando), rojo (sin
+    conexión) o gris (sin estado todavía).
+  \item \textbf{Geometría.} La separación hidrófono--haz y el volumen
+    vertido se capturan antes de la primera medición: se registran al
+    crearse la sesión y en ese momento los campos se bloquean.
+  \item \textbf{Láser.} Se fijan sus parámetros, se pulsa
+    \emph{Aplicar parámetros} y después \emph{Iniciar}, que pide
+    confirmar que las protecciones están en su lugar. Con el láser en
+    marcha los parámetros quedan bloqueados.
+  \item \textbf{Osciloscopio.} Se elige el canal (CH1 para el
+    hidrófono) y el modo \emph{Sample} o \emph{Average} con su número
+    de promedios, y se pulsa \emph{Aplicar parámetros}.
+  \item \textbf{Captura manual.} \emph{Capturar} muestra la señal para
+    revisarla y \emph{Guardar} la registra. El primer guardado pide la
+    carpeta base y crea en ella la sesión \texttt{AAAAMMDD\_HHMMSS};
+    la secuencia automática solo se habilita con una sesión activa,
+    que se obtiene al guardar una captura manual o al abrir un CSV
+    existente.
+  \item \textbf{Secuencia automática.} \emph{Por tiempo}: número de
+    mediciones e intervalo, de al menos \SI{15}{\second}.
+    \emph{Por temperatura}: temperatura inicial mayor que la final y
+    paso mayor que cero, sobre una muestra que se enfría sola. Durante
+    la secuencia el panel del osciloscopio queda bloqueado y la
+    aplicación impone el modo \emph{Average} (100 promedios por tiempo;
+    \num{10000} por temperatura), que restaura al terminar. Al
+    concluir, por término normal, detención o aborto, el láser recibe
+    las órdenes de modo seguro.
+  \item \textbf{Revisión de datos.} En \emph{Visualizar datos} las
+    filas con \texttt{error\_flag = 1} aparecen resaltadas; su causa
+    está en \texttt{error\_desc}. Desde ahí se reabre una sesión
+    (\emph{Abrir CSV\ldots}), se exporta o se convierte a MATLAB.
+  \item \textbf{Cierre.} Se detiene el láser y se sale de la ventana; al
+    cerrarla, la aplicación envía el modo seguro al láser si sigue
+    conectado. La carpeta de la sesión se copia completa.
+\end{enumerate}
+
+\section*{Limitaciones conocidas}
+
+\begin{itemize}[leftmargin=*, itemsep=0pt, topsep=2pt]
+  \item \textbf{Inactividad.} El diálogo «¿Sigues usando el láser?» es un
+    recordatorio y no sustituye la supervisión del operador
+    (\cref{sec:protecciones}).
+  \item \textbf{Modo seguro sin confirmación.} Las órdenes de modo
+    seguro se envían sin esperar respuesta del láser; el operador debe
+    comprobar visualmente que quedó detenido. El diálogo de dispositivo crítico
+    desconectado no se ha verificado en hardware.
+  \item \textbf{Modo de adquisición inicial.} Al abrir la ventana
+    aparece seleccionado \emph{Sample} sin haberse leído del
+    osciloscopio; aplicar sin revisarlo puede cambiar el modo del
+    instrumento.
+  \item \textbf{Metadatos de sesión.} La geometría y los parámetros del
+    láser se escriben en el archivo de metadatos una sola vez, al crear
+    la sesión; los parámetros vigentes en cada medición son los de las
+    columnas del CSV.
+  \item \textbf{Ajustes del osciloscopio.} Mover escalas o disparo
+    durante una secuencia no la interrumpe: el cambio queda registrado
+    fila por fila, puede marcar con \texttt{error\_flag} la captura en
+    curso y mezcla condiciones dentro de la sesión.
+\end{itemize}
+
+\section*{Diálogos principales}
+
+\noindent\begin{minipage}{\textwidth}
+  \centering
+  \footnotesize
+  \captionof{table}{Diálogos que el operador encuentra con mayor
+    frecuencia y respuesta recomendada.}
+  \label{tab:dialogos_manual}
+  \renewcommand{\arraystretch}{1.05}
+  \setstretch{1.0}
+  \noindent\begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}p{0.22\textwidth}
+      >{\raggedright\arraybackslash}p{0.30\textwidth}
+      >{\raggedright\arraybackslash}X}
+    \toprule
+    \textbf{Diálogo} & \textbf{Cuándo aparece} & \textbf{Qué responder}\\
+    \midrule
+    Dispositivo sin conexión & Al abrir la ventana, si algún equipo no
+      responde & Revisar cable y puerto o IP en \emph{Conexión}.\\
+    Encender el láser & Al pulsar \emph{Iniciar} & Aceptar solo con las
+      protecciones colocadas.\\
+    Geometría incompleta & Al capturar sin sesión creada y con campos
+      vacíos & \emph{Cancelar y llenarlos} (opción por omisión) o
+      \emph{Continuar sin ellos}.\\
+    Error de captura / Datos inválidos & La captura no devolvió una
+      señal utilizable & Revisar indicador del osciloscopio, disparo y
+      láser; repetir.\\
+    Guardar en sesión reabierta & Primer guardado o secuencia tras
+      \emph{Abrir CSV\ldots} & \emph{Yes} solo para continuar esa
+      sesión; la opción por omisión es \emph{No}.\\
+    Configuración no realizable & Paso de temperatura nulo, o intervalo
+      insuficiente para promediar y transferir & Corregir el parámetro
+      indicado.\\
+    Secuencia completada / detenida / abortada & Al terminar la
+      secuencia & Revisar las filas marcadas o el motivo del aborto.\\
+    ¿Sigues usando el láser? & Un minuto sin actividad, con el láser en
+      marcha y sin secuencia & \emph{Yes} para continuar; \emph{No}
+      activa el modo seguro.\\
+    Dispositivo crítico desconectado & El láser o el osciloscopio
+      no reconecta tras tres intentos & Leer la lista: «enviado» indica que la orden salió,
+      no que el láser la confirmó.\\
+    Reinicie la aplicación / Reinicio necesario & Un stop de emergencia
+      sin confirmación del fin de la secuencia & Cerrar con la X y
+      volver a abrir.\\
+    Láser encendido & Al pulsar \emph{Volver} con el láser en marcha &
+      \emph{Cancel} permanece en la ventana; con \emph{Yes} o \emph{No}
+      se sale y se envía el modo seguro.\\
+    \bottomrule
+  \end{tabularx}
+\end{minipage}

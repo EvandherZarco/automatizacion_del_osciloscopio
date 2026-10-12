@@ -26,11 +26,14 @@ trabajo, compuesto por un microcontrolador ESP32 WROOM-32 y cuatro
 sensores DS18B20 sobre buses 1-Wire independientes.
 
 La aplicación ejecuta secuencias de medición sin intervención del
-operador en dos modos: adquisición durante un intervalo de tiempo fijo,
-y adquisición gobernada por la temperatura de la muestra, en la que el
+operador en dos modos: un número de capturas fijado por el operador,
+separadas por un intervalo de al menos \SI{15}{\second} y cada una
+promedio de 100 adquisiciones acumuladas por el osciloscopio; y
+adquisición gobernada por la temperatura de la muestra, en la que el
 osciloscopio opera como integrador entre los instantes en que el
-líquido cruza umbrales sucesivos durante su enfriamiento. Cada captura
-se guarda con las muestras crudas del instrumento y con los metadatos
+líquido cruza umbrales sucesivos durante su enfriamiento. El
+osciloscopio se utiliza únicamente a través de sus canales 1 y 2. Cada
+captura se guarda con las muestras crudas del instrumento y con los metadatos
 necesarios para reconstruirla en unidades físicas, incluidos los
 parámetros del láser, las escalas vigentes del osciloscopio y una
 marca explícita de las condiciones anómalas detectadas durante la
@@ -43,20 +46,23 @@ sesiones sintéticas construidas para provocar cada una de las
 condiciones que la herramienta de verificación debe detectar; esta
 última se sometió además a una prueba de mutación que confirmó que
 ninguna de sus comprobaciones puede desactivarse sin que la prueba
-correspondiente falle. El comportamiento del sistema integrado se
-evaluó sobre sesiones reales de laboratorio.
+correspondiente falle. Una auditoría de las banderas de estado del
+código dio lugar a pruebas de la interfaz sin hardware: 51 casos
+verificados y commiteados, más 12 de la escritura en una sesión
+reabierta. El comportamiento del sistema integrado se evaluó sobre
+sesiones reales de laboratorio.
 
 El criterio con el que se juzga el resultado no es la ausencia de
 fallas, inevitable en un sistema que integra tres instrumentos
 independientes, sino la capacidad del sistema para dejar constancia de
-ellas en lugar de aparentar normalidad. Se documentan siete anomalías
-observadas durante el desarrollo, clasificadas según el nivel al que
+ellas en lugar de aparentar normalidad. Se documentan catorce modos de falla
+observados durante el desarrollo, clasificados según el nivel al que
 fue posible detectarlas —durante la ejecución, en la verificación
-posterior de los datos, en la auditoría del código, o al provocar
-deliberadamente la condición frente al instrumento—, incluida una que
-tuvo como origen la propia herramienta de verificación. Seis de las
-siete no eran observables mientras ocurrían, y todas las que se
-manifestaron resultaron reconstruibles a partir de la información
-conservada en los archivos de sesión.
+posterior de los datos, en la auditoría del código, en las pruebas sin
+hardware, o al provocar deliberadamente la condición frente al
+instrumento—, incluido uno que tuvo como origen la propia herramienta
+de verificación. Once de los catorce modos de falla no eran observables
+mientras ocurrían, y todos resultaron caracterizables a partir de los
+archivos de sesión o del historial de versiones del programa.
 Esa reconstruibilidad es la propiedad que el sistema aporta al
 arreglo experimental.

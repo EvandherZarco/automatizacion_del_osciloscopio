@@ -24,26 +24,26 @@
     \foreach \i/\gpio/\y in {1/16/1.8, 2/17/0.6, 3/18/-0.6, 4/19/-1.8}{
       \node[anchor=west, font=\tiny] at (-1.55,\y) {GPIO \gpio};
 
-      \draw[line] (1.6,\y) -- (3.1,\y);
-      \node[res] (r\i) at (3.45,\y) {};
-      \node[font=\tiny, above=1pt] at (r\i) {\SI{4.7}{\kilo\ohm}};
-      \draw[line] (3.8,\y) -- (4.6,\y);
-
+      % línea de datos directa hasta el sensor
+      \draw[line] (1.6,\y) -- (4.6,\y);
       \node[sensor] (s\i) at (5.7,\y) {DS18B20\\S\i};
 
-      % pull-up hacia la línea de alimentación
-      \draw[line] (r\i.north) ++(0,0) -- ++(0,0);
+      % resistencia de polarización entre la línea de datos y 3.3 V
+      \fill (3.0,\y) circle (1.5pt);
+      \draw[line] (3.0,\y) -- (3.0,\y+0.12);
+      \node[res, rotate=90, minimum width=0.4cm] (r\i) at (3.0,\y+0.32) {};
+      \draw[line, red!70!black] (3.0,\y+0.52) -- (3.0,\y+0.62);
+      \draw[line, red!70!black] (2.82,\y+0.62) -- (3.18,\y+0.62);
+      \node[anchor=west, font=\tiny] at (3.15,\y+0.33) {\SI{4.7}{\kilo\ohm}};
+      \node[anchor=east, font=\tiny, text=red!70!black, inner sep=1pt]
+        at (2.8,\y+0.62) {\SI{3.3}{\volt}};
     }
 
     % --- línea de alimentación externa ----------------------
-    \draw[line, red!70!black] (3.45,2.9) -- (7.6,2.9);
+    \draw[line, red!70!black] (4.2,2.9) -- (7.6,2.9);
     \node[anchor=south, font=\scriptsize, text=red!70!black]
-      at (5.5,2.98) {\SI{3.3}{\volt} externos};
-    \draw[line, red!70!black] (3.45,2.9) -- (3.45,1.96);
-    \foreach \y in {0.6, -0.6, -1.8}{
-      \draw[line, red!70!black, opacity=0.6] (3.45,\y+0.16) -- (3.45,\y+0.16);
-    }
-    \draw[line, red!70!black] (7.6,2.9) -- (7.6,-1.8);
+      at (5.9,2.98) {\SI{3.3}{\volt} externos};
+    \draw[line, red!70!black] (7.6,2.9) -- (7.6,-1.58);
     \foreach \y in {1.8, 0.6, -0.6, -1.8}{
       \draw[line, red!70!black] (6.75,\y+0.22) -- (7.6,\y+0.22);
     }
@@ -52,7 +52,7 @@
     \draw[line] (0,-2.4) -- (8.4,-2.4);
     \node[anchor=north, font=\scriptsize] at (4.2,-2.48) {referencia común};
     \draw[line] (0,-2.3) -- (0,-2.4);
-    \draw[line] (8.4,-2.4) -- (8.4,-1.8);
+    \draw[line] (8.4,-2.4) -- (8.4,1.58);
     \foreach \y in {1.8, 0.6, -0.6, -1.8}{
       \draw[line] (6.75,\y-0.22) -- (8.4,\y-0.22);
     }

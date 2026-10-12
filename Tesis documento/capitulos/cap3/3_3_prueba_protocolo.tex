@@ -1,0 +1,138 @@
+% =========================================================
+% Protocolo de la prueba integrada con el código congelado
+% =========================================================
+
+\subsection{Protocolo de la prueba integrada}
+\label{sec:protocolo_prueba}
+
+La prueba integrada contrasta, sobre una misma muestra y un mismo
+montaje, la captura realizada con el método habitual del laboratorio
+---el osciloscopio operado desde su panel frontal, sin la
+aplicación--- con la que entrega el sistema automatizado en su versión
+congelada (rama \texttt{main}, commit \texttt{c67ae06}). La muestra es
+agua destilada. Al igual que en el resto de la \cref{sec:prueba_integrada},
+no se pretende caracterizar el líquido: el objeto de la comparación es
+la herramienta, y la pregunta es si el sistema reproduce lo que el
+método habitual obtiene y si, además, conserva la información necesaria
+para atribuir cada dato a sus condiciones.
+
+\subsubsection*{Condiciones que deben ser idénticas}
+
+La comparación solo es válida si la única diferencia entre ambos
+conjuntos de capturas es el método de adquisición. Se fijan, por tanto,
+antes de la primera captura y sin modificarse hasta la última:
+
+\begin{itemize}[leftmargin=*, itemsep=2pt]
+  \item \textbf{Muestra y celda.} El mismo volumen de agua destilada en
+    la misma celda, sin moverla ni rellenarla entre métodos.
+  \item \textbf{Geometría.} La separación hidrófono--haz se mide una
+    sola vez. Se captura, junto con el volumen, en la sección de
+    geometría de la aplicación antes de crear la sesión, porque al
+    crearse los campos se bloquean y ya no pueden añadirse.
+  \item \textbf{Láser.} Los mismos valores de \textit{Output level},
+    \textit{EO delay}, \textit{Burst mode} y temperatura de
+    enfriamiento en ambos métodos, anotados al inicio. Al terminar cada
+    secuencia automática la aplicación envía el láser a modo seguro
+    (\cref{tab:modo_seguro}), que fija \textit{E OFF} y un
+    \textit{EO delay} de \SI{3800}{\micro\second}; si la prueba
+    continúa después, los parámetros acordados deben restablecerse y
+    comprobarse antes de la siguiente captura.
+  \item \textbf{Osciloscopio.} El mismo canal para el hidrófono, las
+    mismas escalas vertical y horizontal, la misma posición horizontal
+    y el mismo modo y nivel de disparo. La aplicación no modifica estos
+    ajustes; los lee y los registra en cada fila. La posición horizontal
+    fija el origen del eje de tiempos (\cref{sec:origen_tiempos}), de
+    modo que cualquier cambio invalida la comparación del instante de
+    llegada.
+  \item \textbf{Promediado.} El mismo modo de adquisición y el mismo
+    número de promedios en ambos métodos. La secuencia automática por
+    tiempo impone el modo \textit{Average} con 100 promedios durante su
+    ejecución y restaura el modo previo al terminar; si se emplea, el
+    método habitual debe usar ese mismo promediado. Si se prefiere otro,
+    las capturas del sistema deben tomarse en modo manual, que respeta
+    la configuración del panel.
+  \item \textbf{Número de capturas.} El mismo número en ambos métodos,
+    fijado antes de comenzar.
+  \item \textbf{Temperatura.} Se anota la temperatura de la muestra al
+    inicio y al final de cada método. En el método habitual es la única
+    referencia térmica; en el sistema, cada fila registra además la
+    lectura de los cuatro sensores.
+\end{itemize}
+
+\subsubsection*{Secuencia de la prueba}
+
+\begin{enumerate}[leftmargin=*, itemsep=2pt]
+  \item Se prepara el montaje, se ajustan escalas y disparo en el
+    osciloscopio y se anotan en la hoja de sesión los parámetros del
+    láser, la geometría, la hora de la computadora y la del
+    osciloscopio, cuyos relojes pueden diferir.
+  \item Se adquiere el conjunto del método habitual y se conservan los
+    archivos que guarda el osciloscopio.
+  \item Sin tocar el montaje ni el osciloscopio, se abre la aplicación,
+    se verifica que los tres indicadores de conexión estén en verde y se
+    capturan los datos de geometría.
+  \item Se realiza y guarda una captura manual, que crea la sesión y
+    permite comprobar la señal; a continuación se ejecuta la secuencia
+    por tiempo con el número de capturas acordado y un intervalo de al
+    menos \SI{15}{\second}. La aplicación rechaza el intervalo si no
+    alcanza para completar el promedio y transferir la forma de onda.
+  \item Si el tiempo disponible lo permite, se repite el método habitual
+    al final. Un conjunto habitual antes y otro después del automatizado
+    permite distinguir una deriva del montaje durante la prueba de una
+    diferencia atribuible al método.
+  \item Se copia la carpeta completa de la sesión, junto con los
+    archivos del método habitual, la hoja de sesión y el registro de
+    incidencias.
+\end{enumerate}
+
+\subsubsection*{Criterios de comparación}
+
+Los criterios se limitan a magnitudes que el sistema ya mide o
+registra, y se calculan con el mismo estimador sobre ambos conjuntos:
+el que implementa la herramienta \texttt{verificar\_sesion.py} del
+directorio \texttt{herramientas} del repositorio. La traza
+se reconstruye con las \cref{eq:conv_voltaje,eq:conv_tiempo} y con los
+parámetros de preámbulo propios de cada archivo, se le resta la línea
+base estimada al inicio del registro y sobre ella se evalúan las
+magnitudes siguientes.
+
+\begin{enumerate}[leftmargin=*, itemsep=2pt]
+  \item \textbf{Amplitud pico a pico.} Para cada método se obtienen la
+    media del valor pico a pico sobre la traza completa y su
+    coeficiente de variación, como en la \cref{sec:repetibilidad}. La
+    diferencia entre las medias de ambos métodos se expresa en relación
+    con la mayor de las dos dispersiones internas: una diferencia del
+    orden de esa dispersión indica que el sistema reproduce el método
+    habitual; una diferencia que la excede debe explicarse antes de
+    atribuirla al método.
+  \item \textbf{Instante de llegada del máximo.} Para cada captura se
+    obtiene el instante del máximo de la amplitud absoluta en el eje
+    reconstruido, y se comparan su media y su dispersión entre métodos.
+    Con escalas y posición horizontal idénticas, ambos conjuntos deben
+    situar el máximo en el mismo instante dentro de su dispersión.
+  \item \textbf{Banderas de error.} Se cuenta cuántas filas del sistema
+    tienen \texttt{error\_flag = 1} y se lee el \texttt{error\_desc} de
+    cada una. Las filas marcadas se excluyen de los dos criterios
+    anteriores, pero se reportan con su causa: que el sistema marque
+    una captura dudosa en lugar de omitirla es parte de lo que se
+    evalúa.
+  \item \textbf{Metadatos.} Se comprueba que cada fila del sistema
+    contenga poblados los campos de temperatura y sensores, preámbulo,
+    escalas, modo de adquisición, promedios solicitados y
+    efectivamente promediados, y parámetros del láser
+    (\cref{sec:formato_datos}), y que \texttt{metadatos\_sesion.txt}
+    registre la identidad del osciloscopio y la geometría. Se contrasta
+    con lo que, para el método habitual, solo consta en la hoja de
+    sesión.
+  \item \textbf{Comprobaciones de sanidad.} Sobre ambos conjuntos se
+    verifica que ninguna captura sature el convertidor, que no existan
+    pares de registros idénticos bit a bit y que todas las capturas de
+    un mismo conjunto compartan la configuración de escala; son las
+    alertas que emite la misma herramienta.
+\end{enumerate}
+
+La prueba no fija de antemano un umbral de aceptación para la diferencia
+entre métodos: la referencia es la dispersión interna que la propia
+prueba mida. Lo que sí se fija de antemano es que ambos conjuntos se
+procesen con el mismo estimador y que se reporten todas las capturas,
+incluidas las marcadas.

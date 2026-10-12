@@ -1,5 +1,5 @@
 % =========================================================
-% CAPÍTULO 4: CONCLUSIONES
+% CAPÍTULO 5: CONCLUSIONES
 % =========================================================
 \chapter{Conclusiones}
 \label{cap:conclusiones}
@@ -14,10 +14,75 @@ adquisición sincronizada a un arreglo fotoacústico preexistente del
 Laboratorio de Fotofísica y Películas Delgadas del ICAT, cuya operación
 manual exigía coordinar el disparo del láser, la adquisición del
 osciloscopio y el registro de la temperatura de la muestra en cada
-punto experimental. El sistema desarrollado cumple ese objetivo: los
-tres instrumentos se operan desde una sola aplicación, la secuencia de
-medición se ejecuta sin intervención entre puntos, y cada captura queda
-guardada junto con las condiciones bajo las cuales fue tomada.
+punto experimental. El sistema desarrollado cumple ese objetivo en el
+alcance que permiten las pruebas sin instrumentos y las sesiones de
+laboratorio disponibles: los tres instrumentos se operan desde una sola
+aplicación, la secuencia de medición se ejecuta sin intervención entre
+puntos, y cada captura queda guardada junto con las condiciones bajo
+las cuales fue tomada. La \cref{tab:objetivos_evidencia} contrasta cada
+objetivo particular con su evidencia y declara el estado en que queda;
+las salvedades se desarrollan en las limitaciones que cierran esta
+sección.
+
+\begin{table}[H]
+  \centering
+  \caption{Objetivos particulares, evidencia que los respalda y estado
+           con la versión congelada del código.}
+  \label{tab:objetivos_evidencia}
+  \footnotesize
+  \setstretch{1.0}
+  \begin{tabular}{p{0.5cm}>{\raggedright\arraybackslash}p{3.3cm}>{\raggedright\arraybackslash}p{4.8cm}>{\raggedright\arraybackslash}p{4.6cm}}
+    \toprule
+    & \textbf{Objetivo} & \textbf{Evidencia} & \textbf{Estado} \\
+    \midrule
+    1 & Control del láser y retorno a estado seguro &
+    \cref{sec:auto_laser} y \cref{sec:protecciones}; estado del
+    láser y paro de emergencia en las pruebas del grupo~A
+    (\cref{tab:pruebas_interfaz}) &
+    Implementado; láser operado en las sesiones de septiembre, con la
+    salvedad del aviso de inactividad (véanse las limitaciones) \\
+    \addlinespace[2pt]
+    2 & Control del osciloscopio sobre VXI-11 &
+    \cref{sec:auto_osci}, \cref{sec:verificacion_adquisicion} y
+    \cref{sec:reconstruccion_escalas}; testigo de adquisición nueva
+    validado en las sesiones del 22 de septiembre &
+    Cumplido; validado con el equipo descrito en la
+    \cref{sec:equipos} \\
+    \addlinespace[2pt]
+    3 & Interfaz de temperatura &
+    \cref{sec:modulo_temperatura}, \cref{sec:falla_temperatura} y
+    \cref{sec:val_instrumento}; sesiones \texttt{20260908\_190614} y
+    \texttt{20260922\_182249} &
+    Cumplido; la calibración relativa entre los cuatro sensores
+    está definida y no aplicada \\
+    \addlinespace[2pt]
+    4 & Modos de secuencia por tiempo y por temperatura &
+    \cref{sec:secuencia}, \cref{sec:val_simulador}; modo por tiempo en
+    las sesiones \texttt{20260825\_192627} y
+    \texttt{20260908\_184623}; modo por temperatura en la sesión
+    \texttt{20260908\_203856} &
+    Parcial en hardware: ambos modos recorridos con versiones
+    anteriores a la congelada; con la versión congelada, el modo por
+    temperatura se ejercitó en el simulador (corrida del 3 de octubre de
+    2026) y sigue sin validarse en hardware \\
+    \addlinespace[2pt]
+    5 & Formato de almacenamiento de sesión &
+    \cref{sec:formato_datos} y \cref{tab:formato_registro};
+    pruebas del grupo~D &
+    Cumplido sin hardware; ninguna sesión real tiene aún el formato
+    de 34 columnas \\
+    \addlinespace[2pt]
+    6 & Validación sin instrumentos &
+    \cref{sec:validacion}, \cref{sec:val_auditoria} y
+    \cref{tab:resumen_validacion}; 51 casos de interfaz y 12 de sesión
+    reabierta &
+    Cumplido; el simulador (8 casos y niveles 2 y 3) y el verificador
+    (11 sesiones) se corrieron con la versión congelada el 3 de octubre
+    de 2026 en un entorno sin hardware; la prueba de mutación del
+    verificador es de una versión anterior \\
+    \bottomrule
+  \end{tabular}
+\end{table}
 
 Conviene, sin embargo, precisar en qué consiste realmente la
 aportación, porque la automatización de una tarea repetitiva no es por
@@ -42,13 +107,15 @@ al mismo instante físico. Ese acuerdo no se obtiene por buena suerte,
 sino porque los parámetros necesarios para reconstruir cada captura
 viajan con ella.
 
-La decisión de operar el osciloscopio en modo de solo lectura, expuesta
-en la \cref{sec:decisiones}, es parte del mismo argumento. Un programa
-que escribe la configuración del instrumento registra lo que creyó
-haber establecido; uno que solo la consulta registra lo que el
-instrumento realmente aplicó. La segunda opción entrega menos control y
-más confianza, y para un sistema cuyo producto son datos destinados a
-sostener afirmaciones, la confianza es lo que importa.
+La decisión de dejar la configuración de los ejes y del disparo del
+osciloscopio en modo de solo lectura, expuesta en la
+\cref{sec:decisiones}, es parte del mismo argumento. Un programa que
+escribe esa configuración registra lo que creyó haber establecido; uno
+que solo la consulta registra lo que el instrumento realmente aplicó.
+La aplicación sí escribe los parámetros de acumulación y transferencia,
+que no alteran la calibración de los ejes. La segunda opción entrega
+menos control y más confianza, y para un sistema cuyo producto son datos
+destinados a sostener afirmaciones, la confianza es lo que importa.
 
 \subsection*{Sobre la validación sin instrumentos}
 
@@ -59,9 +126,21 @@ simulación y sesiones sintéticas, de lo que depende de la respuesta
 efectiva del equipo.
 
 La \cref{sec:validacion} documenta el alcance de esa separación.
-Interesa destacar un punto metodológico. La herramienta de verificación
-de sesiones no se dio por buena porque pasara sus pruebas, sino que se
-sometió a una prueba de mutación en la que cada una de sus diez
+Interesa destacar dos puntos metodológicos. El primero es la auditoría
+de las banderas de estado de la aplicación y las pruebas de la interfaz
+sin hardware (\cref{sec:val_auditoria}): 51 casos repartidos en seis
+archivos más 12 casos de la sesión reabierta, los grupos A a D
+corridos también contra la versión anterior a la corrección, donde
+fallan 9, 6, 5 y 6 casos respectivamente, mientras que los de la red de
+seguridad y el modo degradado prueban mecanismos que antes no existían. Esa reconstrucción produjo un hallazgo real, la escritura
+silenciosa de capturas en una sesión reabierta, que ningún commit había
+documentado y que se corrigió con una confirmación previa. Sus límites
+son los de cualquier prueba sin instrumentos: establece que la lógica de
+la interfaz reacciona como se pretende, no que las condiciones se
+presenten en el equipo real como se supuso.
+
+El segundo es el de la herramienta de verificación de sesiones, que no
+se dio por buena porque pasara sus pruebas, sino que se sometió a una prueba de mutación en la que cada una de sus diez
 comprobaciones se desactivó por separado para confirmar que su ausencia
 hacía fallar el caso correspondiente. Esa prueba reveló, de paso, que el
 código de salida del verificador podía permanecer en falla por una
@@ -71,15 +150,17 @@ verificada; está sin poner a prueba.
 
 \subsection*{Sobre las fallas documentadas}
 
-El \cref{cap:resultados} dedica su sección más extensa a siete anomalías
-observadas durante el desarrollo. Esa elección fue deliberada, y
-conviene justificarla.
+El \cref{cap:resultados} dedica su sección más extensa a los catorce
+modos de falla reunidos en la \cref{tab:resumen_fallas}. Esa elección
+fue deliberada, y conviene justificarla.
 
-Seis de las siete no eran observables mientras ocurrían. Tres de ellas
-tampoco lo eran inspeccionando los datos captura por captura: aparecieron
-solo al contrastar el archivo con lo que su propio encabezado declaraba
-contener, el código con su historial de cambios, y cada campo del archivo
-con el lugar del código que lo produce. La más prolongada
+Once de los catorce no eran observables mientras ocurrían. Cuatro de
+ellos tampoco lo eran inspeccionando los datos captura por captura:
+aparecieron solo al contrastar el archivo con lo que su propio
+encabezado declaraba contener, el código con su historial de cambios,
+cada campo del archivo con el lugar del código que lo produce, y cada
+bandera de estado de la interfaz con la confirmación que debía
+respaldarla. La más prolongada
 —diez capturas consecutivas en las que no hubo adquisición— transcurrió
 durante doce minutos frente a un operador atento, sin producir una sola
 excepción.
@@ -87,10 +168,10 @@ excepción.
 De ahí se sigue el criterio con el que conviene juzgar un sistema de
 este tipo. No es la ausencia de fallas, inalcanzable en un montaje que
 integra tres instrumentos independientes con sus propios modos de
-error. Es que las fallas resulten reconstruibles después. Todas las
-anomalías descritas que se manifestaron pudieron caracterizarse meses
-más tarde a partir de los archivos conservados, y esa posibilidad es en
-sí misma un resultado del diseño: un sistema que hubiera guardado menos
+error. Es que las fallas resulten reconstruibles después. Las
+anomalías descritas que se manifestaron pudieron caracterizarse a
+partir de los archivos conservados, en algunos casos meses más tarde, y
+esa posibilidad es en sí misma un resultado del diseño: un sistema que hubiera guardado menos
 las habría vuelto indetectables.
 
 El caso de la propia herramienta de verificación, en la
@@ -103,28 +184,69 @@ contra una magnitud obtenida por una vía independiente permitió
 distinguir el hallazgo del artefacto.
 
 \subsection*{Limitaciones del trabajo}
+\label{sec:limitaciones}
 
-Tres limitaciones deben quedar declaradas.
+Las siguientes limitaciones deben quedar declaradas.
 
-La primera es de alcance experimental: el modo de adquisición gobernado
-por temperatura se ejercitó exhaustivamente por simulación y se
-recorrió de punta a punta contra los tres instrumentos reales en una
-sola sesión, sobre agua, en un intervalo de \SI{44}{\celsius} a
-\SI{40}{\celsius} y bajo enfriamiento pasivo. La lógica está verificada
-y el recorrido completo está demostrado; lo que no queda establecido es
-su comportamiento sobre otros líquidos, intervalos más amplios o
-regímenes de enfriamiento distintos del pasivo.
+La primera es de alcance experimental. El modo de adquisición gobernado
+por temperatura se ejercitó por simulación y se recorrió de punta a
+punta contra los tres instrumentos reales en la sesión
+\texttt{20260908\_203856}, sobre agua, en un intervalo de
+\SI{44}{\celsius} a \SI{40}{\celsius} y bajo enfriamiento pasivo, pero
+con la versión del código de esa fecha. Con la versión congelada, ni el
+modo por temperatura ni el modo por tiempo se han recorrido en el
+equipo, y tampoco existe una sesión real con el formato de 34 columnas;
+lo que respalda esa versión son las pruebas sin hardware (51 casos de
+interfaz y 12 de sesión reabierta), que establecen la lógica de la
+interfaz y del almacenamiento pero no el comportamiento del equipo. El
+simulador de la secuencia y el verificador de sesiones se corrieron con
+la versión congelada el 3 de octubre de 2026, en un contenedor sin
+interfaz gráfica y sin hardware, con resultado conforme en ambos
+(la salida se conserva en \texttt{corrida3.txt}); la prueba de mutación
+del verificador se hizo con una versión anterior. La prueba integrada de la
+\cref{sec:prueba_integrada} se apoya en la sesión del 25 de agosto, y su
+repetición con la versión congelada se hará con las mediciones del
+M.~en~C. Arturo Ronquillo Arvizu. Tampoco queda establecido el
+comportamiento del sistema sobre otros líquidos, intervalos más amplios
+o regímenes de enfriamiento distintos del pasivo. Además, en la corrida
+de punta a punta sin hardware apareció el diálogo «Dispositivo crítico
+desconectado»; se atribuyó a la ausencia de la biblioteca del láser en
+el entorno de prueba, pero la atribución no se ha confirmado en el
+equipo.
 
 La segunda es que la calibración relativa entre los cuatro sensores de
 temperatura quedó definida pero no aplicada, de modo que las lecturas
-individuales arrastran la dispersión de fábrica del conjunto,
-comparable en magnitud al umbral que gobierna el criterio de disparo.
+individuales arrastran la dispersión de fábrica del conjunto, que no se
+cuantificó en este trabajo. El módulo, además, solo acepta lecturas
+entre \SI{10}{\celsius} y \SI{50}{\celsius}: un promedio fuera de ese
+rango invalida la trama, y un sensor fuera de él cuenta como ausente.
 
 La tercera es que el arreglo no mide la energía del pulso láser. En
 consecuencia, las amplitudes registradas no son normalizables y el
 sistema, por completo que sea su registro, no puede sostener por sí
 solo afirmaciones cuantitativas sobre el coeficiente de absorción del
 medio.
+
+La cuarta es la protección frente a la inactividad
+(\cref{sec:protecciones}). Con el láser en
+marcha y fuera de una secuencia, un minuto sin actividad abre un
+diálogo que espera la respuesta sin tiempo límite; el láser solo se
+detiene si el operador contesta que no lo sigue usando. Si nadie
+responde, el láser permanece emitiendo, aunque el texto del diálogo
+anuncie lo contrario. Es un recordatorio, no un mecanismo automático.
+
+La quinta agrupa restricciones menores de la interfaz y del registro.
+Los metadatos del láser se escriben una sola vez, al crear la sesión.
+El selector de modo de adquisición parte en \textit{Sample} sin leer el
+modo vigente del osciloscopio, y \textit{Aplicar} puede pasarlo de
+\textit{Average} a \textit{Sample}; el número de promedios se registra
+también cuando el modo es \textit{Sample}. La bandera de error del
+monitor de conexiones se actualiza con un ciclo de retraso, de modo que
+una fila puede quedar marcada con una temperatura válida tras reconectar
+el ESP32, como en la \cref{sec:fallas_22sep}. Por último, el modo
+degradado, al que la interfaz entra si un paro de emergencia no obtiene
+confirmación en \SI{150}{\second}, solo se abandona reiniciando la
+aplicación.
 
 \subsection*{Balance}
 
@@ -147,20 +269,22 @@ las líneas de trabajo identificadas durante el desarrollo.
 
 \subsection*{La pregunta que los datos dejaron abierta}
 
-El análisis de la sesión del 8 de septiembre de 2026, descrito en el
+El análisis de la sesión del 8 de septiembre de 2026, descrito en la
 \cref{sec:falla_umbral}, dejó planteada una pregunta que este trabajo
 no resuelve y que conviene enunciar con claridad, porque marca el
 límite entre lo que la automatización establece y lo que no.
 
-Descontado el artefacto del criterio de umbral, persiste un
-desplazamiento del registro completo de aproximadamente
-\SI{0.12}{\micro\second} a lo largo del barrido, en el sentido de
+Ningún criterio de umbral resultó robusto frente a la pérdida de
+amplitud que acompaña al enfriamiento. Los dos estimadores que no
+dependen de umbral, en cambio, coinciden en el sentido del
+desplazamiento, según la \cref{tab:umbral_amplitud}: la correlación
+cruzada del registro completo lo sitúa en \SI{0.12}{\micro\second} y el
+instante del máximo absoluto en \SI{0.36}{\micro\second}, ambos hacia
 tiempos \emph{menores} conforme la muestra se enfría. La velocidad del
 sonido en agua disminuye al bajar la temperatura en este intervalo, de
-modo que el arribo debería retrasarse, no adelantarse; y la magnitud
-esperada, para la separación hidrófono--haz registrada en los
-metadatos de la sesión, es de unos \SI{0.08}{\micro\second}. El signo
-es opuesto y el orden de magnitud no coincide.
+modo que el arribo debería retrasarse, no adelantarse. El signo
+observado es opuesto al esperado, y las dos magnitudes no coinciden
+entre sí.
 
 Tres explicaciones quedan abiertas y este trabajo no dispone de
 elementos para decidir entre ellas. La primera es instrumental: si la
@@ -168,13 +292,14 @@ fuente de disparo del osciloscopio dependiera de la propia señal
 adquirida, el origen temporal se desplazaría con la amplitud y el
 efecto sería enteramente artificial. La segunda es geométrica:
 \SI{0.12}{\micro\second} equivalen a unas \SI{0.18}{\milli\meter} de
-trayecto, una magnitud que la deriva térmica del arreglo o la ausencia
-de una sujeción rígida del hidrófono pueden producir sin dificultad, y
-que está muy por debajo de la incertidumbre con que esa distancia se
-mide hoy. La tercera es de interpretación de la señal: el máximo se
-ubica cerca de \SI{94}{\micro\second}, lejos del tiempo de arribo que
-la separación registrada predice para la señal directa según el
-\cref{ap:tiempos_arribo}, de modo que la característica que se está
+trayecto con una velocidad del sonido de \SI{1480}{\meter\per\second},
+una magnitud que la deriva térmica del arreglo o la ausencia de una
+sujeción rígida del hidrófono pueden producir sin dificultad, y que
+está muy por debajo de la resolución del flexómetro con que esa
+distancia se mide hoy. La tercera es de interpretación de la señal: el
+máximo se ubica cerca de \SI{94}{\micro\second}, lejos del tiempo de
+arribo que la separación registrada predice para la señal directa según
+el \cref{ap:tiempos_arribo}, de modo que la característica que se está
 siguiendo podría corresponder a una trayectoria reflejada y no a la
 directa.
 
@@ -206,16 +331,17 @@ cuyo procedimiento se define en la \cref{sec:modulo_temperatura}, no
 fue aplicada al firmware empleado en las mediciones reportadas. Su
 ejecución es una tarea acotada ---una sesión de registro con los
 cuatro sensores sumergidos en agua en agitación continua--- y su
-resultado ajustaría las lecturas individuales al mismo orden de
-magnitud que el umbral de decisión de la secuencia automática.
+resultado permitiría cuantificar la dispersión entre sensores y
+reducirla frente al umbral de decisión de la secuencia automática.
 
 La reconexión automática del módulo de temperatura, documentada antes
 como carencia, quedó implementada y verificada según la
 \cref{sec:val_instrumento}. Subsiste un caso no cubierto: el reintento
 opera sobre el puerto declarado en la configuración, de modo que una
 reasignación del puerto por parte del sistema operativo sigue
-requiriendo intervención manual. Resolverlo sin recorrer puertos ajenos
-exigiría identificar al módulo por su descriptor de dispositivo antes
+requiriendo que el operador lo corrija, ahora desde el diálogo
+«Conexión», sin editar código ni reiniciar la aplicación. Resolverlo
+sin recorrer puertos ajenos exigiría identificar al módulo por su descriptor de dispositivo antes
 de abrir la comunicación.
 
 En cuanto a la celda fotoacústica, trabajos futuros podrían explorar
@@ -229,7 +355,8 @@ Los metadatos de sesión incorporan la distancia entre el hidrófono y el
 eje del haz y el volumen vertido, de modo que la ventana temporal útil
 ---que depende de ambos, según el \cref{ap:tiempos_arribo}--- puede
 reconstruirse desde el archivo de datos y no desde la bitácora del
-operador. Ambas magnitudes se capturan hoy a mano en la interfaz, y la
+operador. Ambas magnitudes se capturan hoy a mano en la interfaz, quedan
+bloqueadas al crear la sesión, y la
 distancia se mide con flexómetro por no existir una sujeción fija del
 hidrófono. Una montura que fije esa distancia, o su medición con un
 instrumento de mayor resolución, reduciría la incertidumbre que hoy
@@ -247,22 +374,30 @@ procedimiento automatizado. Incorporarla como tal es lo que permitiría
 que su resultado siga siendo válido cuando la herramienta de
 verificación incorpore condiciones nuevas.
 
-La biblioteca de control del láser mantiene su estado de conexión a
-nivel de proceso y no por instancia. La aplicación no garantiza la
-desconexión explícita al cerrarse, de modo que una terminación
-irregular puede dejarla en un estado que impide la siguiente conexión
-hasta reiniciar el proceso. Garantizar la desconexión en el cierre es
-una corrección acotada, y conviene acompañarla de una comprobación de
+Con el cierre normal de la ventana, la aplicación activa el modo seguro
+del láser y desconecta el láser y el osciloscopio. Una terminación
+anómala del proceso no pasa por ese camino y no garantiza que el láser
+quede en estado seguro ni que la conexión se libere. Cubrir ese caso es
+una mejora acotada, y conviene acompañarla de una comprobación de
 conectividad independiente de la interfaz gráfica, como la que se
 empleó para diagnosticar el caso.
 
-La frecuencia de repetición del láser se emplea como constante del
-programa para estimar el número de disparos integrados en cada
-ventana, según se documenta en la \cref{sec:falla_laserhz}. El equipo
-expone ese parámetro como registro consultable por la misma biblioteca
-que el sistema ya utiliza. Leerlo en lugar de suponerlo, y guardar el
-valor leído entre los metadatos de sesión, convierte un campo supuesto
-en uno medido sin costo apreciable.
+Dotar al aviso de inactividad de un plazo, vencido el cual se ejecute
+el mismo procedimiento de modo seguro que el paro de emergencia, lo
+convertiría en la protección que su texto anuncia. En la
+misma línea, el selector de modo de adquisición debería leer el modo
+vigente del osciloscopio al conectarse en lugar de partir de un valor
+fijo.
+
+El registro ya no supone la frecuencia de repetición del láser. El
+campo que la usaba para estimar los disparos integrados en cada ventana
+se eliminó, y el sistema registra el contador de adquisiciones que
+informa el propio osciloscopio (\texttt{ACQ:NUMACQ?}), según la
+\cref{sec:falla_laserhz}. La tasa medida en la sesión
+\texttt{20260922\_194624} es de unas 9.3 adquisiciones por segundo; es
+una tasa de adquisición, y este trabajo no establece si coincide con la
+repetición del láser o si hay disparos que el osciloscopio no adquiere.
+Contrastarla con una lectura independiente del láser queda como mejora.
 
 El módulo de almacenamiento guarda los datos crudos en archivos
 \texttt{.npy} y los metadatos en un registro \texttt{.csv}.
@@ -279,17 +414,19 @@ en formato PDF al concluir una sesión de medición.
 
 \subsection*{Extensión a otros líquidos y concentraciones}
 
-El sistema fue diseñado y validado con agua como líquido de
+El sistema fue diseñado y probado con agua como líquido de
 referencia. Una extensión directa consiste en caracterizar
 soluciones acuosas de distintas concentraciones de absorbentes
 de interés biológico o industrial, lo que permitiría construir
 una base de datos de coeficientes de absorción en función de la
 concentración y la temperatura.
 
-La automatización del control de temperatura abre la posibilidad
-de realizar barridos térmicos programados, obteniendo la dependencia
-del coeficiente de absorción con la temperatura de forma sistemática
-y reproducible, sin intervención manual entre puntos de medición.
+La secuencia gobernada por la temperatura de la muestra abre la
+posibilidad de realizar barridos térmicos sobre su enfriamiento pasivo,
+obteniendo la dependencia del coeficiente de absorción con la
+temperatura de forma sistemática y reproducible, sin intervención
+manual entre puntos de medición. El sistema registra la temperatura y
+decide con ella cuándo medir, pero no la controla.
 
 \subsection*{Continuación académica}
 

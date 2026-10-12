@@ -181,10 +181,13 @@ $v = \SI{1480}{\meter\per\second}$, las
 la \cref{tab:tiempos_celda}: \SI{10.0}{\milli\meter} y
 \SI{6.8}{\micro\second} para la señal directa,
 \SI{19.0}{\milli\meter} y \SI{12.9}{\micro\second} para la reflexión
-en la superficie libre, \SI{42.1}{\milli\meter} y
+en la superficie libre, \SI{42.2}{\milli\meter} y
 \SI{28.5}{\micro\second} para la reflexión en el fondo, y
 aproximadamente \SI{100}{\milli\meter} y \SI{67.6}{\micro\second} para
-las paredes transversales.
+las paredes transversales. Las sesiones de medición que consignan la geometría en sus
+metadatos registran separaciones de \SI{35}{\milli\meter} (8 de
+septiembre) y \SI{30}{\milli\meter} (22 de septiembre), ambas con
+un volumen de \SI{400}{\milli\liter}.
 
 La ventana temporal libre de reflexiones es la diferencia entre los dos
 primeros arribos:
@@ -213,8 +216,8 @@ que se pretende resolver, por lo que la base de tiempo y la longitud de
 registro configuradas en el osciloscopio deben verificarse contra la
 geometría efectiva de cada sesión y no darse por heredadas.
 
-El procedimiento para hacerlo consta de tres pasos. Primero, medir con
-vernier la separación entre la cara sensora del hidrófono y el eje del
+El procedimiento para hacerlo consta de tres pasos. Primero, medir la
+separación entre la cara sensora del hidrófono y el eje del
 haz, lo que proporciona $d$. Segundo, confirmar el volumen vertido, que
 mediante la \cref{eq:tirante} determina el tirante $H$ y con él la
 altura $h_s$ de la \cref{eq:altura_superficie}; la altura $h_f$ no
@@ -222,9 +225,13 @@ requiere verificación, pues la fija la ranura de la ventana de cuarzo.
 Tercero, evaluar la \cref{eq:ventana_util} con esos valores y comparar
 el resultado con la base de tiempo configurada.
 
-Ninguna de estas dos magnitudes se registra actualmente en los
-metadatos de sesión. Su incorporación al formato descrito en la
-\cref{sec:formato_datos} se plantea en el \cref{cap:conclusiones} como
-mejora pendiente: mientras no se registren, la reconstrucción posterior
-de la ventana útil de una sesión depende de la bitácora del operador y
-no del archivo de datos.
+Las dos magnitudes de los primeros pasos forman parte de los metadatos
+de sesión descritos en la \cref{sec:formato_datos}: el operador las
+captura en la interfaz antes de la primera medición y quedan escritas
+al crear la sesión, en los campos
+\texttt{separacion\_hidrofono\_haz\_mm} y
+\texttt{volumen\_vertido\_ml}. La ventana útil de toda sesión que
+las consigne puede reconstruirse así desde su archivo de datos. En las sesiones
+reportadas la separación se midió con flexómetro, por no existir una
+sujeción fija del hidrófono, de modo que su resolución limita la del
+cálculo.

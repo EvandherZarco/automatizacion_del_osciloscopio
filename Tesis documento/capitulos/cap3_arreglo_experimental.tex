@@ -1,5 +1,5 @@
 % ============================================================
-% CAPÍTULO 2: ARREGLO EXPERIMENTAL
+% CAPÍTULO 3: ARREGLO EXPERIMENTAL
 % ============================================================
 \chapter{Arreglo experimental}
 \label{cap:arreglo}
@@ -217,14 +217,25 @@ realizadas dentro de una misma sesión, durante la cual el arreglo
 permanece inalterado, pero sí impide comparar amplitudes absolutas
 entre sesiones distintas sin información adicional.
 
-La estrategia adoptada consiste en registrar la geometría efectiva
-como metadato de cada sesión: altura del eje del haz sobre el fondo
-interno, distancia entre el hidrófono y el eje del haz, posición del
-hidrófono a lo largo de la celda, volumen vertido y temperatura
-ambiente inicial. Con estos parámetros, los tiempos de arribo de la
-\cref{tab:tiempos_celda} pueden recalcularse para cada sesión
-mediante el procedimiento del \cref{ap:tiempos_arribo}, y cualquier
-discrepancia entre sesiones puede atribuirse a su causa geométrica.
+La estrategia adoptada consiste en registrar como metadato de cada
+sesión las dos magnitudes geométricas que cambian con el montaje y de
+las que dependen los tiempos de arribo: la separación entre la cara
+sensora del hidrófono y el eje del haz, y el volumen vertido. La
+interfaz las solicita en el panel de geometría de la sesión antes de
+la primera captura; si alguna falta, advierte al operador y le permite
+llenarla o continuar sin ella. Ambas se escriben en el archivo de
+metadatos al crear la sesión (campos
+\texttt{separacion\_hidrofono\_haz\_mm} y
+\texttt{volumen\_vertido\_ml}, con la leyenda «no registrado» si se
+dejaron vacías) y sus campos quedan bloqueados a partir de ese
+momento, de modo que un valor capturado después no pueda aparentar
+haber sido registrado. La altura del eje del haz sobre el fondo no se
+registra porque la fija la ranura de la ventana de cuarzo, según se
+detalla en el \cref{ap:tiempos_arribo}; la posición del hidrófono a lo
+largo de la celda y la temperatura ambiente tampoco forman parte de
+los metadatos. Con las dos magnitudes registradas, los tiempos de
+arribo de la \cref{tab:tiempos_celda} pueden recalcularse para cada
+sesión mediante el procedimiento del mismo apéndice.
 
 El uso de la celda a lo largo del desarrollo experimental permitió
 identificar además dos limitaciones de su diseño actual.
@@ -252,15 +263,15 @@ en el \cref{cap:conclusiones}.
 
 \subsection*{Osciloscopio}
 
-La adquisición de señales se realiza con un osciloscopio digital de
-la serie Tektronix TDS5000B. A lo largo del desarrollo experimental
-se emplearon indistintamente los modelos TDS5052B y TDS5054B, cuya
-única diferencia relevante es el número de canales de entrada: dos en
-el primero y cuatro en el segundo. Dado que el arreglo utiliza
-únicamente dos canales --- uno para el hidrófono y otro para el
-fotodiodo de disparo --- ambos modelos son equivalentes para los
-fines de este trabajo, y el software desarrollado opera sobre
-cualquiera de los dos sin modificación.
+La adquisición de señales se realiza con un osciloscopio digital
+Tektronix de la serie TDS5000B. El sistema se validó con
+osciloscopios de la serie TDS5000B disponibles en el laboratorio; la
+automatización solo emplea los canales 1 y 2, comunes a todos los
+modelos de la serie. El primero recibe la señal del hidrófono y el
+segundo la del fotodiodo de disparo. Cada captura transfiere un solo
+canal, el seleccionado en la interfaz, y el modelo empleado en cada
+sesión queda identificado en sus metadatos mediante la respuesta del
+instrumento a \texttt{*IDN?}.
 
 Los instrumentos de esta serie ejecutan internamente un sistema
 operativo Windows y exponen una interfaz de red que implementa el
@@ -380,7 +391,7 @@ características relevantes se resumen en la \cref{tab:laser}.
                          \SI{532}{\nano\meter} (segundo armónico) \\
     Longitud de onda empleada & \SI{1064}{\nano\meter} \\
     Duración de pulso & \SI{7}{\nano\second} \\
-    Frecuencia de repetición & \SI{10}{\hertz} \\
+    Frecuencia de repetición & \SI{10}{\hertz} (nominal) \\
     Interfaz de control & RS-232 \\
     \bottomrule
   \end{tabular}
@@ -388,9 +399,13 @@ características relevantes se resumen en la \cref{tab:laser}.
 
 Las mediciones de este trabajo se realizaron con la línea fundamental
 de \SI{1064}{\nano\meter}. La frecuencia de repetición de
-\SI{10}{\hertz} es fija y constituye el parámetro sobre el que se
-sustenta la estimación del número de pulsos integrados descrita en el
-\cref{cap:resultados}.
+\SI{10}{\hertz} de la \cref{tab:laser} es el valor nominal del
+fabricante, y el sistema no la emplea para contar pulsos: el número de
+adquisiciones que integra cada captura se lee del propio osciloscopio
+(\texttt{ACQ:NUMACQ?}) y se guarda junto con ella. La tasa de
+adquisición medida en el osciloscopio fue de aproximadamente 9.3
+adquisiciones por segundo, valor que el software utiliza únicamente
+para estimar la duración de una captura.
 
 \subsection*{Control de energía}
 
@@ -481,7 +496,9 @@ DATA:STOP 1000000
 WFMPRE:NR_PT?
 \end{lstlisting}
 
-La codificación \texttt{RIBINARY} con ancho de dos bytes transfiere
+La fuente de la transferencia (\texttt{DATA:SOURCE}) corresponde al
+canal seleccionado en la interfaz, \texttt{CH1} por omisión. La
+codificación \texttt{RIBINARY} con ancho de dos bytes transfiere
 las muestras como enteros con signo en formato binario de orden de
 byte grande, lo que reduce el volumen de datos y el tiempo de
 transferencia respecto de una codificación en texto.
@@ -544,51 +561,77 @@ cada captura. La justificación de esta decisión, que es de
 trazabilidad y no de comodidad, se desarrolla en la
 \cref{sec:decisiones}.
 
-El segundo grupo gobierna el modo de acumulación y sí se escribe desde
-la aplicación: el modo de adquisición (\texttt{ACQ:MODE}), el número
-de promedios (\texttt{ACQ:NUMAVG}) y las órdenes de inicio y detención
-descritas a continuación. Son los parámetros que la secuencia
-automática necesita manipular para operar, y ninguno de ellos altera
-la calibración de los ejes con la que se reconstruye la señal.
+El segundo grupo gobierna qué se transfiere y cómo se acumula, y sí
+se escribe desde la aplicación: el canal fuente de la transferencia
+(\texttt{DATA:SOURCE}, \texttt{CH1} o \texttt{CH2}), el modo de
+adquisición (\texttt{ACQ:MODE}, \textit{Sample} o \textit{Average}),
+el número de promedios (\texttt{ACQ:NUMAVG}), la condición de
+detención (\texttt{ACQ:STOPAFTER}) y las órdenes de inicio y detención
+(\texttt{ACQ:STATE}). El modo y el número de promedios pueden fijarse
+también desde la interfaz mediante su botón de aplicar parámetros. Son
+los parámetros que la secuencia automática necesita manipular para
+operar, y ninguno de ellos altera la calibración de los ejes con la
+que se reconstruye la señal. Al iniciar una secuencia, el módulo
+guarda el modo y el número de promedios vigentes y los restituye al
+concluirla.
 
 \subsection*{Modos de adquisición}
 
 El módulo implementa dos formas de adquisición que corresponden a los
 modos de operación descritos en el \cref{cap:resultados}.
 
-En el modo de adquisición por secuencia se configura
-\texttt{ACQ:MODE AVERAGE} junto con
-\texttt{ACQ:STOPAFTER SEQUENCE}, de manera que el instrumento
-promedia el número de disparos indicado por \texttt{ACQ:NUMAVG} y
-detiene la adquisición automáticamente al completarlos. La aplicación
-consulta periódicamente \texttt{ACQ:STATE?} hasta constatar su
-terminación.
+En el modo de adquisición por secuencia, empleado por la medición
+por intervalo de tiempo, se configura \texttt{ACQ:MODE AVERAGE} junto
+con \texttt{ACQ:STOPAFTER SEQUENCE} y \texttt{ACQ:NUMAVG 100}, de
+manera que el instrumento promedia cien adquisiciones y detiene la
+adquisición automáticamente al completarlas. La aplicación consulta
+periódicamente \texttt{ACQ:STATE?} hasta constatar su terminación.
 
-En el modo de adquisición controlada por evento externo, la
-aplicación inicia y detiene la integración de forma explícita
-mediante \texttt{ACQ:STATE RUN} y \texttt{ACQ:STATE STOP}, en función
-de una condición evaluada por el software. El osciloscopio actúa
-entonces como integrador y el número de disparos promediados queda
-determinado por la duración del intervalo, no por un valor
-preestablecido.
+En el modo de adquisición controlada por evento externo, empleado por
+la medición por temperatura, la aplicación inicia y detiene la
+integración de forma explícita mediante \texttt{ACQ:STATE RUN} y
+\texttt{ACQ:STATE STOP}, en función de una condición evaluada por el
+software. El número de promedios se fija en \num{10000} para que el
+instrumento no concluya la secuencia por sí mismo. El osciloscopio
+actúa entonces como integrador y el número de adquisiciones
+promediadas queda determinado por la duración del intervalo, siempre
+que esta no alcance el tope de \num{10000}, lo que a la tasa medida
+corresponde a unos \SI{18}{\minute}. En ambos modos el valor
+efectivamente integrado se lee con \texttt{ACQ:NUMACQ?} y se guarda
+junto con la captura.
 
 \subsection*{Robustez de la comunicación}
 
-Toda operación de lectura se reintenta un número acotado de veces
-antes de declararse fallida. El módulo distingue dos categorías de
-fallo con tratamiento diferenciado: los errores de conexión, que
-invalidan la sesión VXI-11 y marcan el instrumento como desconectado,
-y los errores de captura, en los que la conexión permanece activa
-pero una transferencia concreta no pudo completarse. Esta distinción
-evita que una lectura fallida aislada provoque la desconexión
-innecesaria del instrumento y la interrupción de una secuencia en
-curso.
+La lectura del preámbulo \texttt{WFMPRE} y la de la curva se
+reintentan hasta tres veces antes de declararse fallidas. El módulo
+distingue dos categorías de anomalía con tratamiento diferenciado. Los
+errores de conexión ---un comando que no obtiene respuesta o una
+lectura que agota sus reintentos--- invalidan la sesión VXI-11: el
+módulo libera el enlace y marca el instrumento como desconectado, de
+modo que ninguna orden posterior quede esperando a un enlace muerto.
+Las anomalías de captura, en cambio, no interrumpen la conexión: la
+captura se conserva, pero se guarda con su bandera de error y una
+descripción del motivo. Entre las anomalías de captura figuran la
+ausencia de una adquisición nueva, un promedio incompleto, una curva cuya longitud no
+coincide con \texttt{WFMPRE:NR\_PT?} y un cambio de escala durante la
+captura, descritos a continuación. Esta distinción evita que una
+captura defectuosa aislada provoque la desconexión innecesaria del
+instrumento y la interrupción de una secuencia en curso, sin que el
+defecto pase inadvertido en el registro.
 
-Al concluir cualquier operación de adquisición, el módulo restablece
-el instrumento a su estado de barrido continuo mediante
-\texttt{ACQ:STOPAFTER RUNSTOP} seguido de \texttt{ACQ:STATE RUN}, de
-modo que el osciloscopio quede en condiciones de uso manual sin
-intervención adicional.
+Salvo durante una secuencia por temperatura, en la que el instrumento
+permanece detenido entre ventanas de integración, el módulo restablece
+el barrido continuo al concluir cada adquisición mediante
+\texttt{ACQ:STOPAFTER RUNSTOP} seguido de \texttt{ACQ:STATE RUN}, aun
+cuando la captura haya fallado, y comprueba con \texttt{ACQ:STATE?}
+que la orden surtió efecto. Al cerrar una secuencia restituye además
+el modo de adquisición y el número de promedios previos, de modo que
+el osciloscopio quede en condiciones de uso manual sin intervención
+adicional.
+
+\subsection*{Verificación de adquisición nueva}
+
+El registro que entrega \texttt{CURVE?} no es necesariamente posterior a la orden de captura: con la adquisición detenida, o poco después de un cambio de escala, el instrumento devuelve el último registro almacenado sin indicarlo. El módulo lo detecta apoyándose en el contador de adquisiciones \texttt{ACQ:NUMACQ?}, en la comparación de las escalas leídas antes y después de la transferencia y en la longitud de la curva frente a \texttt{WFMPRE:NR\_PT?}. Ninguna de estas comprobaciones descarta la captura: cada una que falla agrega su motivo a la descripción de error del registro y activa la bandera de error, de modo que la decisión de excluirla corresponde al análisis posterior. El procedimiento completo se describe en la \cref{sec:verificacion_adquisicion}.
 
 % ============================================================
 \section{Automatización del láser}
@@ -606,7 +649,7 @@ sus valores admisibles.
 La biblioteca se carga desde Python mediante \texttt{ctypes.WinDLL}.
 Al tratarse de una biblioteca exclusivamente de \SI{64}{bits}, debe
 cargarse en el espacio de proceso de un intérprete de la misma
-arquitectura; el uso de Python de \SI{64}{bits} satisface esta
+arquitectura; el uso de Python~3.12.10 de \SI{64}{bits} satisface esta
 condición sin requerir un proceso puente ni capa intermedia alguna.
 
 La carga presenta una particularidad: la biblioteca resuelve sus
@@ -660,10 +703,18 @@ carácter no reentrante del enlace RS-232 subyacente.
 
 El sistema incorpora un procedimiento que devuelve el láser a una
 condición de operación segura. Dicho procedimiento se activa ante
-cuatro condiciones: conclusión normal de una secuencia de medición,
-parada de emergencia solicitada por el operador, fallo irrecuperable
-de comunicación tras agotar los reintentos de reconexión, e
-inactividad prolongada en modo manual.
+cuatro condiciones: conclusión de una secuencia de medición, ya sea
+normal o por aborto; parada de emergencia solicitada por el operador;
+fallo irrecuperable de comunicación con el láser o con el osciloscopio
+tras agotar los tres reintentos de reconexión; y cierre de la ventana
+de operación o regreso a la ventana de bienvenida con el láser
+conectado.
+
+La inactividad en modo manual no activa el procedimiento por sí sola:
+el aviso de inactividad solo lo desencadena, mediante la parada de
+emergencia, si el operador responde negativamente
+(\cref{sec:protecciones}). El diseño presupone la presencia del
+operador junto al arreglo mientras el láser está encendido.
 
 El procedimiento ejecuta en orden los cuatro comandos de la
 \cref{tab:modo_seguro}.
@@ -692,12 +743,19 @@ comunicación parcial no debe impedir que se ejecuten los comandos
 restantes: el objetivo es maximizar el número de acciones de
 seguridad efectivamente aplicadas. El resultado individual de cada
 comando se reporta a la interfaz, que advierte al operador si alguno
-no pudo confirmarse.
+no pudo enviarse. Ese resultado indica que la orden salió hacia el
+láser sin error, no que el instrumento la haya aplicado: la función de
+escritura de la biblioteca no espera respuesta. Por ello, tras el
+procedimiento la interfaz marca el estado del láser como incierto y
+lee el registro \texttt{State} para mostrar el estado real.
 
 Debe subrayarse que el procedimiento actúa exclusivamente sobre el
-láser. Los parámetros del osciloscopio no se modifican en ningún
-caso, de modo que la configuración de adquisición establecida por el
-operador se conserva íntegra tras un evento de seguridad.
+láser. Los parámetros del osciloscopio no se modifican durante un
+evento de seguridad, de modo que la configuración de adquisición
+establecida por el operador se conserva. La única restitución de
+parámetros del osciloscopio es la del modo de adquisición y el número
+de promedios al cerrar una secuencia, descrita en la
+\cref{sec:auto_osci}.
 
 % ============================================================
 \section{Módulo de medición de temperatura}
@@ -725,18 +783,35 @@ habitual ---un único bus compartido por los cuatro sensores--- reduce
 el cableado, pero hace que el fallo de un dispositivo o de su conexión
 degrade la lectura de los cuatro. Con buses separados, la pérdida de un
 sensor deja intactos a los restantes y resulta además localizable, pues
-la línea afectada identifica al dispositivo.
+la línea afectada identifica al dispositivo. La
+\cref{fig:modulo_temperatura} muestra esta topología.
+
+\input{capitulos/fig_modulo_temperatura}
 
 La comunicación con la computadora de control se realiza por enlace
-serial a \SI{115200}{baud}. El microcontrolador transmite
-periódicamente una trama de texto delimitada por comas con cinco
-campos: el promedio de las lecturas válidas, seguido de la temperatura
-individual de cada uno de los cuatro sensores. Un sensor que no
-responde no se omite de la trama ni conserva su último valor: su campo
-se transmite como no numérico, de modo que la aplicación distingue la
-pérdida de un sensor de una lectura legítima. El microcontrolador
-acepta además un conjunto reducido de comandos que permiten verificar
-la comunicación y suspender o reanudar la transmisión.
+serial a \SI{115200}{baud}. El microcontrolador transmite cada segundo
+una trama de texto delimitada por comas con cinco campos: el promedio
+de las lecturas válidas, seguido de la temperatura individual de cada
+uno de los cuatro sensores. Un sensor declarado desconectado no se
+omite de la trama: su campo se transmite como no numérico, de modo que
+la aplicación distingue la pérdida de un sensor de una lectura
+legítima. El microcontrolador acepta además tres comandos:
+\texttt{PING}, que verifica la comunicación, y \texttt{STOP} y
+\texttt{START}, que suspenden y reanudan la transmisión.
+
+Del lado de la aplicación, el puerto se abre con las líneas DTR y RTS
+en nivel bajo, para no activar el circuito de reinicio automático de
+la placa, y a continuación se envía \texttt{START}, pues la sesión
+anterior termina con \texttt{STOP}. Una trama solo se acepta si tiene
+los cinco campos y su promedio cae dentro del intervalo de
+\SIrange{10}{50}{\celsius}; un sensor individual fuera de ese
+intervalo se trata como ausente. Si transcurren \SI{5}{\second} sin
+ninguna trama válida, el módulo se declara desconectado, aun cuando
+sigan llegando datos mal formados, y queda a cargo del mecanismo de
+reconexión. Cada lectura individual se compara además con la de la
+trama válida anterior, y el registro de sesión indica en las columnas
+\texttt{s1\_repetido} a \texttt{s4\_repetido} si el valor llegó
+idéntico.
 
 \subsection*{Consideraciones de firmware}
 
@@ -753,9 +828,13 @@ La segunda es la detección de desconexión. Un sensor que deja de
 responder produciría, con la implementación más directa, la repetición
 indefinida de su última lectura válida, que es la peor forma de fallar:
 el dato sigue pareciendo bueno. El firmware lleva por ello un contador
-de fallos consecutivos por bus y, superado su umbral, emite un valor no
-numérico en lugar de repetir el anterior. La recuperación es automática
-en cuanto el sensor vuelve a responder.
+de fallos consecutivos por bus, en el que cuenta también la lectura de
+\SI{85}{\celsius}. Durante los dos primeros fallos repite el último
+valor válido, para tolerar una conversión fallida aislada; al tercero
+declara el sensor desconectado y emite un valor no numérico en lugar
+de repetir el anterior. La recuperación es automática en cuanto el
+sensor vuelve a responder. Las repeticiones toleradas quedan visibles
+en las columnas de valor repetido del registro descritas arriba.
 
 La tercera es la identificación de los sensores. En un bus compartido,
 la correspondencia entre el índice de lectura y el sensor físico
@@ -808,14 +887,14 @@ se retoma en el \cref{cap:conclusiones}.
 \subsection*{Calibración relativa entre sensores}
 
 Los sensores DS18B20 presentan una dispersión de fábrica entre
-unidades que, para el conjunto empleado, alcanza
-\SI{0.32}{\celsius}. Dado que el criterio de disparo de la secuencia
-automática descrito en el \cref{cap:resultados} opera sobre un umbral
-de \SI{0.1}{\celsius} en torno a la temperatura objetivo, una
-dispersión de esa magnitud excede el propio criterio de decisión y
-debe corregirse. Se describe a continuación el procedimiento definido
-para hacerlo, cuya aplicación quedó pendiente al cierre de este
-trabajo.
+unidades. Dado que el criterio de disparo de la secuencia automática
+descrito en el \cref{cap:resultados} opera sobre una banda de
+$\pm\SI{0.1}{\celsius}$ en torno a la temperatura objetivo, una
+dispersión entre sensores del orden de ese margen bastaría para que
+las lecturas individuales discreparan en la misma magnitud que el
+propio criterio de decisión. Este trabajo no cuantificó la dispersión
+del conjunto empleado; se describe a continuación el procedimiento
+definido para hacerlo y corregirla.
 
 La corrección adoptada es de carácter relativo y no absoluto. El
 experimento no requiere que las lecturas coincidan con un patrón
@@ -833,31 +912,14 @@ uno de los tres restantes respecto de él. Las constantes de corrección
 resultantes se incorporarían al firmware, de modo que la compensación
 se aplicara antes del promediado.
 
-Debe hacerse explícito que esta corrección no se encuentra implementada
-en la versión del firmware empleada para las mediciones reportadas: los
-cuatro sensores se promedian sin compensación entre unidades. En
-consecuencia, el valor de temperatura registrado en cada captura
-arrastra la dispersión de fábrica del conjunto, y el umbral de
-\SI{0.1}{\celsius} que gobierna el criterio de disparo opera sobre
-lecturas que no han sido igualadas entre sí. La consecuencia práctica
-es acotada, pues dicho criterio se evalúa sobre el descenso monótono
-del promedio y no sobre la concordancia entre sensores, pero conviene
-tenerla presente al comparar lecturas individuales. La aplicación del
-procedimiento se recoge en el \cref{cap:conclusiones} como tarea
-pendiente.
-
-% \begin{figure}[H]
-%   \centering
-%   \includegraphics[width=0.75\textwidth]{modulo_temperatura}
-%   \caption{Módulo de medición de temperatura: microcontrolador
-%            ESP32 WROOM-32 y sensores DS18B20.}
-%   \label{fig:modulo_temperatura}
-% \end{figure}
-
-% \begin{figure}[H]
-%   \centering
-%   \includegraphics[width=0.75\textwidth]{diagrama_temperatura}
-%   \caption{Diagrama de conexión de los cuatro buses 1-Wire
-%            independientes y sus sensores.}
-%   \label{fig:diagrama_temperatura}
-% \end{figure}
+Esta corrección no está implementada en la versión del firmware
+empleada en este trabajo: los cuatro sensores se promedian sin
+compensación entre unidades. En consecuencia, el valor de temperatura
+registrado en cada captura arrastra la dispersión de fábrica del
+conjunto, y la banda de \SI{0.1}{\celsius} que gobierna el criterio de
+disparo opera sobre lecturas que no han sido igualadas entre sí. La
+consecuencia práctica es acotada, pues dicho criterio se evalúa sobre
+el descenso del promedio y no sobre la concordancia entre sensores,
+pero constituye una limitación vigente del módulo que debe tenerse
+presente al comparar lecturas individuales, y se retoma en el
+\cref{cap:conclusiones}.

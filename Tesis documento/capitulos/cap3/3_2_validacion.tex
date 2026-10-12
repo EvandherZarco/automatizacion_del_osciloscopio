@@ -40,30 +40,57 @@ un archivo que parece válido.
 Para ejercitarla se construyó \texttt{simular\_barrido.py}, que alimenta
 al módulo de disparo con perfiles de temperatura sintéticos y verifica
 que las ventanas de adquisición resultantes correspondan a lo esperado.
-La suite consta de nueve casos que cubren el enfriamiento monótono, el
-cruce del umbral con ruido, el rebote alrededor de la temperatura
-objetivo y la terminación anticipada de la secuencia. Los nueve casos
-resultan aprobados.
+La suite consta de ocho casos que cubren el barrido nominal, el
+arranque con la muestra ya tibia, el ruido elevado, la desconexión
+breve y la permanente del módulo de temperatura, el rebote alrededor
+de la temperatura objetivo, la muestra por debajo de todos los
+objetivos y la pérdida de un objetivo durante una reconexión. A ellos
+se suman dos niveles que ejercitan la cadena de medición y el registro
+de metadatos, descritos en la \cref{sec:val_cadena}.
+
+La corrida del 3 de octubre de 2026, conservada en \texttt{corrida3.txt},
+ejecutó la suite completa con la versión congelada del código
+(\emph{commit} \texttt{c67ae06}): los ocho casos y los niveles dos y
+tres aprobaron, diez de diez. Se hizo en un contenedor Linux sin
+interfaz gráfica (\texttt{QT\_QPA\_PLATFORM=offscreen}), con cada caso
+en un proceso independiente y con el módulo \texttt{vxi11} sustituido
+por uno vacío, porque los niveles dos y tres no abren el instrumento.
+No es, por tanto, una corrida en la computadora del laboratorio con el
+equipo conectado. La anterior, del 2 de septiembre de 2026, correspondía
+a la versión de la suite de entonces ---los ocho casos más el nivel
+dos--- y terminó con los nueve aprobados; después se añadió el nivel
+tres y se modificó el nivel dos para verificar las columnas de
+adquisición que sustituyeron al campo de pulsos estimados
+(\cref{sec:val_instrumento}).
 
 Ese resultado admite una salvedad que conviene declarar. El caso
-\texttt{no\_cierra\_durante\_rebote} verifica que la ventana de
+\texttt{no\_\allowbreak{}cierra\_\allowbreak{}durante\_\allowbreak{}rebote} verifica que la ventana de
 adquisición no se fragmente cuando la lectura oscila alrededor del
 umbral, y lo hace comprobando que la duración de la ventana
 correspondiente al objetivo de \SI{45}{\celsius} se mantenga entre una
 décima parte y diez veces el promedio de las ventanas de sus objetivos
-vecinos, \SI{40}{\celsius} y \SI{50}{\celsius}. En la corrida
-verificada la ventana del objetivo central dura \SI{140.30}{\second}
-de tiempo simulado, frente a \SI{130.32}{\second} y \SI{90.00}{\second}
-de las vecinas, lo que arroja un cociente de 1.27 sobre un intervalo
-admisible de entre 0.1 y 10.
+vecinos, \SI{40}{\celsius} y \SI{50}{\celsius}. Las duraciones no son
+idénticas de una corrida a otra, porque la apertura de cada ventana
+depende de la planificación real de los hilos. En la corrida del 3 de
+octubre la ventana del objetivo central dura \SI{140.09}{\second} de
+tiempo simulado, frente a \SI{90.06}{\second} y \SI{80.06}{\second} de
+las vecinas (promedio de \SI{85.06}{\second}), lo que arroja un
+cociente de 1.65. En la del 2 de septiembre dura \SI{140.0}{\second},
+frente a \SI{130.3}{\second} y \SI{60.0}{\second}, con un cociente de
+1.47; en la registrada junto con la suite el 30 de agosto, las vecinas
+duran \SI{110.0}{\second} y \SI{60.0}{\second}, y el cociente es de
+1.65. Los tres quedan dentro del intervalo admisible de entre 0.1 y 10.
 
 Dos aspectos limitan el alcance de esta comprobación. El primero es la
 amplitud del intervalo: dos órdenes de magnitud detectan una
 fragmentación grosera de la ventana, no una desviación moderada. El
 segundo, más relevante, es la naturaleza de la referencia. El criterio
 no contrasta la ventana contra una duración esperada, sino contra el
-promedio de sus vecinas, y esas vecinas difieren entre sí en cerca de
-un cuarenta por ciento. Se trata, por tanto, de una prueba de
+promedio de sus vecinas, y esas vecinas no coinciden entre sí: sus duraciones
+difieren en un factor de 2.17 en la corrida del 2 de septiembre
+(\SI{130.3}{\second} frente a \SI{60.0}{\second}), de 1.83 en la del
+30 de agosto y de 1.12 en la del 3 de octubre, de modo que la
+referencia cambia de una corrida a otra. Se trata, por tanto, de una prueba de
 consistencia interna: detecta que una ventana se desmarque de las
 demás ---que es precisamente lo que el rebote provocaría---, pero no
 verifica que ninguna de ellas dure lo que debe durar. Se reporta como
@@ -90,9 +117,20 @@ En esa configuración se recorre la cadena completa: se resuelve la
 condición de disparo, se solicita la captura, se convierten las
 muestras a unidades físicas, se escriben el archivo \texttt{.npy} y la
 fila correspondiente del registro de sesión, y se vuelve a leer el
-resultado. La corrida produce un registro de siete filas cuyo contenido
-coincide con lo esperado tanto en el número de campos como en los
-valores derivados de los metadatos de adquisición.
+resultado. El barrido simulado va de \SI{60}{\celsius} a
+\SI{30}{\celsius} en pasos de \SI{5}{\celsius}, por lo que el criterio
+de aprobación exige un registro de siete filas, con temperatura
+estrictamente decreciente y que pueda volver a abrirse como sesión. En
+la corrida del 2 de septiembre el registro tuvo las siete filas y
+cumplió las tres condiciones. En la versión congelada, el mismo nivel
+exige además que cada fila tenga pobladas las columnas de adquisición
+(\texttt{acq\_mode}, \texttt{numavg} y
+\texttt{adquisiciones\_\allowbreak{}promediadas}); la corrida del 3 de octubre
+de 2026 (\texttt{corrida3.txt}) obtuvo con ella siete filas, con esa
+exigencia cumplida. Un tercer nivel, añadido el 18 de septiembre,
+comprueba que los parámetros del barrido queden registrados en
+\texttt{metadatos\_\allowbreak{}sesion.txt}; en esa misma corrida registró los dos
+barridos simulados, sin alterar la cabecera del archivo.
 
 Lo que este nivel valida no es la calidad de la señal --- no hay señal
 --- sino la integridad del camino que va de la decisión de capturar al
@@ -115,6 +153,16 @@ modificación y sin pérdida de los campos que sí contiene. La
 verificación se realizó sobre sesiones reales conservadas del formato
 anterior.
 
+El criterio no es una previsión abstracta: el encabezado cambió cinco
+veces a lo largo del proyecto. Las sesiones de mayo y junio de 2026
+tienen 15 columnas (una de junio, 16); las de agosto, 18; las del 8 y
+del 22 de septiembre, 21; las últimas del 22 de septiembre, 23, tras
+sustituirse el campo de pulsos estimados por las columnas de
+adquisición; y la versión congelada escribe 34, con las lecturas
+individuales de los cuatro sensores y los límites de la ventana de
+integración. Todas contienen el subconjunto declarado en
+\texttt{COLUMNAS\_REQUERIDAS}.
+
 La contraparte de esa decisión es que la ausencia de una columna deja de
 ser un error de apertura y pasa a ser una condición que debe detectarse
 más tarde, en la verificación del contenido. Ese desplazamiento es
@@ -123,17 +171,17 @@ deliberado y se examina en la subsección siguiente.
 \subsection{Verificación de sesiones y validación de la herramienta}
 \label{sec:val_verificador}
 
-La herramienta \texttt{verificar\_sesion.py} recorre una sesión ya
+La herramienta \texttt{verificar\_\allowbreak{}sesion.py} recorre una sesión ya
 guardada y evalúa diez condiciones anómalas: ausencia de archivos de
 muestras (\texttt{npy\_ausente}), imposibilidad de reconstruir captura
-alguna (\texttt{sin\_reconstruibles}), saturación de la señal
+alguna (\texttt{sin\_\allowbreak{}reconstruibles}), saturación de la señal
 (\texttt{saturacion}), repetición de un mismo contenido binario bajo
 la misma escala o bajo escalas distintas
-(\texttt{buffer\_repetido\_misma\_escala} y
-\texttt{buffer\_repetido\_escala\_distinta}), coexistencia de escalas
+(\texttt{buffer\_\allowbreak{}repetido\_\allowbreak{}misma\_\allowbreak{}escala} y
+\texttt{buffer\_\allowbreak{}repetido\_\allowbreak{}escala\_\allowbreak{}distinta}), coexistencia de escalas
 diferentes en una misma serie (\texttt{mezcla\_escalas}), deriva del
 tiempo de arribo (\texttt{deriva\_onset}), estancamiento de la lectura
-de temperatura (\texttt{temperatura\_estancada}), presencia de
+de temperatura (\texttt{temperatura\_\allowbreak{}estancada}), presencia de
 capturas marcadas con error (\texttt{error\_flag}) y dispersión
 excesiva de la amplitud pico a pico (\texttt{dispersion\_vpp}). Es la
 herramienta con la que se detectaron las anomalías descritas en la
@@ -144,7 +192,7 @@ herramienta verificada, sino una herramienta afortunada. Su validación
 se realizó en dos etapas.
 
 La primera consistió en fabricar, mediante
-\texttt{generar\_sesion\_prueba.py}, once sesiones sintéticas: diez
+\texttt{generar\_\allowbreak{}sesion\_\allowbreak{}prueba.py}, once sesiones sintéticas: diez
 diseñadas para provocar cada una de las condiciones anteriores, y una
 undécima deliberadamente limpia. Esta última no es un caso menor. Un
 verificador que declarara anomalías en toda sesión que examina
@@ -152,6 +200,19 @@ detectaría las diez condiciones sin dificultad y sería inútil; la
 sesión limpia es la que exige que no las declare cuando no las hay. El
 verificador identifica las diez condiciones y no emite alerta alguna
 sobre la sesión limpia.
+
+Las sesiones sintéticas se escriben con un encabezado de 23 columnas,
+el vigente a partir del 22 de septiembre, y no con las 34 del formato
+congelado; la aplicación del verificador a este último descansa en la
+lectura por subconjunto descrita en la
+\cref{sec:val_compatibilidad}. Conviene precisar también la vigencia
+del resultado: las dos etapas de esta validación se ejecutaron sobre la versión
+de la herramienta del 1 de septiembre de 2026. El 22 de septiembre se
+modificaron el generador y el verificador para reemplazar el campo de
+pulsos estimados por las columnas de adquisición. La primera etapa se
+repitió el 3 de octubre de 2026 con la versión congelada (11 de 11
+sesiones correctas, salida en \texttt{corrida3.txt}); la prueba de
+mutación de la segunda etapa no se repitió después del cambio.
 
 La segunda etapa responde a una objeción que la primera deja abierta.
 El corredor compara las alertas obtenidas contra un conjunto esperado,
@@ -166,8 +227,8 @@ Las diez mutaciones provocaron la caída del caso correspondiente.
 Ninguna sobrevivió, y en ningún caso el conjunto completo quedó en
 verde con un chequeo desactivado. Dos de ellas arrastraron además un
 caso ajeno: al desactivar \texttt{npy\_ausente} cae también
-\texttt{sin\_reconstruibles}, y al desactivar \texttt{mezcla\_escalas}
-cae \texttt{buffer\_repetido\_escala\_distinta}. Ambas muertes
+\texttt{sin\_\allowbreak{}reconstruibles}, y al desactivar \texttt{mezcla\_escalas}
+cae \texttt{buffer\_\allowbreak{}repetido\_\allowbreak{}escala\_\allowbreak{}distinta}. Ambas muertes
 cruzadas corresponden a relaciones de implicación entre las
 condiciones --- una sesión sin capturas reconstruibles es
 necesariamente una sesión a la que le faltan archivos de muestras, y
@@ -176,7 +237,7 @@ distintas ---, previstas por análisis del código antes de la prueba y
 confirmadas empíricamente por ella.
 
 La mutación dejó un hallazgo que no se buscaba. Al desactivar
-\texttt{sin\_reconstruibles}, el código de salida del verificador
+\texttt{sin\_\allowbreak{}reconstruibles}, el código de salida del verificador
 permanece en 1: la instrucción de retorno anticipada devuelve una lista
 que \texttt{npy\_ausente} ya había poblado en la condición anterior. Un
 corredor que juzgara el resultado por el código de salida habría dado
@@ -191,7 +252,7 @@ disponible.
 
 Queda una limitación que conviene declarar. La prueba de mutación se
 aplicó manualmente y no existe en el repositorio como procedimiento
-automatizado: si \texttt{verificar\_sesion.py} incorpora una condición
+automatizado: si \texttt{verificar\_\allowbreak{}sesion.py} incorpora una condición
 nueva o reescribe una existente, el resultado anterior deja de ser
 válido y nada lo advierte. La herramienta que somete al sistema a
 verificación continua está, ella misma, verificada por una prueba de
@@ -201,10 +262,14 @@ un solo momento.
 \label{sec:val_advertencias}
 
 El sistema no interrumpe una secuencia ante una anomalía recuperable:
-la registra y la señala. Esa decisión, justificada en la
-\cref{sec:decisiones}, hace que el indicador de advertencia de la
-interfaz sea el único aviso que recibe el operador mientras la sesión
-transcurre.
+la registra y la señala. La razón es de economía experimental: un
+barrido por temperatura sobre el enfriamiento pasivo de la muestra no
+puede repetirse a voluntad, y abortarlo por una lectura perdida o un
+objetivo rebasado descartaría los puntos que todavía pueden medirse;
+la fila afectada queda marcada en el registro, como se ilustra en la
+\cref{sec:falla_temperatura}. Esa decisión hace que el indicador de
+advertencia de la interfaz sea el único aviso que recibe el operador
+mientras la sesión transcurre.
 
 La comprobación \texttt{probar\_advertencias\_gui.py} ejercita cuatro
 trayectorias de esa señalización y las cuatro resultan conformes. El
@@ -213,16 +278,241 @@ comprobación calcula su código de retorno antes de ejecutar el único
 paso que requiere confirmación visual del operador, de modo que ese
 paso no puede hacerla reprobar. Los cuatro resultados corresponden a
 las trayectorias automatizables; el paso restante queda como
-comprobación asistida, y así se reporta.
+comprobación asistida, y así se reporta. El resultado, además, se
+obtuvo sobre la versión de la ventana principal anterior a la
+auditoría de la \cref{sec:val_auditoria}, que reescribió buena parte
+de ese módulo, y no consta que la comprobación se haya vuelto a correr
+con la versión congelada.
+
+\subsection{Auditoría del código y pruebas de la interfaz sin hardware}
+\label{sec:val_auditoria}
+
+Las comprobaciones anteriores verifican que el sistema produzca los
+datos correctos. Queda una pregunta distinta: si lo que la interfaz
+\emph{dice} sobre su propio estado corresponde a lo que efectivamente
+ocurrió. Un indicador que anuncia «láser detenido» porque la orden se
+envió, y no porque el láser confirmó haberla ejecutado, es un defecto
+que ninguna de las pruebas anteriores alcanza: el archivo resultante
+es correcto, pero el operador decide sobre una premisa falsa. Para
+atenderla se realizó, entre el 25 y el 26 de septiembre de 2026, una
+auditoría de las banderas de estado del código, que dio lugar a doce
+commits (\texttt{2104c39} a \texttt{c67ae06}) y a la versión que se
+congeló para esta tesis.
+
+\subsubsection*{Familias de defectos corregidos}
+
+La auditoría se organizó en cuatro grupos, uno por subsistema: la
+ventana principal (grupo~A), el osciloscopio (B), el módulo de
+temperatura (C) y el almacenamiento (D), con un commit de corrección
+por grupo. Los defectos encontrados se reparten en cinco familias.
+
+\begin{enumerate}[leftmargin=*]
+  \item \emph{Éxito anunciado por envío, no por confirmación.} El
+    stop de emergencia y la aplicación de parámetros del láser
+    informaban éxito sin consultar el resultado de cada comando; el
+    estado de emisión se fijaba en marcha o detenido por haber enviado
+    la orden; el canal del osciloscopio se daba por cambiado aunque el
+    comando hubiera fallado. Tras la corrección, el estado del láser se
+    marca como incierto hasta releer su registro de estado, y la
+    selección de canal visible vuelve al canal real si el cambio
+    falla.
+  \item \emph{Señales de error sin destinatario.} Los avisos del
+    módulo de temperatura (\texttt{TempWorker.\allowbreak error}), los fallos de
+    guardado (\texttt{Almacenamiento.\allowbreak guardado\_err}) y los errores del
+    hilo de medición (\texttt{MedicionWorker.\allowbreak error}) no estaban
+    conectados a ningún elemento de la interfaz: un fallo al guardar
+    no producía aviso visible. Se conectaron al registro de la
+    ventana, igual que las del láser y el osciloscopio.
+  \item \emph{Filas que parecen limpias sin serlo.} Un sensor
+    DS18B20 ausente no activaba \texttt{error\_flag}, aunque el propio
+    mensaje del módulo lo prometía; si la escritura del archivo
+    \texttt{.npy} fallaba, la fila se registraba con
+    \texttt{error\_flag = 0} y sin archivo de muestras; y la fila de
+    una captura manual tomaba la temperatura y los parámetros del
+    láser al pulsar Guardar, no al capturar. Las tres condiciones
+    marcan ahora la fila o registran el valor del instante de la
+    captura.
+  \item \emph{Estado obsoleto.} Al agotarse los reintentos de lectura
+    del osciloscopio, el controlador seguía apuntando al enlace caído;
+    la estimación del tiempo de captura usaba la longitud de registro
+    leída al conectar; el cierre de la ventana a mitad de secuencia
+    dejaba el osciloscopio con el número de promedios de la secuencia;
+    y el hilo de temperatura giraba indefinidamente ante una racha de
+    tramas inválidas, porque solo contaba como silencio la ausencia
+    total de líneas.
+  \item \emph{Liberación prematura de la interfaz.} El stop de
+    emergencia liberaba los controles antes de que la secuencia
+    confirmara su fin, lo que permitía arrancar una secuencia nueva con
+    la anterior todavía activa.
+\end{enumerate}
+
+La corrección de la última familia abrió un problema propio. Si la
+interfaz espera la confirmación del fin de la secuencia y esa
+confirmación nunca llega, la interfaz queda bloqueada. Se identificó
+al menos una causa concreta: con un paso de \SI{0}{\celsius}, valor
+admitido entonces por el control de la interfaz, la generación de
+objetivos del modo por temperatura entra en un ciclo que no revisa la
+orden de detención. Se añadieron tres medidas: la validación de un
+paso positivo antes de iniciar la secuencia; un temporizador de
+respaldo de \SI{150}{\second} que libera la interfaz con una
+advertencia visible si la confirmación no llega; y, como un hilo así
+no se detiene con los medios de Qt, un modo degradado que bloquea el
+inicio de una secuencia nueva y el regreso a la pantalla de bienvenida
+hasta que se reinicia la aplicación. La protección del láser no
+depende de esa confirmación: el modo seguro se activa de forma
+síncrona al pulsar el stop de emergencia. La sincronización entre
+hilos en sí no se modificó, de modo que una carrera ya identificada en
+la cancelación de la espera del osciloscopio puede retrasar la
+confirmación de un stop hasta alrededor de \SI{90}{\second}; la red de
+seguridad contiene ese efecto en la interfaz, pero no lo elimina.
+
+\subsubsection*{Pruebas reconstruidas como archivos del repositorio}
+
+Durante la sesión de correcciones, los commits reportaron conteos de
+verificaciones aprobadas. Esos conteos no son trazables: provenían de
+guiones que se ejecutaron en un directorio temporal de la sesión,
+fuera del repositorio, y que se perdieron al terminar. Por esa razón
+no se citan en esta tesis. Las pruebas se reconstruyeron como archivos
+del repositorio, en \texttt{codigos\_de\_prueba/ventana\_ambos/},
+tomando como especificación la descripción de cada corrección y el
+cambio real del código. La unidad de conteo es también distinta: los
+conteos originales sumaban verificaciones individuales, mientras que
+los archivos reconstruidos cuentan casos, cada uno con varias
+verificaciones.
+
+Las pruebas comparten un arnés (\texttt{\_apoyo.py}) que construye la
+ventana principal sin hardware: Qt en modo sin pantalla, un directorio
+de configuración de usuario temporal, un sustituto del módulo
+\texttt{vxi11} que emula al osciloscopio, y la intercepción de los
+cuadros de diálogo y de selección de archivos para que una prueba no
+quede esperando un clic. El láser y el módulo de temperatura no se
+sustituyen: sin la biblioteca del láser ni el puerto serie, ambos
+fallan de inmediato, que es el comportamiento que se quiere observar.
+El almacenamiento escribe siempre en un directorio temporal. La
+\cref{tab:pruebas_interfaz} resume los archivos y su cobertura.
+
+\begin{table}[H]
+  \centering
+  \caption[Pruebas sin hardware de la interfaz]{Pruebas sin hardware
+           de la interfaz, commiteadas en
+           \texttt{codigos\_de\_prueba/\allowbreak ventana\_ambos/}.}
+  \label{tab:pruebas_interfaz}
+  \small
+  \begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}p{4.6cm}
+                               c >{\raggedright\arraybackslash}X}
+    \toprule
+    \textbf{Archivo} & \textbf{Casos} & \textbf{Cobertura} \\
+    \midrule
+    \texttt{probar\_\allowbreak{}grupo\_\allowbreak{}a\_\allowbreak{}ventana\_\allowbreak{}ambos.py} & 13 &
+      Stop de emergencia y parámetros del láser, relectura del estado,
+      vigía de inactividad, sesión activa, canal real \\
+    \texttt{probar\_\allowbreak{}grupo\_\allowbreak{}b\_\allowbreak{}osciloscopio.py} & 10 &
+      Enlace caído, longitud de registro vigente, restauración de los
+      promedios \\
+    \texttt{probar\_\allowbreak{}grupo\_\allowbreak{}c\_\allowbreak{}temperatura.py} & 9 &
+      Tramas inválidas, avisos del módulo, sensor ausente en captura
+      manual y automática \\
+    \texttt{probar\_\allowbreak{}grupo\_\allowbreak{}d\_\allowbreak{}almacenamiento.py} & 8 &
+      Avisos de guardado, \texttt{.npy} fallido, valores del instante
+      de captura \\
+    \texttt{probar\_\allowbreak{}stop\_\allowbreak{}emergencia\_\allowbreak{}red\_\allowbreak{}seguridad.py} & 5 &
+      Temporizador de respaldo del stop de emergencia \\
+    \texttt{probar\_\allowbreak{}modo\_\allowbreak{}degradado.py} & 6 &
+      Paso nulo, modo degradado, bloqueo del regreso \\
+    \midrule
+    \textbf{Subtotal} & \textbf{51} & \\
+    \midrule
+    \texttt{probar\_\allowbreak{}guardar\_\allowbreak{}sesion\_\allowbreak{}reabierta.py} & 12 &
+      Confirmación antes de escribir en una sesión reabierta \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+Una prueba que aprueba contra el código corregido no demuestra, por sí
+sola, que detecte el defecto que dice detectar. Por eso las pruebas de
+los cuatro grupos se corrieron también contra la versión anterior a la
+auditoría: ahí fallan 9, 6, 5 y 6 casos, respectivamente, y los que
+aprueban son los casos de control, que verifican que el camino normal
+siga funcionando. Cuatro de esos fallos ocurren de forma indirecta,
+porque en la versión anterior la captura manual abre el diálogo de
+carpeta y no llega a escribir la fila; al forzar ese paso en una
+comprobación puntual fuera del repositorio, los dos casos
+representativos fallan por su propio defecto. Las pruebas de la red de
+seguridad y del modo degradado verifican mecanismos que no existían
+antes de la auditoría. Con la versión congelada se corrieron las siete
+pruebas de la \cref{tab:pruebas_interfaz} y
+\texttt{probar\_config\_usuario.py} ---cuatro casos del ciclo de
+configuración de conexión desde la interfaz---, todas aprobadas.
+
+\subsubsection*{Un defecto real encontrado al reconstruir las pruebas}
+
+La reconstrucción no fue un trámite. Al correr las pruebas nuevas
+contra la versión anterior a la auditoría, una de ellas quedó detenida
+indefinidamente en un diálogo de selección de carpeta que el arnés no
+interceptaba, y el arnés se corrigió. En la misma sesión de trabajo se
+identificó un efecto de la propia auditoría que ningún commit había
+documentado. Al
+hacer que la interfaz siguiera en vivo la sesión activa del
+almacenamiento, una sesión reabierta con «Abrir CSV…» pasaba a recibir
+las capturas siguientes: un Guardar manual, o una secuencia
+automática, agregaba filas a esa sesión ---posiblemente de otro día---
+sin pasar por el diálogo de carpeta y sin aviso. La consecuencia es la
+mezcla silenciosa de mediciones de días distintos en un mismo
+registro.
+
+La corrección (\texttt{f3a8c31}) pide una confirmación antes de la
+primera escritura en una sesión reabierta, sea un Guardar o el inicio
+de una secuencia. El diálogo nombra la sesión y su fecha de creación,
+tomada de \texttt{metadatos\_sesion.txt} o, en su defecto, del prefijo
+del identificador de sesión; si ninguna está disponible, lo declara en
+lugar de inventarla. La respuesta por defecto es No, que cancela solo
+esa escritura sin dejar fila ni archivo de muestras; un Sí vale para
+el resto de esa reapertura, y reabrir cualquier registro o crear una
+sesión nueva vuelve a exigir la confirmación. Una segunda corrección
+(\texttt{c67ae06}) movió la pregunta para que aparezca después de
+aceptar el inicio de la secuencia: en la primera versión, un Sí seguido
+de la cancelación de la secuencia dejaba la reapertura confirmada y el
+siguiente Guardar escribía sin preguntar.
+
+La prueba correspondiente cuenta con doce casos y discrimina entre
+diseños: contra un diseño que preguntara en cada Guardar fallan dos de
+ellos, y el caso añadido con la segunda corrección falla contra la
+primera. Además se realizó una corrida de punta a punta fuera del
+repositorio, arrancando la aplicación como en uso normal, con clics
+reales y un osciloscopio emulado en la capa \texttt{vxi11}: sin
+reabrir ninguna sesión no aparece ninguna pregunta; tras «Abrir
+CSV…», cancelar no escribe y aceptar agrega la fila, sin nuevas
+preguntas en los Guardar siguientes; y reabrir el mismo registro
+vuelve a preguntar. El inicio de una secuencia no se recorrió de punta
+a punta, porque exige un láser conectado; lo cubre únicamente la
+prueba automatizada.
+
+\subsubsection*{Alcance}
+
+Ninguna de estas pruebas usa el equipo. El osciloscopio es un
+sustituto que responde lo que la prueba programa, los plazos de los
+temporizadores se simulan en lugar de esperarse, y el comportamiento
+del láser y del módulo de temperatura se reduce al de un dispositivo
+ausente. Lo que estas pruebas establecen es que la lógica de la
+interfaz reacciona como se pretende ante cada condición; no que las
+condiciones se presenten en el equipo real como se supuso. Un indicio
+concreto de esa frontera apareció en la corrida de punta a punta: la
+interfaz mostró el diálogo «Dispositivo crítico desconectado», que
+aparece cuando el monitor de conexión deja de obtener respuesta del
+láser o del osciloscopio y activa el modo seguro. Se atribuyó a la
+ausencia de la biblioteca del láser en el entorno de prueba, que no es
+Windows, pero la atribución no se confirmó, y queda pendiente
+verificar en el equipo que ese diálogo no aparezca fuera de las
+condiciones previstas.
 
 \subsection{Verificaciones con instrumento}
 \label{sec:val_instrumento}
 
 La separación adoptada deja fuera un residuo que no admite sustituto
 por simulación. Cinco comprobaciones dependen de la respuesta efectiva
-del equipo y quedaron declaradas como pendientes hasta la sesión de
-laboratorio del 8 de septiembre de 2026, en la que se ejecutaron las
-cinco. Se reportan aquí junto con el criterio de aceptación fijado de
+del equipo y se ejecutaron en la sesión de laboratorio del 8 de
+septiembre de 2026, con la versión del código de esa fecha. Se
+reportan aquí junto con el criterio de aceptación fijado de
 antemano, porque dos de ellas no lo cumplieron en su primera ejecución
 y esa discrepancia forma parte del resultado.
 
@@ -235,7 +525,7 @@ preámbulo. El criterio fijado excluía explícitamente el valor
 \num{0.0} como aprobación, pues es lo que escriben los manejadores de
 excepción cuando la consulta se lanza y falla: solo un número
 consistente con el panel del instrumento confirma la corrección. En la
-sesión \texttt{20260908\_184623} las once capturas registran
+sesión \texttt{20260908\_184623} las catorce capturas registran
 \texttt{CH\_SCALE} $=\num{0.001}$ y \texttt{HOR\_SCALE} $=\num{1e-5}$,
 equivalentes a \SI{1}{\milli\volt} y \SI{10}{\micro\second} por
 división, en coincidencia con el panel. Conforme.
@@ -247,7 +537,8 @@ El criterio fijado exigía tres cosas de la fila resultante:
 \texttt{error\_flag = 1}, un \texttt{error\_desc} que nombrara al
 dispositivo ausente y un campo de temperatura en cero. La primera
 ejecución cumplió únicamente la primera. Las capturas
-\texttt{m0012}--\texttt{m0014} de la sesión \texttt{20260908\_184623}
+\texttt{m0012}--\texttt{m0014} de la sesión \texttt{20260908\_184623},
+tomadas en una secuencia por tiempo después de desconectar el módulo,
 levantaron la bandera, pero escribieron \SI{24.25}{\celsius} sin sensor
 conectado y una descripción genérica. El defecto y su corrección se
 documentan en la \cref{sec:falla_fantasma}.
@@ -256,8 +547,9 @@ La corrección modificó además el propio criterio. El campo en cero se
 sustituyó por \texttt{nan}, porque \SI{0}{\celsius} es una temperatura
 físicamente válida y un análisis posterior no podría distinguirla de
 una medición; \texttt{nan} no admite esa lectura. En la sesión
-\texttt{20260908\_190614}, con el módulo desconectado, las filas
-registran \texttt{error\_flag = 1}, \texttt{temperatura = nan} y un
+\texttt{20260908\_190614}, con el módulo desconectado, tanto la
+captura manual \texttt{m0001} como las capturas de la secuencia que la
+sigue registran \texttt{error\_flag = 1}, \texttt{temperatura = nan} y un
 \texttt{error\_desc} que nombra al ESP32 y su puerto. Conforme bajo el
 criterio corregido.
 
@@ -295,7 +587,12 @@ El costo de esa decisión se materializó en la misma sesión: el módulo
 apareció en \texttt{COM5} al inicio y en \texttt{COM4} al final, y esa
 transición sí requirió editar la configuración y reiniciar la
 aplicación. La reconexión automática cubre la pérdida de comunicación
-sobre un puerto estable, no la reasignación del puerto.
+sobre un puerto estable, no la reasignación del puerto. Ese costo se
+redujo después: desde el 14 de septiembre, el diálogo «Conexión» de la
+interfaz permite elegir el puerto del módulo, el del láser y la
+dirección del osciloscopio, guarda la elección en un archivo de
+configuración del usuario y la aplica en la siguiente conexión de cada
+dispositivo, sin editar código ni reiniciar la aplicación.
 
 \subsubsection*{Recorrido completo del modo por temperatura}
 
@@ -311,17 +608,25 @@ enfriamiento pasivo, la secuencia produjo nueve puntos entre
 programado de \SI{44}{\celsius} a \SI{40}{\celsius} en pasos de
 \SI{0.5}{\celsius}, con \texttt{error\_flag = 0} en los nueve, las
 columnas de escala pobladas y el campo \texttt{pulsos\_estimados}
----que contabiliza los disparos del láser integrados dentro de cada
-ventana de adquisición--- con valor por primera vez fuera de
-simulación. La lógica de apertura y cierre de ventana, verificada hasta
+con valor por primera vez fuera de simulación. Ese campo, propio del
+formato de entonces, no contaba disparos: era una estimación, la
+duración de la ventana de integración multiplicada por una frecuencia
+nominal de \SI{10}{\hertz}. La versión congelada lo eliminó y registra
+en su lugar el modo de adquisición, el número de promedios configurado
+y el contador de adquisiciones que informa el propio osciloscopio
+(\texttt{ACQ:NUMACQ?}), en las columnas \texttt{acq\_mode},
+\texttt{numavg} y \texttt{adquisiciones\_promediadas}. La lógica de apertura y cierre de ventana, verificada hasta
 entonces contra perfiles sintéticos, gobernó una adquisición real.
 
 La captura \texttt{m0001} del mismo archivo no pertenece al barrido:
-es la adquisición manual de verificación que el sistema solicita antes
-de iniciar cualquier secuencia, para que el operador confirme que la
-señal es razonable y elija el destino de los datos. Su campo
-\texttt{pulsos\_estimados} está vacío porque no hubo ventana de
-acumulación que medir, y su modo registrado es \texttt{manual}. El
+es una captura manual guardada antes de iniciarlo. La interfaz
+habilita el inicio de una secuencia solo cuando hay una sesión activa,
+que se crea con el primer Guardar manual ---o al reabrir una sesión
+con «Abrir CSV…»---; en la práctica, esa primera captura permite
+además al operador confirmar que la señal es razonable y elegir la
+carpeta de la sesión. Su campo \texttt{pulsos\_estimados} está vacío
+porque no hubo ventana de acumulación que estimar, y su modo
+registrado es \texttt{manual}. El
 formato distingue ambas cosas sin ambigüedad.
 
 Los objetivos efectivamente alcanzados fueron \SI{43.89}{\celsius},
@@ -329,12 +634,22 @@ Los objetivos efectivamente alcanzados fueron \SI{43.89}{\celsius},
 \SI{41.91}{\celsius}, \SI{41.41}{\celsius}, \SI{40.89}{\celsius},
 \SI{40.39}{\celsius} y \SI{39.91}{\celsius}. La separación entre
 puntos consecutivos se aparta del paso nominal de
-\SI{0.5}{\celsius} en a lo sumo \SI{0.03}{\celsius}. El intervalo
-entre capturas crece de forma monótona, de \SI{81}{\second} a
-\SI{100}{\second}, lo que corresponde al enfriamiento pasivo
-frenándose conforme la muestra se acerca a la temperatura ambiente:
-el sistema no gobierna ese ritmo, solo espera a que el umbral se
-cumpla.
+\SI{0.5}{\celsius} en a lo sumo \SI{0.02}{\celsius}. Los intervalos
+entre capturas consecutivas fueron de 81, 86, 87, 88, 88, 95, 100 y
+\SI{91}{\second}: tienden a crecer, aunque no de forma monótona, lo
+que es compatible con el enfriamiento pasivo frenándose conforme la
+muestra se acerca a la temperatura ambiente. El sistema no gobierna
+ese ritmo, solo espera a que el umbral se cumpla.
+
+Este recorrido se hizo con la versión del código del 8 de septiembre.
+Después de esa fecha cambió la cadena de adquisición que el modo por
+temperatura gobierna: se incorporó el testigo de adquisición nueva del
+osciloscopio, que reemplazó a la estimación de pulsos, y el registro
+pasó a guardar los límites de la ventana de integración
+(\texttt{t\_apertura}, \texttt{t\_cierre} y
+\texttt{duracion\_ventana\_s}) y la lectura de cada sensor. Con la
+versión congelada, el modo por temperatura se ejercitó en el simulador
+(\cref{sec:val_simulador}), pero no se ha recorrido en el equipo.
 
 \subsubsection*{Exportación al formato \texttt{.mat}}
 
@@ -342,7 +657,10 @@ La quinta comprobación se ejecutó sobre los datos de esa misma sesión.
 El archivo resultante contiene el arreglo crudo, las muestras
 convertidas a volts, el eje temporal reconstruido, la frecuencia de
 muestreo, el número de puntos y los veintiún campos de metadatos del
-registro de sesión. Conforme.
+registro de sesión. Conforme. El exportador copia todas las columnas
+de la fila, de modo que con el formato congelado el archivo lleva las
+34; esa versión del exportador no se ha ejercitado sobre una sesión
+real, porque no existe todavía una sesión de 34 columnas.
 
 \subsubsection*{Lo que estas cinco comprobaciones dejan ver}
 
@@ -359,31 +677,54 @@ y marca al mismo tiempo su frontera. La simulación verificó
 correctamente todo lo que estaba a su alcance; lo que quedó fuera de su
 alcance falló en dos de cinco casos.
 
+La \cref{tab:resumen_validacion} reúne las comprobaciones de esta
+sección. Incluye, además, la validación en el equipo del testigo de
+adquisición nueva del osciloscopio, realizada en la sesión del 22 de
+septiembre de 2026: en capturas manuales con el láser disparando, las
+filas se registran sin marca, y con la emisión apagada o con el
+promedio incompleto se registran con \texttt{error\_flag = 1}. Las
+filas marcadas con una nota corresponden a resultados obtenidos con
+versiones del código anteriores a la congelada.
+
 \begin{table}[H]
   \centering
   \caption{Resumen de la validación por subsistema. Los casos marcados
            como asistidos requieren confirmación visual del operador.}
   \label{tab:resumen_validacion}
-  \begin{tabular}{llcl}
+  \small
+  \begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}p{3.6cm}
+                               >{\raggedright\arraybackslash}X c
+                               >{\raggedright\arraybackslash}p{2.1cm}}
     \toprule
     \textbf{Subsistema} & \textbf{Herramienta} & \textbf{Casos} &
     \textbf{Resultado} \\
     \midrule
-    Lógica de disparo & \texttt{simular\_barrido.py} & 9 &
-      Conforme\textsuperscript{a} \\
-    Medición y almacenamiento & \texttt{simular\_barrido.py} (nivel 2) & 7 &
-      Conforme \\
-    Verificación de sesiones & \texttt{generar\_sesion\_prueba.py} &
-      $10+1$\textsuperscript{c} & Conforme \\
-    Advertencias en interfaz & \texttt{probar\_advertencias\_gui.py} & 4 &
-      Conforme\textsuperscript{b} \\
-    Verificaciones con instrumento & Sesión de laboratorio & 5 &
-      Conforme\textsuperscript{d} \\
+    Lógica de disparo & \texttt{simular\_\allowbreak{}barrido.py} (casos 1--8) & 8 &
+      Conforme\textsuperscript{a,h} \\
+    Medición y almacenamiento & \texttt{simular\_\allowbreak{}barrido.py} (nivel 2) & 1 &
+      Conforme\textsuperscript{h} \\
+    Metadatos del barrido & \texttt{simular\_\allowbreak{}barrido.py} (nivel 3) & 1 &
+      Conforme\textsuperscript{h} \\
+    Verificación de sesiones & \texttt{generar\_\allowbreak{}sesion\_\allowbreak{}prueba.py},
+      \texttt{probar\_\allowbreak{}verificacion.py} &
+      $10+1$\textsuperscript{c} & Conforme\textsuperscript{h,i} \\
+    Advertencias en interfaz & \texttt{probar\_\allowbreak{}advertencias\_\allowbreak{}gui.py} & 4 &
+      Conforme\textsuperscript{b,e} \\
+    Estados de la interfaz & \texttt{codigos\_\allowbreak{}de\_\allowbreak{}prueba/\allowbreak{}ventana\_\allowbreak{}ambos/\allowbreak{}}
+      (seis archivos) & 51 & Conforme\textsuperscript{f} \\
+    Sesión reabierta & \texttt{probar\_\allowbreak{}guardar\_\allowbreak{}sesion\_\allowbreak{}reabierta.py} & 12 &
+      Conforme\textsuperscript{f} \\
+    Configuración de conexión & \texttt{probar\_\allowbreak{}config\_\allowbreak{}usuario.py} & 4 &
+      Conforme\textsuperscript{f} \\
+    Verificaciones con instrumento & Sesiones del 8 de septiembre & 5 &
+      Conforme\textsuperscript{d,e} \\
+    Testigo de adquisición nueva & Sesiones del 22 de septiembre &
+      13\textsuperscript{g} & Conforme\textsuperscript{e} \\
     \bottomrule
-  \end{tabular}
+  \end{tabularx}
 
   \vspace{0.5em}
-  \begin{minipage}{0.85\textwidth}
+  \begin{minipage}{0.92\textwidth}
     \footnotesize
     \textsuperscript{a} El caso \texttt{no\_cierra\_durante\_rebote}
     aprueba bajo un criterio de tolerancia amplio; véase la
@@ -394,6 +735,18 @@ alcance falló en dos de cinco casos.
     de control negativo.\\
     \textsuperscript{d} Dos de las cinco exigieron corregir el sistema
     antes de resultar conformes, y una de ellas exigió además corregir el
-    criterio; véase la \cref{sec:val_instrumento}.
+    criterio; véase la \cref{sec:val_instrumento}.\\
+    \textsuperscript{e} Resultado obtenido con una versión del código
+    anterior a la congelada.\\
+    \textsuperscript{f} Sin hardware, con la versión congelada; véase la
+    \cref{sec:val_auditoria}.\\
+    \textsuperscript{g} Capturas manuales, en las sesiones
+    \texttt{20260922\_194624} y \texttt{20260922\_195642}.\\
+    \textsuperscript{h} Sin hardware, con la versión congelada, en la
+    corrida del 3 de octubre de 2026 (\texttt{corrida3.txt}); véase la
+    \cref{sec:val_simulador}.\\
+    \textsuperscript{i} La prueba de mutación del verificador se hizo con
+    una versión anterior a la congelada.
   \end{minipage}
 \end{table}
+

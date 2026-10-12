@@ -54,10 +54,11 @@ Se enuncia como premisa y no como hipótesis porque no se contrasta
 contra la naturaleza sino contra el desempeño de un artefacto
 construido: su comprobación consiste en mostrar que el registro
 conservado basta para reconstruir situaciones que en su momento pasaron
-inadvertidas. El \cref{cap:resultados} documenta siete anomalías
-ocurridas durante el desarrollo, seis de las cuales no eran
-observables mientras transcurrían, y todas las que se manifestaron
-caracterizables meses después a partir de los archivos de sesión.
+inadvertidas. El \cref{cap:resultados} documenta catorce modos de falla
+ocurridos durante el desarrollo, once de los cuales no eran
+observables mientras transcurrían, y todos ellos caracterizables
+a posteriori a partir de los archivos de sesión o del historial de
+versiones del programa.
 
 % =========================================================
 \section{Objetivos}
@@ -83,9 +84,10 @@ y para conocer las condiciones bajo las cuales fue adquirida.
         comunicación.
 
   \item Implementar el control del osciloscopio sobre el protocolo
-        VXI-11, con transferencia binaria de la forma de onda y lectura
+        VXI-11, con transferencia binaria de la forma de onda, lectura
         del preámbulo que permite su conversión posterior a unidades
-        físicas.
+        físicas y verificación de que cada captura guardada
+        corresponde a una adquisición nueva.
 
   \item Definir e implementar la interfaz de adquisición de temperatura
         del sistema: el contrato de comunicación que la aplicación
@@ -94,8 +96,9 @@ y para conocer las condiciones bajo las cuales fue adquirida.
         recibido y el dispositivo que lo produjo.
 
   \item Implementar los dos modos de secuencia automática previstos para
-        el experimento: adquisición durante un intervalo de tiempo fijo
-        y adquisición gobernada por la temperatura de la muestra durante
+        el experimento: un número de capturas separadas por un intervalo
+        fijo, cada una promediada por el propio osciloscopio, y
+        adquisición gobernada por la temperatura de la muestra durante
         su enfriamiento.
 
   \item Definir un formato de almacenamiento de sesión que conserve las
@@ -107,7 +110,9 @@ y para conocer las condiciones bajo las cuales fue adquirida.
         mediante simulación de perfiles térmicos, recorrido completo de
         la cadena de medición y almacenamiento, y sesiones sintéticas
         construidas para provocar cada una de las condiciones que la
-        herramienta de verificación debe detectar.
+        herramienta de verificación debe detectar, y mediante pruebas
+        de la interfaz sin hardware derivadas de una auditoría de las
+        banderas de estado del código.
 \end{enumerate}
 
 % =========================================================
@@ -137,12 +142,19 @@ deliberado de parámetros y la integridad de su registro—, no las
 propiedades del líquido empleado. La caracterización de líquidos es lo
 que el sistema hace posible, no lo que este trabajo entrega.
 
+Tampoco se pretende un sistema de operación desatendida: el láser
+requiere la presencia del operador junto al arreglo. El aviso de
+inactividad de la interfaz es un recordatorio y no una protección
+automática (\cref{sec:protecciones}). Y el sistema se probó con el
+osciloscopio del laboratorio, del que solo emplea dos canales
+(\cref{sec:equipos}).
+
 % =========================================================
 \section{Metodología}
 \label{sec:metodologia}
 % =========================================================
 
-El desarrollo se organizó en cuatro etapas.
+El desarrollo se organizó en cinco etapas.
 
 La primera consistió en resolver el control de cada instrumento por
 separado, atendiendo a las particularidades de su interfaz: la carga de
@@ -168,8 +180,18 @@ comprobaciones se desactivó por separado para confirmar que su ausencia
 hacía fallar el caso correspondiente.
 
 La cuarta etapa evaluó el comportamiento del sistema integrado en
-sesiones reales de laboratorio, y documentó las anomalías observadas
-durante el desarrollo junto con el nivel al que fue posible detectarlas.
+sesiones reales de laboratorio, incluida la verificación en hardware, en captura manual, de
+que cada captura corresponde a una adquisición nueva del osciloscopio, y
+documentó las fallas observadas durante el desarrollo junto con el nivel
+al que fue posible detectarlas.
+
+La quinta etapa fue una auditoría de las banderas de estado del código,
+es decir, de si lo que la interfaz declara sobre su propio estado
+corresponde a lo ocurrido. Se organizó por subsistemas, dio lugar a doce
+commits (ocho de corrección, uno de funcionalidad y tres de pruebas) y a pruebas de la interfaz sin hardware: 51 casos
+verificados y commiteados, más 12 que ejercitan la escritura en una
+sesión reabierta. Esta etapa produjo la versión del programa que se
+congeló para este trabajo.
 
 % =========================================================
 \section{Estructura del documento}
@@ -185,8 +207,10 @@ heredados del laboratorio, y los tres subsistemas de instrumentación
 automatizados en este trabajo. El \cref{cap:resultados} presenta el
 sistema desarrollado, la evidencia que sostiene lo que cada subsistema
 declara, el comportamiento del conjunto en sesiones reales y los modos
-de falla observados. El \cref{cap:conclusiones} recoge el balance del
-trabajo y las líneas de continuación identificadas durante su
+de falla documentados, incluidos los hallados por la auditoría del
+código. El \cref{cap:conclusiones} recoge el balance del trabajo y las líneas de continuación identificadas durante su
 desarrollo. El \cref{ap:tiempos_arribo} desarrolla el cálculo de los
 tiempos de arribo acústicos en la celda y el procedimiento para
-recalcularlos cuando la geometría del montaje difiere de la nominal.
+recalcularlos cuando la geometría del montaje difiere de la nominal. El
+\cref{ap:manual_usuario} sintetiza la operación de la aplicación para un
+operador que no programa.

@@ -39,7 +39,10 @@ temperatura activa, que descendió de forma monótona de
 consistente con el enfriamiento pasivo de la muestra. La segunda
 (\texttt{m0008}--\texttt{m0017}) se tomó con un \textit{EO delay} de
 \SI{3700}{\micro\second} y sin lectura de temperatura, por la pérdida
-del módulo que se documenta en la \cref{sec:falla_temperatura}.
+del módulo que se documenta en la \cref{sec:falla_temperatura}. Los
+dos valores del retardo no constan en el registro de la sesión: su
+formato, de dieciocho columnas, es anterior a la incorporación de los
+parámetros del láser a cada fila.
 
 La interrupción, que en su momento fue un contratiempo, resulta útil
 aquí: la sesión contiene dos conjuntos de capturas tomados bajo
@@ -55,8 +58,10 @@ que el máximo de la señal aparece en índices de muestra muy distintos
 según la serie: alrededor de la muestra \num{13641} en la primera y de
 la \num{6729} en la segunda. Reconstruidos los ejes con sus respectivos
 valores de \texttt{XINCR}, \texttt{XZERO} y \texttt{PT\_OFF} mediante la
-\cref{eq:conv_tiempo}, las diecisiete capturas sitúan el máximo en
-\SI{69.1}{\micro\second} con una dispersión de \SI{0.1}{\micro\second}.
+\cref{eq:conv_tiempo}, las diecisiete capturas sitúan el máximo de la
+amplitud absoluta entre \SI{69.06}{\micro\second} y
+\SI{69.24}{\micro\second}, con media de \SI{69.16}{\micro\second} y
+desviación estándar de \SI{0.05}{\micro\second}.
 
 El resultado es más fuerte que una simple comprobación de consistencia.
 Dos muestreos con resoluciones distintas, aplicados a la misma señal
@@ -76,7 +81,7 @@ La métrica empleada para la amplitud es el valor pico a pico calculado
 sobre la traza completa. No se utiliza una ventana temporal fija,
 porque el origen del eje de tiempos lo fija el operador con el control
 de posición horizontal del osciloscopio y no es reproducible entre
-sesiones, según se discute en la \cref{sec:celda}; una ventana definida
+sesiones, según se discute en la \cref{sec:origen_tiempos}; una ventana definida
 en tiempo absoluto mediría intervalos distintos en sesiones distintas.
 
 Sobre la traza completa, la dispersión relativa del valor pico a pico
@@ -116,10 +121,16 @@ parámetro; lo que cambió entre series fueron dos cosas.
 La comparación tiene valor por lo que documenta sobre el sistema, no por
 lo que dice del agua. Un cambio introducido a propósito en un parámetro
 del instrumento produce en los datos una diferencia claramente separable
-del ruido de repetición, y el registro de sesión guarda el valor de ese
-parámetro en cada fila, de modo que la diferencia resulta atribuible a
-su causa sin depender de que alguien la haya anotado aparte. Esa
-trazabilidad es precisamente lo que la operación manual no garantizaba.
+del ruido de repetición. La atribución de esa diferencia a su causa, en
+cambio, descansa en esta sesión sobre información externa al archivo:
+el formato de registro de entonces no guardaba el retardo del
+conmutador, de modo que la sesión exhibe todavía la dependencia que la
+automatización se propone eliminar. El formato vigente registra en cada
+fila \texttt{output\_level}, \texttt{eo\_delay\_us} y
+\texttt{burst\_mode} (\cref{sec:formato_datos}); con él, una diferencia
+como esta queda atribuible a su causa sin depender de que alguien la
+haya anotado aparte, que es precisamente lo que la operación manual no
+garantizaba.
 
 Debe subrayarse que no se afirma una relación cuantitativa entre el
 retardo del conmutador electro-óptico y la amplitud fotoacústica. El
@@ -136,10 +147,13 @@ de esta sección.
 
 El primero es el modo de adquisición gobernado por temperatura descrito
 en la \cref{sec:secuencia}. Su lógica se ejercitó de forma exhaustiva
-por simulación, según la \cref{sec:val_simulador}, pero un barrido
-térmico completo contra los tres instrumentos reales ---con el
+por simulación, según la \cref{sec:val_simulador}, y su recorrido de
+punta a punta contra los tres instrumentos reales ---con el
 osciloscopio abriendo y cerrando la integración según el descenso
-efectivo de la muestra--- no formó parte de la sesión aquí reportada.
+efectivo de la muestra--- se documenta en la \cref{sec:validacion} con
+la sesión \texttt{20260908\_203856}. Ese recorrido no formó parte de la
+sesión aquí reportada, que solo contiene capturas manuales y en modo
+por tiempo.
 
 El segundo es la sesión \texttt{20260818\_190223}, de cuatro capturas,
 anterior a la integración del módulo de temperatura. Se conserva como
