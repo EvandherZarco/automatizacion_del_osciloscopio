@@ -65,6 +65,8 @@ TIMEOUT_DETENCION_SECUENCIA_MS = 150_000
 
 _ESTILO_TEMP_VIVA = "font-size: 15px; font-weight: bold; color: #00bfff;"
 _ESTILO_TEMP_SIN_LECTURA = "font-size: 15px; font-weight: bold; color: #666;"
+_ESTILO_SENSOR_VIVO = "font-size: 12px; color: #9fdcff;"
+_ESTILO_SENSOR_SIN_LECTURA = "font-size: 12px; color: #666;"
 
 _GEOMETRIA_VACIA = "no registrado"
 
@@ -282,18 +284,23 @@ class VentanaAmbos(QMainWindow):
         lay.addWidget(sep2)
 
         self._leds_ds: list[QLabel] = []
+        self._lbls_ds_temp: list[QLabel] = []
         for i in range(4):
             led = make_led(LED_GRIS)
             self._leds_ds.append(led)
+            lbl_t = QLabel("—")
+            lbl_t.setStyleSheet(_ESTILO_SENSOR_SIN_LECTURA)
+            self._lbls_ds_temp.append(lbl_t)
             fila = QHBoxLayout()
             fila.setSpacing(4)
             fila.addWidget(led)
             fila.addWidget(QLabel(f"S{i + 1}"))
+            fila.addWidget(lbl_t)
             lay.addLayout(fila)
 
         lay.addStretch()
 
-        self._lbl_temp_live = QLabel("—  °C")
+        self._lbl_temp_live = QLabel("Prom  —  °C")
         self._lbl_temp_live.setStyleSheet(_ESTILO_TEMP_SIN_LECTURA)
         lay.addWidget(self._lbl_temp_live)
 
@@ -978,16 +985,26 @@ class VentanaAmbos(QMainWindow):
         corresponde a la muestra.
         """
         temp, sensores, es_fresco = self._temp.consultar()
+        lecturas, _repetidos, _ = self._temp.consultar_sensores()
         if not es_fresco:
-            self._lbl_temp_live.setText("—  °C")
+            self._lbl_temp_live.setText("Prom  —  °C")
             self._lbl_temp_live.setStyleSheet(_ESTILO_TEMP_SIN_LECTURA)
-            for led in self._leds_ds:
+            for led, lbl in zip(self._leds_ds, self._lbls_ds_temp):
                 set_led(led, LED_GRIS)
+                lbl.setText("—")
+                lbl.setStyleSheet(_ESTILO_SENSOR_SIN_LECTURA)
             return
-        self._lbl_temp_live.setText(f"{temp:.2f}  °C")
+        self._lbl_temp_live.setText(f"Prom  {temp:.2f}  °C")
         self._lbl_temp_live.setStyleSheet(_ESTILO_TEMP_VIVA)
-        for led, presente in zip(self._leds_ds, sensores):
+        lecturas = lecturas or [None] * 4
+        for led, lbl, presente, t in zip(self._leds_ds, self._lbls_ds_temp, sensores, lecturas):
             set_led(led, LED_VERDE if presente else LED_ROJO)
+            if presente and t is not None:
+                lbl.setText(f"{t:.2f}")
+                lbl.setStyleSheet(_ESTILO_SENSOR_VIVO)
+            else:
+                lbl.setText("—")
+                lbl.setStyleSheet(_ESTILO_SENSOR_SIN_LECTURA)
 
     @Slot()
     def _on_esp32_desconectado(self):
