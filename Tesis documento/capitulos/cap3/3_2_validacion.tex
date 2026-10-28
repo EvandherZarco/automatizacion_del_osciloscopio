@@ -29,80 +29,77 @@ serían irreproducibles.
 \subsection{Simulación de la secuencia de medición}
 \label{sec:val_simulador}
 
-El módulo \texttt{app/medicion/trigger.py} concentra la lógica que
-decide cuándo abrir y cuándo cerrar una adquisición. En modo por
-temperatura esa decisión depende de una magnitud que varía con el
-tiempo, con ruido, y que puede cruzar el umbral varias veces antes de
-estabilizarse. Es la porción del sistema donde un error resulta más
-difícil de advertir: una ventana que se cierra antes de tiempo produce
-un archivo que parece válido.
+El módulo \texttt{app/medicion/trigger.py} decide cuándo abrir y cuándo
+cerrar cada adquisición. En modo por temperatura esa decisión depende de
+una magnitud que varía con el tiempo, con ruido, y que puede cruzar el
+umbral varias veces antes de estabilizarse. Es la parte del sistema
+donde un error resulta más difícil de advertir: una ventana que se
+cierra antes de tiempo produce un archivo que parece válido.
 
-Para ejercitarla se construyó \texttt{simular\_barrido.py}, que alimenta
-al módulo de disparo con perfiles de temperatura sintéticos y verifica
-que las ventanas de adquisición resultantes correspondan a lo esperado.
-La suite consta de ocho casos que cubren el barrido nominal, el
-arranque con la muestra ya tibia, el ruido elevado, la desconexión
-breve y la permanente del módulo de temperatura, el rebote alrededor
-de la temperatura objetivo, la muestra por debajo de todos los
-objetivos y la pérdida de un objetivo durante una reconexión. A ellos
-se suman dos niveles que ejercitan la cadena de medición y el registro
-de metadatos, descritos en la \cref{sec:val_cadena}.
+Para ejercitarla se construyó \texttt{simular\_barrido.py}, que sustituye
+el módulo de temperatura por un doble de prueba que genera perfiles de
+enfriamiento sintéticos, con ruido y tiempo comprimido, y verifica que
+las ventanas de adquisición resultantes correspondan a lo esperado. La
+\cref{tab:casos_simulador} resume los ocho escenarios. A ellos se suman
+dos niveles que ejercitan la cadena de medición y el registro de
+metadatos, descritos en la \cref{sec:val_cadena}.
 
-La corrida del 3 de octubre de 2026, conservada en \texttt{corrida3.txt},
-ejecutó la suite completa con la versión congelada del código
-(\emph{commit} \texttt{c67ae06}): los ocho casos y los niveles dos y
-tres aprobaron, diez de diez. Se hizo en un contenedor Linux sin
-interfaz gráfica (\texttt{QT\_QPA\_PLATFORM=offscreen}), con cada caso
-en un proceso independiente y con el módulo \texttt{vxi11} sustituido
-por uno vacío, porque los niveles dos y tres no abren el instrumento.
-No es, por tanto, una corrida en la computadora del laboratorio con el
-equipo conectado. La anterior, del 2 de septiembre de 2026, correspondía
-a la versión de la suite de entonces ---los ocho casos más el nivel
-dos--- y terminó con los nueve aprobados; después se añadió el nivel
-tres y se modificó el nivel dos para verificar las columnas de
-adquisición que sustituyeron al campo de pulsos estimados
-(\cref{sec:val_instrumento}).
+\begin{table}[htbp]
+  \centering
+  \caption{Escenarios de la simulación de la secuencia por temperatura.
+    Corrida del 3 de octubre de 2026 con la versión congelada del código
+    (\emph{commit} \texttt{c67ae06}).}
+  \label{tab:casos_simulador}
+  \small
+  \begin{tabularx}{\textwidth}{c >{\raggedright\arraybackslash}p{4.4cm} X c}
+    \toprule
+    Caso & Escenario & Comportamiento verificado & Resultado \\
+    \midrule
+    1 & Barrido nominal & Una ventana por objetivo, en orden descendente & Aprobado \\
+    2 & Arranque con la muestra ya tibia & Se omiten los objetivos ya rebasados & Aprobado \\
+    3 & Ruido elevado & Exactamente una ventana por objetivo, sin ventanas espurias & Aprobado \\
+    4 & Desconexión breve del módulo de temperatura & Advierte el corte y el restablecimiento; descarta los objetivos rebasados durante el corte sin abrir ventanas degeneradas & Aprobado \\
+    5 & Desconexión permanente & La secuencia se aborta de forma controlada en menos de \SI{30}{\second} & Aprobado \\
+    6 & Rebote térmico en el umbral & La ventana no se fragmenta & Aprobado\textsuperscript{a} \\
+    7 & Muestra por debajo de todos los objetivos & Advertencia y ninguna captura & Aprobado \\
+    8 & Objetivo perdido por reconexión durante la apertura & El objetivo perdido se advierte y se omite; los demás se miden en orden & Aprobado \\
+    \bottomrule
+  \end{tabularx}
 
-Ese resultado admite una salvedad que conviene declarar. El caso
-\texttt{no\_\allowbreak{}cierra\_\allowbreak{}durante\_\allowbreak{}rebote} verifica que la ventana de
-adquisición no se fragmente cuando la lectura oscila alrededor del
-umbral, y lo hace comprobando que la duración de la ventana
-correspondiente al objetivo de \SI{45}{\celsius} se mantenga entre una
-décima parte y diez veces el promedio de las ventanas de sus objetivos
-vecinos, \SI{40}{\celsius} y \SI{50}{\celsius}. Las duraciones no son
-idénticas de una corrida a otra, porque la apertura de cada ventana
-depende de la planificación real de los hilos. En la corrida del 3 de
-octubre la ventana del objetivo central dura \SI{140.09}{\second} de
-tiempo simulado, frente a \SI{90.06}{\second} y \SI{80.06}{\second} de
-las vecinas (promedio de \SI{85.06}{\second}), lo que arroja un
-cociente de 1.65. En la del 2 de septiembre dura \SI{140.0}{\second},
-frente a \SI{130.3}{\second} y \SI{60.0}{\second}, con un cociente de
-1.47; en la registrada junto con la suite el 30 de agosto, las vecinas
-duran \SI{110.0}{\second} y \SI{60.0}{\second}, y el cociente es de
-1.65. Los tres quedan dentro del intervalo admisible de entre 0.1 y 10.
+  \vspace{0.3em}
+  \begin{minipage}{0.92\textwidth}
+    \footnotesize
+    \textsuperscript{a} Con un criterio de consistencia interna; véase el
+    texto.
+  \end{minipage}
+\end{table}
 
-Dos aspectos limitan el alcance de esta comprobación. El primero es la
-amplitud del intervalo: dos órdenes de magnitud detectan una
-fragmentación grosera de la ventana, no una desviación moderada. El
-segundo, más relevante, es la naturaleza de la referencia. El criterio
-no contrasta la ventana contra una duración esperada, sino contra el
-promedio de sus vecinas, y esas vecinas no coinciden entre sí: sus duraciones
-difieren en un factor de 2.17 en la corrida del 2 de septiembre
-(\SI{130.3}{\second} frente a \SI{60.0}{\second}), de 1.83 en la del
-30 de agosto y de 1.12 en la del 3 de octubre, de modo que la
-referencia cambia de una corrida a otra. Se trata, por tanto, de una prueba de
-consistencia interna: detecta que una ventana se desmarque de las
-demás ---que es precisamente lo que el rebote provocaría---, pero no
-verifica que ninguna de ellas dure lo que debe durar. Se reporta como
-aprobado con esa reserva explícita.
+La corrida del 3 de octubre de 2026, conservada en
+\texttt{corrida3.txt}, ejecutó la suite completa: los ocho escenarios y
+los niveles dos y tres aprobaron, diez de diez. Se hizo en un contenedor
+Linux sin interfaz gráfica, con cada caso en un proceso independiente y
+con el módulo \texttt{vxi11} sustituido por uno vacío. No es, por tanto,
+una corrida con el equipo conectado: verifica la lógica de disparo, no
+la respuesta de los instrumentos.
 
-Conviene añadir una observación de orden práctico. Este caso simula el
-enfriamiento de la muestra desde \SI{62}{\celsius} hasta
-\SI{30}{\celsius} con un factor de compresión temporal de veinte, lo
-que se traduce en cerca de catorce minutos de ejecución real frente a
-los segundos que consumen los demás. Una prueba con ese costo se corre
-con menos frecuencia que las restantes, y esa asimetría conviene
-tenerla presente al interpretar la vigencia del resultado.
+El caso~6 admite una salvedad. Comprueba que la ventana del objetivo
+central se mantenga entre una décima parte y diez veces el promedio de
+las ventanas vecinas, y esas vecinas varían de una corrida a otra. Es,
+por tanto, una prueba de consistencia interna: detecta que una ventana
+se fragmente o se desmarque de las demás, que es lo que provocaría el
+rebote, pero no verifica que ninguna dure exactamente lo que debe durar.
+
+El caso~7 tuvo además una confirmación en el equipo real. En la sesión
+\texttt{20261020\_191759} se programaron dos barridos entre
+\SI{16.5}{\celsius} y \SI{17.0}{\celsius} con la muestra por debajo de
+ese intervalo y en calentamiento. En ambos intentos el sistema emitió la
+misma advertencia que el simulador ---\emph{``La muestra ya está por
+debajo de todos los objetivos. No hay puntos que medir.''}--- y no
+registró ninguna captura, tal como lo predice la simulación.
+
+La simulación no sustituye el recorrido con el equipo real: la
+ejecución de punta a punta del modo por temperatura con los tres
+instrumentos se documenta en la \cref{sec:val_instrumento}.
 
 \subsection{Validación de la cadena de medición y almacenamiento}
 \label{sec:val_cadena}
@@ -597,8 +594,8 @@ dispositivo, sin editar código ni reiniciar la aplicación.
 \subsubsection*{Recorrido completo del modo por temperatura}
 
 La cuarta comprobación es la que ninguna simulación puede sustituir:
-el modo de adquisición gobernado por temperatura, ejercitado de forma
-exhaustiva según la \cref{sec:val_simulador}, no había recorrido nunca
+el modo de adquisición gobernado por temperatura, ejercitado en ocho
+escenarios simulados según la \cref{sec:val_simulador}, no había recorrido nunca
 de punta a punta los tres instrumentos simultáneos.
 
 La sesión \texttt{20260908\_203856} lo recorrió. Con la muestra
