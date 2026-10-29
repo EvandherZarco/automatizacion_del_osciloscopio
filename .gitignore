@@ -156,3 +156,6 @@ main.pdf
 app/config_local.py
 *.bbl-SAVE-ERROR 
 CLAUDE.md
+notas/
+arturo/
+corrida2.txt
