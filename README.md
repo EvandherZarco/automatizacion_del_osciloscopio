@@ -4,6 +4,8 @@ Aplicación de escritorio en Python que automatiza un sistema de medición fotoa
 
 Antes, cada medición se hacía a mano en el osciloscopio. Con esta aplicación, una sola interfaz controla el láser, el osciloscopio y los sensores de temperatura, corre secuencias de medición automáticas y guarda los datos listos para analizarse.
 
+![Ventana principal: control del láser y del osciloscopio](assets/principal_laser_osciloscopio.png)
+
 ## Qué hace
 
 - **Captura manual o automática.** Mide por intervalo de tiempo fijo o al alcanzar temperaturas objetivo.
