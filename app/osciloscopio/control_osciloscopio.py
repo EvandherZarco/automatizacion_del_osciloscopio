@@ -13,11 +13,18 @@ Modos de operación:
 
 Toda captura sigue ACQ:NUMACQ? con TestigoNumacq durante su ventana de
 adquisición: si el contador no subió, el registro leído es el anterior y la
-captura se marca con error_flag. Medido en el TDS5054B: ACQ:STATE RUN no
-reinicia el contador; un cambio de escala sí, con un retraso de hasta ~1 s,
-de modo que el reinicio se reconoce como una caída entre lecturas. En la
-captura manual y en modo tiempo, con ACQ:MODE AVERAGE se exige además que las
-adquisiciones desde el último reinicio lleguen a NUMAVG. Cada captura lleva
+captura se marca con error_flag. Medido en el TDS5054B: ACQ:STATE RUN con
+ACQ:STOPAFTER SEQUENCE sí reinicia el contador (con retraso), pero no lo hace
+con RUNSTOP y el osciloscopio ya corriendo; un cambio de escala también lo
+reinicia, con un retraso de hasta ~1 s, de modo que el reinicio se reconoce
+como una caída entre lecturas. En modo tiempo y en modo temperatura el
+contador se lee antes del RUN y la captura espera, hasta TOPE_REINICIO_S, a
+verlo caer: esa lectura es la base del testigo. En la captura manual y en
+modo tiempo, con ACQ:MODE AVERAGE se exige además que las adquisiciones desde
+el último reinicio lleguen a NUMAVG. En modo temperatura el contador se
+muestrea durante la ventana (muestrear_numacq) y la captura se marca si cae a
+mitad de ventana, si las escalas cambian entre RUN y STOP o si las
+adquisiciones superan lo que cabe a FREC_DISPARO_HZ. Cada captura lleva
 en sus metadatos ACQ:MODE?, ACQ:NUMAVG? y ACQ:NUMACQ? leído justo antes de
 CURVE?. Fuera de la ventana de modo temperatura el osciloscopio se deja
 siempre en RUN, verificado con ACQ:STATE?, y al cerrar una secuencia
@@ -46,14 +53,21 @@ POLL_TIMEOUT_S = 90.0
 ESPERA_ADQUISICION_S = 3.0
 POLL_ADQUISICION_S = 0.05
 RETRASO_REINICIO_S = 1.0
+TOPE_REINICIO_S = 3.0
+INTERVALO_MUESTREO_NUMACQ_S = 0.5
+ESPERA_MUESTREO_MS = 100
+TOLERANCIA_EXCESO = 1.15
 
 SIN_ADQUISICION_NUEVA = "osciloscopio sin adquisición nueva"
 ESCALA_CAMBIADA = "escala cambiada durante la captura sin reinicio visible del promedio"
+ESCALA_CAMBIADA_EN_VENTANA = "escala cambiada entre RUN y STOP"
+REINICIO_NO_VISTO = "ACQ:NUMACQ? no mostró el reinicio tras RUN"
+REINICIO_EN_VENTANA = "ACQ:NUMACQ? cayó a mitad de la ventana"
 
 NUMAVG_TIEMPO = 100
 NUMAVG_TEMPERATURA = 10000
 
-FREC_DISPARO_HZ = 9.3
+FREC_DISPARO_HZ = 10.0
 TRANSFER_BYTES_POR_S = 250_000.0
 OVERHEAD_TRANSFERENCIA_S = 1.0
 
@@ -116,6 +130,16 @@ class TestigoNumacq:
 
 
 @dataclass
+class _Ventana:
+    """Estado de una ventana de modo temperatura abierta por acq_run()."""
+
+    testigo: TestigoNumacq
+    escalas: tuple[float, float]
+    t_inicio: float
+    reinicio_visto: bool
+
+
+@dataclass
 class CapturaOscil:
     raw_data: np.ndarray
     wfmpre: dict
@@ -148,7 +172,7 @@ class OsciloscopioController(QObject):
         self._canal: str = _CANAL_DEFAULT
         self._nr_pt: int = 0
         self._cancelar_espera = False
-        self._numacq_inicio: int | None = None
+        self._ventana: _Ventana | None = None
         self._adquisicion_previa: tuple[str, int] | None = None
 
     @property
@@ -458,8 +482,7 @@ class OsciloscopioController(QObject):
                 try:
                     inst.write("ACQ:STATE STOP")
                     inst.write("ACQ:STOPAFTER SEQUENCE")
-                    inst.write("ACQ:STATE RUN")
-                    testigo = TestigoNumacq(self._leer_numacq(inst))
+                    testigo, reinicio_visto = self._correr_hasta_reinicio(inst)
                 except Exception as exc:
                     self._emit_conn_error(f"Error al iniciar adquisición: {exc}")
                     return None
@@ -477,7 +500,10 @@ class OsciloscopioController(QObject):
                     )
                     self.led_amarillo.emit()
                     captura.marcar("el osciloscopio no terminó el promedio")
-                self._verificar_adquisicion(captura, testigo, exigir_promedio=True)
+                self._verificar_adquisicion(
+                    captura, testigo, exigir_promedio=True,
+                    reinicio_visto=reinicio_visto, ventana_intacta=True,
+                )
                 return captura
             finally:
                 self._reanudar_freerun(inst)
@@ -488,20 +514,40 @@ class OsciloscopioController(QObject):
         with QMutexLocker(self._mutex):
             if not self._inst:
                 return False
+            self._ventana = None
             try:
-                self._inst.write("ACQ:STATE RUN")
-                self._numacq_inicio = self._leer_numacq(self._inst)
-                return True
+                testigo, reinicio_visto = self._correr_hasta_reinicio(self._inst)
+                escalas = self._leer_escalas(self._inst)
             except Exception as exc:
-                self._numacq_inicio = None
                 self._emit_conn_error(f"Error al iniciar ACQ:STATE RUN: {exc}")
                 return False
+            self._ventana = _Ventana(testigo, escalas, time.monotonic(), reinicio_visto)
+            return True
+
+    def muestrear_numacq(self) -> None:
+        """
+        Lee ACQ:NUMACQ? durante la ventana de modo temperatura para ver caídas
+        intermedias. No espera el candado más de ESPERA_MUESTREO_MS: si otro
+        hilo tiene el osciloscopio, se salta esta muestra.
+        """
+        if not self._mutex.tryLock(ESPERA_MUESTREO_MS):
+            return
+        try:
+            if self._ventana is None or not self._inst:
+                return
+            try:
+                self._ventana.testigo.registrar(self._leer_numacq(self._inst))
+            except Exception as exc:
+                logger.warning("Muestreo de ACQ:NUMACQ? fallido: %s", exc)
+        finally:
+            self._mutex.unlock()
 
     def acq_stop_and_capture(self) -> CapturaOscil | None:
         with QMutexLocker(self._mutex):
             if not self._inst:
                 return None
-            n_inicio, self._numacq_inicio = self._numacq_inicio, None
+            ventana, self._ventana = self._ventana, None
+            duracion = time.monotonic() - ventana.t_inicio if ventana is not None else None
             try:
                 self._inst.write("ACQ:STATE STOP")
                 self._inst.ask("*OPC?")
@@ -510,8 +556,21 @@ class OsciloscopioController(QObject):
                 return None
             captura = self._leer_waveform(self._inst)
             if captura is not None:
-                testigo = TestigoNumacq(n_inicio) if n_inicio is not None else None
-                self._verificar_adquisicion(captura, testigo, exigir_promedio=False)
+                if ventana is None:
+                    self._verificar_adquisicion(captura, None, exigir_promedio=False)
+                else:
+                    self._verificar_adquisicion(
+                        captura, ventana.testigo, exigir_promedio=False,
+                        reinicio_visto=ventana.reinicio_visto, ventana_intacta=True,
+                        duracion_s=duracion,
+                    )
+                    leidas = (captura.wfmpre["CH_SCALE"], captura.wfmpre["HOR_SCALE"])
+                    if leidas != ventana.escalas:
+                        captura.marcar(ESCALA_CAMBIADA_EN_VENTANA)
+                        self._emit_capture_warning(
+                            f"La escala cambió entre RUN y STOP (CH/HOR {ventana.escalas} → "
+                            f"{leidas}). La captura se marca con error_flag."
+                        )
             return captura
 
     def reanudar_adquisicion(self) -> bool:
@@ -588,6 +647,29 @@ class OsciloscopioController(QObject):
     def _leer_numacq(self, inst: vxi11.Instrument) -> int:
         return int(inst.ask("ACQ:NUMACQ?").strip())
 
+    def _correr_hasta_reinicio(self, inst: vxi11.Instrument) -> tuple[TestigoNumacq, bool]:
+        """
+        Lee ACQ:NUMACQ? antes del RUN, lanza ACQ:STATE RUN y espera, hasta
+        TOPE_REINICIO_S, a ver el reinicio (valor menor que el previo, o cero).
+        La lectura que lo muestra es la base del testigo. Si el plazo vence,
+        avisa y devuelve la última lectura con reinicio_visto=False.
+        """
+        previo = self._leer_numacq(inst)
+        inst.write("ACQ:STATE RUN")
+        limite = time.monotonic() + TOPE_REINICIO_S
+        while True:
+            n = self._leer_numacq(inst)
+            if n < previo or n == 0:
+                return TestigoNumacq(n), True
+            if time.monotonic() >= limite:
+                break
+            time.sleep(POLL_ADQUISICION_S)
+        self._emit_capture_warning(
+            f"ACQ:NUMACQ? no mostró el reinicio en {TOPE_REINICIO_S:g} s tras ACQ:STATE RUN "
+            f"(previo {previo}, última lectura {n}). La captura se marca con error_flag."
+        )
+        return TestigoNumacq(n), False
+
     def _capturar_en_marcha(self, inst: vxi11.Instrument) -> CapturaOscil | None:
         """
         Con el osciloscopio en RUN libre, espera a que la captura sea fresca
@@ -655,13 +737,23 @@ class OsciloscopioController(QObject):
         return 1
 
     def _verificar_adquisicion(
-        self, captura: CapturaOscil, testigo: TestigoNumacq | None, exigir_promedio: bool
+        self,
+        captura: CapturaOscil,
+        testigo: TestigoNumacq | None,
+        exigir_promedio: bool,
+        reinicio_visto: bool = True,
+        ventana_intacta: bool = False,
+        duracion_s: float | None = None,
     ) -> None:
         """
         Agrega al testigo el ACQ:NUMACQ? leído justo antes de CURVE?, que
         también delata un reinicio aparecido tras detener la adquisición.
         Con exigir_promedio, en modo AVERAGE marca además el promedio que no
-        llegó a NUMAVG desde el último reinicio.
+        llegó a NUMAVG desde el último reinicio. Con ventana_intacta, una
+        caída del contador tras la base marca la captura y, con
+        exigir_promedio en AVERAGE, más adquisiciones que NUMAVG también. Con
+        duracion_s, más adquisiciones que duracion_s × FREC_DISPARO_HZ ×
+        TOLERANCIA_EXCESO marcan la captura.
         """
         w = captura.wfmpre
         n_fin = w["adquisiciones_promediadas"]
@@ -676,6 +768,35 @@ class OsciloscopioController(QObject):
                 "el registro leído no es posterior al inicio de la captura "
                 "y se marca con error_flag."
             )
+        if not reinicio_visto:
+            captura.marcar(REINICIO_NO_VISTO)
+        if ventana_intacta and testigo.reiniciado:
+            captura.marcar(REINICIO_EN_VENTANA)
+            self._emit_capture_warning(
+                f"ACQ:NUMACQ? cayó durante la ventana ({testigo.describir()}): "
+                "el promedio no cubre toda la ventana y se marca con error_flag."
+            )
+        if (
+            ventana_intacta and exigir_promedio and _es_average(w["acq_mode"])
+            and testigo.ultimo > w["numavg"]
+        ):
+            captura.marcar(f"exceso de adquisiciones ({testigo.ultimo} con NUMAVG {w['numavg']})")
+            self._emit_capture_warning(
+                f"Exceso: {testigo.ultimo} adquisiciones con NUMAVG {w['numavg']}. "
+                "La captura se marca con error_flag."
+            )
+        if duracion_s is not None:
+            maximo = duracion_s * FREC_DISPARO_HZ * TOLERANCIA_EXCESO
+            if testigo.ultimo > maximo:
+                captura.marcar(
+                    f"exceso de adquisiciones ({testigo.ultimo} en {duracion_s:.1f} s, "
+                    f"máximo {maximo:.0f})"
+                )
+                self._emit_capture_warning(
+                    f"Exceso: {testigo.ultimo} adquisiciones en {duracion_s:.1f} s "
+                    f"(máximo {maximo:.0f} a {FREC_DISPARO_HZ:g} Hz). "
+                    "La captura se marca con error_flag."
+                )
         if exigir_promedio and _es_average(w["acq_mode"]) and testigo.desde_reinicio < w["numavg"]:
             k = testigo.desde_reinicio
             captura.marcar(f"promedio incompleto ({k} de {w['numavg']})")

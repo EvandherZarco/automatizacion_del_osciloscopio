@@ -282,6 +282,9 @@ class DobleOsciloscopio:
     def acq_run(self) -> bool:
         return True
 
+    def muestrear_numacq(self) -> None:
+        return None
+
     def capturar_modo_tiempo(self):
         return self.acq_stop_and_capture()
 

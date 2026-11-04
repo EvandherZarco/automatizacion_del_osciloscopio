@@ -186,7 +186,7 @@ def caso_2_curve_agotado_es_error_de_conexion():
 def caso_3_fallo_transitorio_no_baja_conexion():
     oscil, inst, reg = _conectado()
     inst.fallos_ask["WFMPRE:XINCR?"] = 1
-    oscil._numacq_inicio = 10
+    oscil._ventana = co._Ventana(co.TestigoNumacq(10), (0.1, 1e-6), co.time.monotonic() - 10, True)
 
     captura = oscil.acq_stop_and_capture()
 

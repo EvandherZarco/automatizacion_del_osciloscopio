@@ -25,7 +25,7 @@ from PySide6.QtCore import Qt, QThread, QTimer, Signal, Slot, QObject, QEvent
 from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QGroupBox,
     QLabel, QPushButton, QSpinBox, QDoubleSpinBox, QLineEdit,
-    QTabWidget, QFrame, QFileDialog, QMessageBox, QApplication, QTextEdit,
+    QTabWidget, QFrame, QFileDialog, QMessageBox, QApplication, QTextEdit, QSizePolicy,
 )
 
 from app import config_usuario
@@ -67,6 +67,14 @@ _ESTILO_TEMP_VIVA = "font-size: 15px; font-weight: bold; color: #00bfff;"
 _ESTILO_TEMP_SIN_LECTURA = "font-size: 15px; font-weight: bold; color: #666;"
 _ESTILO_SENSOR_VIVO = "font-size: 12px; color: #9fdcff;"
 _ESTILO_SENSOR_SIN_LECTURA = "font-size: 12px; color: #666;"
+_TEXTO_BANNER_EMITIENDO = "🔒  Detén el láser para modificar parámetros"
+_ESTILO_BANNER_EMITIENDO = (
+    "background: #2a1f00; color: #ffc107; border: 1px solid #3a2f00;"
+    "border-radius: 6px; padding: 6px; font-size: 11px;")
+_TEXTO_BANNER_FALLA = "⚠  Láser en falla: revise el equipo"
+_ESTILO_BANNER_FALLA = (
+    "background: #3a1010; color: #ff5252; border: 1px solid #5a1a1a;"
+    "border-radius: 6px; padding: 6px; font-size: 11px; font-weight: bold;")
 
 _GEOMETRIA_VACIA = "no registrado"
 
@@ -137,6 +145,7 @@ class VentanaAmbos(QMainWindow):
         self._laser_running     = False
         self._laser_estado_txt  = "STOP"
         self._laser_incierto    = False
+        self._laser_falla       = False
         self._secuencia_running = False
         self._detencion_solicitada = False
         self._iniciando_secuencia = False
@@ -241,9 +250,18 @@ class VentanaAmbos(QMainWindow):
         bar = QFrame()
         bar.setFrameShape(QFrame.StyledPanel)
         bar.setStyleSheet("QFrame { background: #1e1e1e; border-bottom: 1px solid #2e2e2e; }")
-        lay = QHBoxLayout(bar)
-        lay.setContentsMargins(12, 8, 12, 8)
+        exterior = QHBoxLayout(bar)
+        exterior.setContentsMargins(12, 8, 12, 8)
+        exterior.setSpacing(14)
+
+        # Todo salvo el botón de emergencia va en un contenedor que puede
+        # encogerse: si la ventana es angosta se recorta lo demás, nunca el botón.
+        izquierda = QWidget()
+        izquierda.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Preferred)
+        lay = QHBoxLayout(izquierda)
+        lay.setContentsMargins(0, 0, 0, 0)
         lay.setSpacing(14)
+        exterior.addWidget(izquierda, 1)
 
         self._btn_volver = QPushButton("← Volver")
         self._btn_volver.setFixedHeight(28)
@@ -307,14 +325,15 @@ class VentanaAmbos(QMainWindow):
         sep3 = QFrame()
         sep3.setFrameShape(QFrame.VLine)
         sep3.setStyleSheet("color: #2e2e2e;")
-        lay.addWidget(sep3)
+        exterior.addWidget(sep3)
 
         self._btn_stop_emergencia = QPushButton("⚠  Stop emergencia")
         self._btn_stop_emergencia.setFixedHeight(32)
+        self._btn_stop_emergencia.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
         self._btn_stop_emergencia.setProperty("peligro", True)
         self._btn_stop_emergencia.style().unpolish(self._btn_stop_emergencia)
         self._btn_stop_emergencia.style().polish(self._btn_stop_emergencia)
-        lay.addWidget(self._btn_stop_emergencia)
+        exterior.addWidget(self._btn_stop_emergencia)
         return bar
 
     # ── Pestaña Parámetros ────────────────────────────────────────────────────
@@ -414,11 +433,9 @@ class VentanaAmbos(QMainWindow):
         fila.addWidget(self._btn_laser_detener)
         lay.addLayout(fila)
 
-        self._banner_laser = QLabel("🔒  Detén el láser para modificar parámetros")
+        self._banner_laser = QLabel(_TEXTO_BANNER_EMITIENDO)
         self._banner_laser.setAlignment(Qt.AlignCenter)
-        self._banner_laser.setStyleSheet(
-            "background: #2a1f00; color: #ffc107; border: 1px solid #3a2f00;"
-            "border-radius: 6px; padding: 6px; font-size: 11px;")
+        self._banner_laser.setStyleSheet(_ESTILO_BANNER_EMITIENDO)
         self._banner_laser.setVisible(False)
         lay.addWidget(self._banner_laser)
 
@@ -1081,14 +1098,18 @@ class VentanaAmbos(QMainWindow):
         RUN y STOP/SLEEP son estados confirmados por el láser. Cualquier otro
         valor (FAULT, lectura fallida) se trata como desconocido: nunca se
         presenta como detenido y los controles quedan bloqueados como en RUN.
+        FAULT se muestra como falla, no como emisión.
         """
         self._laser_running = estado == "RUN"
         self._laser_incierto = estado not in ("RUN", "STOP", "SLEEP")
+        self._laser_falla = estado == "FAULT"
         self._laser_estado_txt = estado or "?"
         self._actualizar_ui_laser()
 
     def _pintar_chip_laser(self):
-        if self._laser_incierto:
+        if self._laser_falla:
+            fondo, color = "#3a1010", "#ff5252"
+        elif self._laser_incierto:
             fondo, color = "#2a1f00", "#ffc107"
         elif self._laser_running:
             fondo, color = "#1a3a1a", "#4caf50"
@@ -1102,9 +1123,15 @@ class VentanaAmbos(QMainWindow):
     def _actualizar_ui_laser(self):
         c = self._laser_running or self._laser_incierto
         self._pintar_chip_laser()
+        if self._laser_falla:
+            self._banner_laser.setText(_TEXTO_BANNER_FALLA)
+            self._banner_laser.setStyleSheet(_ESTILO_BANNER_FALLA)
+        else:
+            self._banner_laser.setText(_TEXTO_BANNER_EMITIENDO)
+            self._banner_laser.setStyleSheet(_ESTILO_BANNER_EMITIENDO)
         self._banner_laser.setVisible(c)
         self._btn_laser_iniciar.setEnabled(not c and self._laser.conectado)
-        self._btn_laser_detener.setEnabled(c)
+        self._btn_laser_detener.setEnabled(c and not self._laser_falla)
         self._btn_p_aplicar_laser.setEnabled(not c and self._laser.conectado)
         self._actualizar_btn_conexion()
         for w in (self._btn_p_e_off, self._btn_p_e_adj, self._btn_p_e_max,

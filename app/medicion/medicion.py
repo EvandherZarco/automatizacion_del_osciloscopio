@@ -24,12 +24,14 @@ Modo Seguro al finalizar o abortar. No hay START/STOP por medición.
 """
 
 from __future__ import annotations
-from app.osciloscopio.control_osciloscopio import NUMAVG_TIEMPO
+from app.osciloscopio.control_osciloscopio import (
+    INTERVALO_MUESTREO_NUMACQ_S, NUMAVG_TIEMPO,
+)
 
 import time
 from datetime import datetime
 
-from PySide6.QtCore import QObject, Signal, Slot, QThread, QMetaObject, Qt
+from PySide6.QtCore import QObject, Signal, Slot, QThread, QMetaObject, QTimer, Qt
 
 from app.almacenamiento.almacenamiento import Almacenamiento, PaqueteMedicion
 from app.config import TEMP_COM_PORT
@@ -76,6 +78,7 @@ class MedicionWorker(QObject):
         self._inicio_ventana: float | None = None
         self._t_cierre: float | None = None
         self._duracion_ventana: float | None = None
+        self._timer_muestreo: QTimer | None = None
 
     @Slot()
     def detener(self):
@@ -133,12 +136,14 @@ class MedicionWorker(QObject):
             return
         self._inicio_ventana = time.monotonic()
         self._t_apertura = self._temperatura_fresca()
+        self._iniciar_muestreo_numacq()
 
     @Slot()
     def on_detener_y_capturar(self):
         """Modo temperatura: cierra la compuerta y captura."""
         if not self._activo:
             return
+        self._detener_muestreo_numacq()
         self._t_cierre = self._temperatura_fresca()
         if self._inicio_ventana is not None:
             self._duracion_ventana = time.monotonic() - self._inicio_ventana
@@ -229,13 +234,27 @@ class MedicionWorker(QObject):
 
     # ── Cierre de secuencia ───────────────────────────────────────────────────
 
+    def _iniciar_muestreo_numacq(self):
+        """Muestrea ACQ:NUMACQ? durante la ventana desde el hilo del worker, sin bloquear la GUI."""
+        if self._timer_muestreo is None:
+            self._timer_muestreo = QTimer(self)
+            self._timer_muestreo.setInterval(int(INTERVALO_MUESTREO_NUMACQ_S * 1000))
+            self._timer_muestreo.timeout.connect(self._oscil.muestrear_numacq)
+        self._timer_muestreo.start()
+
+    def _detener_muestreo_numacq(self):
+        if self._timer_muestreo is not None:
+            self._timer_muestreo.stop()
+
     def _finalizar(self):
+        self._detener_muestreo_numacq()
         self._activo = False
         self._safe.activar()
         self._oscil.reanudar_adquisicion()
         self.secuencia_terminada.emit(self._realizadas, self._con_flag)
 
     def _abortar(self, msg: str):
+        self._detener_muestreo_numacq()
         self._activo = False
         self.error.emit(msg)
         self._safe.activar()
