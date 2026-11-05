@@ -150,11 +150,11 @@ verificada; está sin poner a prueba.
 
 \subsection*{Sobre las fallas documentadas}
 
-El \cref{cap:resultados} dedica su sección más extensa a los catorce
+El \cref{cap:resultados} dedica su sección más extensa a los quince
 modos de falla reunidos en la \cref{tab:resumen_fallas}. Esa elección
 fue deliberada, y conviene justificarla.
 
-Once de los catorce no eran observables mientras ocurrían. Cuatro de
+Doce de los quince no eran observables mientras ocurrían. Cuatro de
 ellos tampoco lo eran inspeccionando los datos captura por captura:
 aparecieron solo al contrastar el archivo con lo que su propio
 encabezado declaraba contener, el código con su historial de cambios,
@@ -193,12 +193,14 @@ por temperatura se ejercitó por simulación y se recorrió de punta a
 punta contra los tres instrumentos reales en la sesión
 \texttt{20260908\_203856}, sobre agua, en un intervalo de
 \SI{44}{\celsius} a \SI{40}{\celsius} y bajo enfriamiento pasivo, pero
-con la versión del código de esa fecha. Con la versión congelada, ni el
-modo por temperatura ni el modo por tiempo se han recorrido en el
-equipo, y tampoco existe una sesión real con el formato de 34 columnas;
-lo que respalda esa versión son las pruebas sin hardware (51 casos de
-interfaz y 12 de sesión reabierta), que establecen la lógica de la
-interfaz y del almacenamiento pero no el comportamiento del equipo. El
+con la versión del código de esa fecha. La versión posterior a la auditoría
+se respaldó primero con pruebas sin hardware (51 casos de interfaz y
+12 de sesión reabierta), que establecen la lógica de la interfaz y del
+almacenamiento pero no el comportamiento del equipo. Ambos modos
+automáticos se recorrieron después con esa versión en el equipo, en
+tres sesiones del 3 de noviembre de 2026 con el formato de 34
+columnas, y esas secuencias revelaron los falsos positivos del testigo
+de adquisición documentados en la \cref{sec:falla_testigo}. El
 simulador de la secuencia y el verificador de sesiones se corrieron con
 la versión congelada el 3 de octubre de 2026, en un contenedor sin
 interfaz gráfica y sin hardware, con resultado conforme en ambos
@@ -208,7 +210,13 @@ del verificador se hizo con una versión anterior. La prueba integrada de la
 repetición con la versión congelada se hará con las mediciones del
 M.~en~C. Arturo Ronquillo Arvizu. Tampoco queda establecido el
 comportamiento del sistema sobre otros líquidos, intervalos más amplios
-o regímenes de enfriamiento distintos del pasivo. Además, en la corrida
+o regímenes de enfriamiento distintos del pasivo. En particular, el
+modo por temperatura solo recorre objetivos en descenso, mientras que
+el procedimiento habitual del laboratorio, según el M.~en~C. Arturo
+Ronquillo Arvizu, recorre la temperatura en ascenso. Invertir el
+sentido del barrido es un cambio acotado en la lógica de la secuencia,
+pero exige además una fuente de calor controlada en la celda, de la
+que el arreglo actual carece. Además, en la corrida
 de punta a punta sin hardware apareció el diálogo «Dispositivo crítico
 desconectado»; se atribuyó a la ausencia de la biblioteca del láser en
 el entorno de prueba, pero la atribución no se ha confirmado en el
@@ -217,7 +225,14 @@ equipo.
 La segunda es que la calibración relativa entre los cuatro sensores de
 temperatura quedó definida pero no aplicada, de modo que las lecturas
 individuales arrastran la dispersión de fábrica del conjunto, que no se
-cuantificó en este trabajo. El módulo, además, solo acepta lecturas
+cuantificó en este trabajo. En las sesiones del 3 de noviembre de 2026,
+con la muestra entre 29 y \SI{42}{\celsius}, el sensor S4 registró
+entre 0.8 y \SI{1.8}{\celsius} menos que la media de los otros tres,
+mientras que con agua a \SI{15.6}{\celsius} la diferencia fue de
+\SI{+0.1}{\celsius}. Una diferencia que aparece solo con la muestra
+caliente y que excede la exactitud de \SI{\pm0.5}{\celsius} del
+DS18B20 apunta a un gradiente térmico en la muestra más que a un desvío
+del sensor; el promedio registrado la incorpora. El módulo, además, solo acepta lecturas
 entre \SI{10}{\celsius} y \SI{50}{\celsius}: un promedio fuera de ese
 rango invalida la trama, y un sensor fuera de él cuenta como ausente.
 
@@ -393,11 +408,13 @@ El registro ya no supone la frecuencia de repetición del láser. El
 campo que la usaba para estimar los disparos integrados en cada ventana
 se eliminó, y el sistema registra el contador de adquisiciones que
 informa el propio osciloscopio (\texttt{ACQ:NUMACQ?}), según la
-\cref{sec:falla_laserhz}. La tasa medida en la sesión
-\texttt{20260922\_194624} es de unas 9.3 adquisiciones por segundo; es
-una tasa de adquisición, y este trabajo no establece si coincide con la
-repetición del láser o si hay disparos que el osciloscopio no adquiere.
-Contrastarla con una lectura independiente del láser queda como mejora.
+\cref{sec:falla_laserhz}. La tasa estimada en la sesión
+\texttt{20260922\_194624}, de unas 9.3 adquisiciones por segundo, tenía
+una resolución gruesa; las ventanas del modo temperatura del 3 de
+noviembre de 2026 dan entre 9.9 y 10.0, compatibles con la repetición
+nominal del láser. Es, con todo, una tasa de adquisición: contrastarla
+con una lectura independiente del láser, como el contador de pulsos
+que este expone y que la interfaz ya muestra, queda como mejora.
 
 El módulo de almacenamiento guarda los datos crudos en archivos
 \texttt{.npy} y los metadatos en un registro \texttt{.csv}.

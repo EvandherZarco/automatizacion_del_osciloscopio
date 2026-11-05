@@ -655,10 +655,16 @@ segundos de diferencia según sus marcas de tiempo, que tienen
 resolución de un segundo: una tasa de adquisición medida de
 aproximadamente 9.3 adquisiciones por segundo. Esa cifra describe lo
 que el osciloscopio registró, no necesariamente la frecuencia de
-repetición del láser. Si la misma tasa rigió el 8 de septiembre, el
-campo sobrestimó en cerca de un 7.5\,\% el número de adquisiciones
-integradas; los datos de esa sesión no permiten comprobarlo, y esa
-imposibilidad es precisamente el defecto.
+repetición del láser, y es además una estimación gruesa: con marcas de
+tiempo de un segundo, el intervalo pudo durar entre cinco y siete
+segundos, lo que admite tasas de 8.0 a 11.2 adquisiciones por segundo.
+Las ventanas del modo temperatura del 3 de noviembre de 2026, cuya
+duración se registra con resolución de milisegundos, dan entre 9.9 y
+10.0 adquisiciones por segundo (\cref{sec:falla_testigo}): en esa
+sesiones, la suposición de \SI{10}{\hertz} resultó prácticamente
+correcta. El defecto del campo no estaba en su valor, sino en que el
+archivo no ofrecía manera de comprobarlo; para el 8 de septiembre sigue
+sin haberla.
 
 La corrección, incorporada en el commit \texttt{9696e4e}, eliminó el
 campo. En su lugar, cada fila del registro guarda tres valores leídos
@@ -836,10 +842,12 @@ mal, sino que deje registro suficiente para reconstruirlo. En este
 caso el registro corrigió al operador, que estuvo presente, sobre lo
 que el operador creyó haber visto.
 
+\input{capitulos/cap3/3_4_falla_testigo}
+
 \subsection{Balance}
 \label{sec:fallas_balance}
 
-La \cref{tab:resumen_fallas} reúne los catorce modos de falla
+La \cref{tab:resumen_fallas} reúne los quince modos de falla
 documentados en esta sección, con el nivel al que cada uno resultó
 detectable y su estado con el código congelado. El punto perturbado de
 la \cref{sec:registro_corrige} no se cuenta entre ellos: no fue una
@@ -887,7 +895,7 @@ permitió identificar.
     7 & Frecuencia de repetición supuesta en
     \texttt{pulsos\_estimados} &
     Auditoría del código &
-    \SI{10}{\hertz} supuestos; tasa de adquisición medida de unas 9.3 por segundo &
+    \SI{10}{\hertz} supuestos; tasa estimada de 9.3 por segundo el 22 de septiembre y medida de 9.9 a 10.0 el 3 de noviembre &
     Corregida; campo sustituido por lecturas del instrumento \\
     \addlinespace[2pt]
     8 & Estado del láser no reflejado en la interfaz &
@@ -923,16 +931,24 @@ permitió identificar.
     Pruebas sin hardware &
     Capturas agregadas sin aviso a la sesión reabierta &
     Corregida; confirmación antes de escribir \\
+    \addlinespace[2pt]
+    15 & Falsos positivos del testigo de adquisición en los modos automáticos &
+    Ejecución, como alarma falsa; verificación posterior &
+    Diez capturas con adquisición nueva marcadas como sin ella; seis aceptadas con exceso de adquisiciones &
+    Diagnosticada; corrección en curso \\
     \bottomrule
   \end{tabular}
 \end{table}
 
-Once de los catorce modos de falla no eran observables durante la
+Doce de los quince modos de falla no eran observables durante la
 operación. Los tres que sí lo eran ---la pérdida de la lectura de
 temperatura, el estado del láser no reflejado en la interfaz y el ESP32
 sin transmitir--- se manifestaron como una ausencia o una discrepancia
-evidente frente al instrumento. En los once restantes, la interfaz o
-el registro afirmaban un resultado normal. Uno de ellos, además, se
+evidente frente al instrumento. En once de los doce restantes, la
+interfaz o el registro afirmaban un resultado normal; en el último, el
+testigo de adquisición anunciaba fallas que no habían ocurrido y, en
+la misma sesión, aceptaba como normales capturas que no lo eran, sin
+que el operador tuviera forma de distinguir unas de otras. Uno de ellos, además, se
 había documentado como decisión deliberada de diseño: solo provocar la
 condición frente al instrumento mostró que no lo era. Los cuatro
 detectados en la auditoría del código o en las pruebas sin hardware no

@@ -1,0 +1,296 @@
+# Corrida del simulador, 2026-11-03. Commit base 5d2e4d6 con cambios sin commit (testigo de adquisición, interfaz); ver git status.
+# Entorno: Windows 11, Python 3.12.10 PySide6 6.11.0, QT_QPA_PLATFORM=offscreen, vxi11 del venv sin instrumento (los niveles 2 y 3 no abren el instrumento); casos ejecutados en procesos independientes
+
+##### 1
+
+
+=== Caso 1 — Barrido nominal ===
+  Objetivo   T apertura   T cierre   Dur. ventana (s sim)
+---------------------------------------------------------
+      60.0        59.94      59.94                   40.0
+      55.0        55.19      54.81                   70.0
+      50.0        50.12      49.88                   80.0
+      45.0        45.00      44.94                   80.0
+      40.0        40.06      39.94                   70.0
+      35.0        35.00      34.88                  120.0
+      30.0        30.12      29.88                  230.3
+
+======================================================================
+RESUMEN
+======================================================================
+[OK   ] Caso 1 — Barrido nominal
+          ventanas=7 orden_descendente=True duraciones_ok=True abiertas_ok=True
+----------------------------------------------------------------------
+1/1 casos aprobados
+[exit=0 t=826s]
+
+##### 2
+
+
+=== Caso 2 — Arranque con la muestra ya tibia ===
+  Objetivo   T apertura   T cierre   Dur. ventana (s sim)
+---------------------------------------------------------
+      45.0        44.69      44.44                  100.0
+      40.0        39.62      39.50                  100.0
+      35.0        34.81      34.75                  100.0
+      30.0        29.94      29.62                  300.0
+  [advertencia] La muestra está a 46.75 °C. Se omiten los objetivos por encima de esa temperatura: 60.0, 55.0, 50.0 °C.
+
+======================================================================
+RESUMEN
+======================================================================
+[OK   ] Caso 2 — Arranque con la muestra ya tibia
+          omitidos=[50.0, 55.0, 60.0] ventanas=[45.0, 40.0, 35.0, 30.0]
+----------------------------------------------------------------------
+1/1 casos aprobados
+[exit=0 t=60s]
+
+##### 3
+
+
+=== Caso 3 — Ruido elevado ===
+  Objetivo   T apertura   T cierre   Dur. ventana (s sim)
+---------------------------------------------------------
+      60.0        59.62      59.38                   50.0
+      55.0        54.19      54.25                   50.0
+      50.0        49.94      48.62                  150.0
+      45.0        44.94      44.81                  150.0
+      40.0        39.50      39.31                   50.0
+      35.0        34.88      34.56                   50.0
+      30.0        30.06      30.12                  250.0
+
+======================================================================
+RESUMEN
+======================================================================
+[OK   ] Caso 3 — Ruido elevado
+          ventanas=7 (se esperaban 7)
+----------------------------------------------------------------------
+1/1 casos aprobados
+[exit=0 t=165s]
+
+##### 4
+
+
+=== Caso 4 — Desconexión breve ===
+  Objetivo   T apertura   T cierre   Dur. ventana (s sim)
+---------------------------------------------------------
+      60.0        59.25      58.94                   75.0
+      55.0        54.56      54.19                   75.0
+      50.0        49.50      49.31                   75.0
+      45.0        44.81      44.56                   75.0
+      30.0        29.94      29.75                  227.4
+  [advertencia] Lectura de temperatura interrumpida. La secuencia continúa en espera.
+  [advertencia] Lectura de temperatura restablecida.
+  [advertencia] El objetivo 40.0 °C se perdió durante la interrupción de lectura: la muestra ya está a 32.88 °C, por debajo de su umbral de cierre. Nunca hubo ventana de integración para ese punto.
+  [advertencia] La muestra sigue bajando: al restablecerse la lectura ya está a 32.75 °C. Se omiten además los objetivos ya rebasados: 35.0 °C.
+
+======================================================================
+RESUMEN
+======================================================================
+[OK   ] Caso 4 — Desconexión breve
+          orden_ok=True hubo_descarte=True sin_ventanas_degeneradas=True objetivos_medidos=[60.0, 55.0, 50.0, 45.0, 30.0]
+----------------------------------------------------------------------
+1/1 casos aprobados
+[exit=0 t=112s]
+
+##### 5
+
+
+=== Caso 5 — Desconexión permanente ===
+  [advertencia] Lectura de temperatura interrumpida. La secuencia continúa en espera.
+  [advertencia] Sin lectura de temperatura durante 6 s. Secuencia abortada.
+
+======================================================================
+RESUMEN
+======================================================================
+[OK   ] Caso 5 — Desconexión permanente
+          abortada=True advertencia_fin_emitida=True secuencia_terminada=True duracion_real=8.0s
+----------------------------------------------------------------------
+1/1 casos aprobados
+[exit=0 t=8s]
+
+##### 6
+
+
+=== Caso 6 — Rebote térmico en el umbral ===
+  Objetivo   T apertura   T cierre   Dur. ventana (s sim)
+---------------------------------------------------------
+      60.0        60.06      59.81                   70.0
+      55.0        54.88      54.94                   10.0
+      50.0        50.06      49.94                   60.0
+      45.0        45.00      44.88                   40.0
+      40.0        40.06      39.75                   90.3
+      35.0        35.12      34.88                  130.0
+      30.0        30.06      29.75                  220.3
+
+======================================================================
+RESUMEN
+======================================================================
+[FALLA] Caso 6 — Rebote térmico en el umbral
+          ventanas=7 no_cierra_durante_rebote=False duracion_objetivo=40.0 vecinos=[90.31999999991967, 60.0] comparable_ok=True
+----------------------------------------------------------------------
+0/1 casos aprobados
+[exit=1 t=827s]
+
+##### 7
+
+
+=== Caso 7 — Muestra por debajo de todos los objetivos ===
+  Objetivo   T apertura   T cierre   Dur. ventana (s sim)
+---------------------------------------------------------
+  (sin ventanas)
+  [advertencia] La muestra está a 25.00 °C. Se omiten los objetivos por encima de esa temperatura: 60.0, 55.0, 50.0, 45.0, 40.0, 35.0, 30.0 °C.
+  [advertencia] La muestra ya está por debajo de todos los objetivos. No hay puntos que medir.
+
+======================================================================
+RESUMEN
+======================================================================
+[OK   ] Caso 7 — Muestra por debajo de todos los objetivos
+          advertencia_ok=True ventanas=0 terminada=True
+----------------------------------------------------------------------
+1/1 casos aprobados
+[exit=0 t=1s]
+
+##### 8
+
+
+=== Caso 8 — Objetivo perdido por reconexión durante la apertura ===
+  Objetivo   T apertura   T cierre   Dur. ventana (s sim)
+---------------------------------------------------------
+      60.0        59.44      59.25                   75.0
+      55.0        54.56      54.31                   75.0
+      50.0        49.81      49.50                   75.0
+      40.0        39.94      39.38                  225.0
+      35.0        34.81      34.69                   75.0
+      30.0        30.00      29.75                  300.0
+  [advertencia] Lectura de temperatura interrumpida. La secuencia continúa en espera.
+  [advertencia] Lectura de temperatura restablecida.
+  [advertencia] El objetivo 45.0 °C se perdió durante la interrupción de lectura: la muestra ya está a 43.38 °C, por debajo de su umbral de cierre. Nunca hubo ventana de integración para ese punto.
+
+======================================================================
+RESUMEN
+======================================================================
+[OK   ] Caso 8 — Objetivo perdido por reconexión durante la apertura
+          perdida_ok=True sin_ventana_degenerada=True resto_ok=True objetivos_medidos=[60.0, 55.0, 50.0, 40.0, 35.0, 30.0]
+----------------------------------------------------------------------
+1/1 casos aprobados
+[exit=0 t=112s]
+
+##### n2
+
+
+=== Nivel 2 — Cadena completa (Medicion + dobles + Almacenamiento real) ===
+  filas CSV: 7, adquisicion_ok=True, temp_monotona=True, abrir_sesion_ok=True
+
+======================================================================
+RESUMEN
+======================================================================
+[OK   ] Nivel 2 — Cadena completa
+          filas=7 adquisicion_ok=True monotona_ok=True abre_ok=True
+----------------------------------------------------------------------
+1/1 casos aprobados
+[exit=0 t=56s]
+
+##### n3
+
+
+=== Nivel 3 — Parámetros del barrido en metadatos_sesion.txt ===
+  --- metadatos_sesion.txt ---
+  session_id: 20261103_232853_nivel3
+  fecha_creacion: 2026-11-03T23:28:53
+  osciloscopio_modelo: SIMULADO
+  barrido_1_inicio: 2026-11-03T23:28:54
+  barrido_1_temperatura_inicial_c: 60.0
+  barrido_1_temperatura_final_c: 50.0
+  barrido_1_paso_c: 5.0
+  barrido_2_inicio: 2026-11-03T23:29:09
+  barrido_2_temperatura_inicial_c: 45.0
+  barrido_2_temperatura_final_c: 35.0
+  barrido_2_paso_c: 10.0
+
+======================================================================
+RESUMEN
+======================================================================
+[OK   ] Nivel 3 — Metadatos del barrido
+          manual_sin_cambios=True barrido_1_ok=True tiempo_sin_cambios=True barrido_2_ok=True cabecera_intacta=True
+----------------------------------------------------------------------
+1/1 casos aprobados
+[exit=0 t=39s]
+
+##### probar_verificacion.py
+
+
+=== Caso — npy_ausente ===
+[npy_ausente] C:\Users\Evandher_Zarco\Desktop\automatizacion_Zarco\datos\sesiones_prueba\npy_ausente\npy_ausente.csv  (4 mediciones)
+  exit=1 (esperado 1) esperadas=['npy_ausente'] faltantes=[] inesperadas=[]
+
+=== Caso — sin_reconstruibles ===
+[sin_reconstruibles] C:\Users\Evandher_Zarco\Desktop\automatizacion_Zarco\datos\sesiones_prueba\sin_reconstruibles\sin_reconstruibles.csv  (2 mediciones)
+  exit=1 (esperado 1) esperadas=['npy_ausente', 'sin_reconstruibles'] faltantes=[] inesperadas=[]
+
+=== Caso — saturacion ===
+[saturacion] C:\Users\Evandher_Zarco\Desktop\automatizacion_Zarco\datos\sesiones_prueba\saturacion\saturacion.csv  (3 mediciones)
+  exit=1 (esperado 1) esperadas=['saturacion'] faltantes=[] inesperadas=[]
+
+=== Caso — buffer_repetido_misma_escala ===
+[buffer_repetido_misma_escala] C:\Users\Evandher_Zarco\Desktop\automatizacion_Zarco\datos\sesiones_prueba\buffer_repetido_misma_escala\buffer_repetido_misma_escala.csv  (3 mediciones)
+  exit=1 (esperado 1) esperadas=['buffer_repetido_misma_escala'] faltantes=[] inesperadas=[]
+
+=== Caso — buffer_repetido_escala_distinta ===
+[buffer_repetido_escala_distinta] C:\Users\Evandher_Zarco\Desktop\automatizacion_Zarco\datos\sesiones_prueba\buffer_repetido_escala_distinta\buffer_repetido_escala_distinta.csv  (3 mediciones)
+  exit=1 (esperado 1) esperadas=['buffer_repetido_escala_distinta', 'mezcla_escalas'] faltantes=[] inesperadas=[]
+
+=== Caso — mezcla_escalas ===
+[mezcla_escalas] C:\Users\Evandher_Zarco\Desktop\automatizacion_Zarco\datos\sesiones_prueba\mezcla_escalas\mezcla_escalas.csv  (3 mediciones)
+  exit=1 (esperado 1) esperadas=['mezcla_escalas'] faltantes=[] inesperadas=[]
+
+=== Caso — deriva_onset ===
+[deriva_onset] C:\Users\Evandher_Zarco\Desktop\automatizacion_Zarco\datos\sesiones_prueba\deriva_onset\deriva_onset.csv  (3 mediciones)
+  exit=1 (esperado 1) esperadas=['deriva_onset'] faltantes=[] inesperadas=[]
+
+=== Caso — temperatura_estancada ===
+[temperatura_estancada] C:\Users\Evandher_Zarco\Desktop\automatizacion_Zarco\datos\sesiones_prueba\temperatura_estancada\temperatura_estancada.csv  (3 mediciones)
+  exit=1 (esperado 1) esperadas=['temperatura_estancada'] faltantes=[] inesperadas=[]
+
+=== Caso — error_flag ===
+[error_flag] C:\Users\Evandher_Zarco\Desktop\automatizacion_Zarco\datos\sesiones_prueba\error_flag\error_flag.csv  (3 mediciones)
+  exit=1 (esperado 1) esperadas=['error_flag'] faltantes=[] inesperadas=[]
+
+=== Caso — dispersion_vpp ===
+[dispersion_vpp] C:\Users\Evandher_Zarco\Desktop\automatizacion_Zarco\datos\sesiones_prueba\dispersion_vpp\dispersion_vpp.csv  (4 mediciones)
+  exit=1 (esperado 1) esperadas=['dispersion_vpp'] faltantes=[] inesperadas=[]
+
+=== Caso — limpio ===
+[limpio] C:\Users\Evandher_Zarco\Desktop\automatizacion_Zarco\datos\sesiones_prueba\limpio\limpio.csv  (4 mediciones)
+  exit=0 (esperado 0) esperadas=[] faltantes=[] inesperadas=[]
+
+======================================================================
+RESUMEN
+======================================================================
+[OK   ] npy_ausente
+          exit=1 (esperado 1) esperadas=['npy_ausente'] faltantes=[] inesperadas=[]
+[OK   ] sin_reconstruibles
+          exit=1 (esperado 1) esperadas=['npy_ausente', 'sin_reconstruibles'] faltantes=[] inesperadas=[]
+[OK   ] saturacion
+          exit=1 (esperado 1) esperadas=['saturacion'] faltantes=[] inesperadas=[]
+[OK   ] buffer_repetido_misma_escala
+          exit=1 (esperado 1) esperadas=['buffer_repetido_misma_escala'] faltantes=[] inesperadas=[]
+[OK   ] buffer_repetido_escala_distinta
+          exit=1 (esperado 1) esperadas=['buffer_repetido_escala_distinta', 'mezcla_escalas'] faltantes=[] inesperadas=[]
+[OK   ] mezcla_escalas
+          exit=1 (esperado 1) esperadas=['mezcla_escalas'] faltantes=[] inesperadas=[]
+[OK   ] deriva_onset
+          exit=1 (esperado 1) esperadas=['deriva_onset'] faltantes=[] inesperadas=[]
+[OK   ] temperatura_estancada
+          exit=1 (esperado 1) esperadas=['temperatura_estancada'] faltantes=[] inesperadas=[]
+[OK   ] error_flag
+          exit=1 (esperado 1) esperadas=['error_flag'] faltantes=[] inesperadas=[]
+[OK   ] dispersion_vpp
+          exit=1 (esperado 1) esperadas=['dispersion_vpp'] faltantes=[] inesperadas=[]
+[OK   ] limpio
+          exit=0 (esperado 0) esperadas=[] faltantes=[] inesperadas=[]
+----------------------------------------------------------------------
+11/11 casos correctos
+[exit=0 t=4s]
+
+# FIN

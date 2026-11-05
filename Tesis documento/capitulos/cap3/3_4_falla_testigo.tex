@@ -1,0 +1,100 @@
+% =========================================================
+\subsection{Falla detectada en la primera secuencia con instrumento:
+falsos positivos del testigo de adquisición}
+\label{sec:falla_testigo}
+% =========================================================
+
+La validación del testigo de adquisición nueva descrita en la
+\cref{sec:verificacion_adquisicion} se hizo con capturas manuales; su
+comportamiento en los modos automáticos solo se había ejercitado sin
+hardware. Las sesiones del 3 de noviembre de 2026, adquiridas con un
+TDS5054B (número de serie B022263) y el láser emitiendo, fueron la
+primera ocasión de observarlo en secuencias reales. El resultado fue
+una falla del propio mecanismo de detección: marcó como inválidas
+capturas que no lo eran.
+
+\subsubsection*{Lo que se observó}
+
+En la sesión \texttt{20261103\_194433}, en modo tiempo con 100
+promedios, las siete capturas consecutivas \texttt{m0003} a
+\texttt{m0009} quedaron marcadas como \texttt{osciloscopio sin
+adquisición nueva}, aunque cada una registra en
+\texttt{adquisiciones\_promediadas} el promedio completo de 100. En la
+sesión \texttt{20261103\_200010}, en modo temperatura, las capturas
+\texttt{m0006} y \texttt{m0007} recibieron la misma marca con 444 y
+416 adquisiciones en ventanas de \SI{44.5}{\second} y
+\SI{42.1}{\second}. Esa tasa, de 10.0 y 9.9 adquisiciones por segundo,
+es la misma que la de las capturas aceptadas sin marca en esa
+secuencia, entre 9.9 y 10.0, y corresponde a la frecuencia de
+repetición del láser. Lo mismo ocurrió con la captura \texttt{m0006}
+de la sesión \texttt{20261103\_190015}, marcada con 532
+adquisiciones en \SI{53.6}{\second}.
+
+Dos comprobaciones independientes del contador confirman que se trata
+de falsos positivos. Primera: el registro de cada captura marcada es
+distinto del de la anterior. A diferencia de lo observado el 22 de
+septiembre, donde esa diferencia no probaba nada porque se debía a un
+cambio de escala con el instrumento detenido, aquí las escalas vertical
+y horizontal de cada captura marcada son las mismas que las de la
+captura anterior. Segunda: en
+las mismas sesiones el testigo sí marcó las dos capturas que en
+efecto carecían de adquisición válida. En la sesión
+\texttt{20261103\_190015}, la captura \texttt{m0008} registra cero
+adquisiciones en una ventana de \SI{69.6}{\second} y su registro es
+idéntico, bit a bit, al de \texttt{m0007}: el láser había dejado de
+emitir. En la sesión \texttt{20261103\_194433}, la captura
+\texttt{m0010} se marcó con \texttt{promedio incompleto (84 de 100)}.
+
+\subsubsection*{Diagnóstico}
+
+Todas las capturas marcadas por error comparten un rasgo: su conteo
+final es igual o menor que el de la captura anterior. El testigo se
+diseñó sobre una propiedad medida el 22 de septiembre: que
+\texttt{ACQ:STATE RUN} no reinicia el contador de adquisiciones. Esa
+medición se hizo con el osciloscopio adquiriendo de forma continua
+(\texttt{ACQ:STOPAFTER RUNSTOP}), donde la orden llega a un
+instrumento que ya está en marcha. En los modos automáticos, en
+cambio, el osciloscopio opera con \texttt{ACQ:STOPAFTER SEQUENCE} y
+queda detenido entre capturas, de modo que cada \texttt{ACQ:STATE RUN}
+inicia una secuencia nueva y reinicia el contador. El reinicio, sin
+embargo, no es inmediato: la lectura que el testigo toma justo después
+de la orden devuelve todavía el conteo de la captura anterior. En
+estos modos el testigo solo recibe esa lectura inicial y la final, por
+lo que interpreta el reinicio como una caída sin subida posterior y
+declara la captura sin adquisición nueva. En modo tiempo el efecto es
+sistemático, porque toda captura termina exactamente en 100. En modo
+temperatura es intermitente: en las capturas \texttt{m0004} y
+\texttt{m0011} de la sesión \texttt{20261103\_200010}, cuyo conteo
+también fue menor que el anterior, el reinicio ya era visible en la
+primera lectura y no hubo marca, lo que indica que el retraso del
+reinicio varía.
+
+\subsubsection*{El error en sentido contrario}
+
+El análisis de las mismas sesiones mostró que el testigo tampoco
+detecta el caso opuesto. En la sesión \texttt{20261103\_200010}, las
+capturas \texttt{m0008} a \texttt{m0013} se aceptaron sin marca con
+tasas de entre 13 y 69 adquisiciones por segundo, superiores a la
+frecuencia del láser: el promedio de esas capturas incluye
+adquisiciones ajenas a su ventana de temperatura. La causa de ese
+exceso no quedó establecida con los datos disponibles, porque el
+registro de sesión no conserva la configuración del disparo del
+osciloscopio. Lo que sí quedó establecido es la carencia del testigo:
+exige que el contador suba, pero no compara cuánto subió con lo que la
+duración de la ventana permite. Por la misma razón, en la sesión
+\texttt{20261103\_190015} se aceptaron sin marca dos capturas en cuyas
+ventanas cambió la escala vertical: \texttt{m0003}, que reunió solo 44
+adquisiciones en \SI{45}{\second}, y \texttt{m0007}. En modo
+temperatura el testigo no comparaba escalas, a diferencia de la
+captura manual.
+
+\subsubsection*{Nivel de detección}
+
+La falla se manifestó en ejecución, pero como una alarma falsa: el
+sistema avisó, y lo que avisaba era incorrecto. Su diagnóstico, y el
+hallazgo del error contrario, solo fueron posibles en la verificación
+posterior, al confrontar el contador registrado con la duración de
+cada ventana y con el contenido de los registros. El caso ilustra un
+riesgo propio de la automatización de instrumentos: una propiedad
+medida en el equipo es válida para el régimen en que se midió, y el
+testigo la extendió a un régimen distinto sin volver a medirla.

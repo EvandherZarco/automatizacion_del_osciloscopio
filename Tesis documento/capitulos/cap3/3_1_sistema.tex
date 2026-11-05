@@ -447,7 +447,9 @@ que el propio osciloscopio acumula con \texttt{ACQ:MODE AVERAGE},
 aplicación consulta \texttt{ACQ:STATE?} hasta constatar que el
 promedio terminó y entonces transfiere el registro. Antes de iniciar,
 la interfaz estima la duración de una captura a partir de la tasa de
-adquisición medida ($\sim$9.3 adquisiciones por segundo), del
+adquisición, de unas 10 adquisiciones por segundo según las ventanas
+del modo temperatura medidas el 3 de noviembre de 2026
+(\cref{sec:falla_testigo}), del
 número de promedios y del tiempo de transferencia de la longitud de
 registro vigente, y rechaza un intervalo menor que esa estimación
 indicando el mínimo realizable. Si durante la secuencia una captura
@@ -556,10 +558,15 @@ en el contador de adquisiciones del instrumento.
 
 \paragraph{Testigo del contador.} La consulta \texttt{ACQ:NUMACQ?}
 devuelve el número de adquisiciones acumuladas. Medido en el
-TDS5054B, \texttt{ACQ:STATE RUN} no reinicia ese contador, mientras
-que un cambio de escala sí lo reinicia, con un retraso de hasta
+TDS5054B con adquisición continua (\texttt{ACQ:STOPAFTER RUNSTOP}),
+\texttt{ACQ:STATE RUN} no reinicia ese contador, mientras que un
+cambio de escala sí lo reinicia, con un retraso de hasta
 aproximadamente un segundo; el reinicio solo se observa, por tanto,
-como una caída entre dos lecturas. La clase \texttt{TestigoNumacq}
+como una caída entre dos lecturas. Con \texttt{ACQ:STOPAFTER
+SEQUENCE}, el régimen de los modos automáticos, cada
+\texttt{ACQ:STATE RUN} inicia una secuencia nueva y sí reinicia el
+contador, también con retraso; esa diferencia, que no se había medido,
+se documenta en la \cref{sec:falla_testigo}. La clase \texttt{TestigoNumacq}
 sigue el contador a lo largo de la captura y aplica dos criterios. La
 captura es \emph{fresca} si el contador subió respecto a la primera
 lectura sin caer, o si cayó y después volvió a subir. Es
@@ -629,8 +636,10 @@ aunque su registro difería del de la captura anterior, lo que confirma
 que esa diferencia no sirve como testigo. La versión final quedó
 integrada en el commit \texttt{9696e4e}. La verificación en los modos
 automáticos se ejercitó con pruebas sin hardware
-(\cref{sec:validacion}) y queda por observarse en una secuencia con
-instrumentos.
+(\cref{sec:validacion}). Su primera observación en secuencias con
+instrumentos, el 3 de noviembre de 2026, reveló falsos positivos en
+ambos modos automáticos, que se documentan en la
+\cref{sec:falla_testigo}.
 
 \subsection{Formato de datos de sesión}
 \label{sec:formato_datos}
