@@ -131,7 +131,8 @@ activa el modo seguro: el ESP32 no es crítico para la seguridad del
 haz, y su ausencia se registra en cada medición afectada
 (\cref{sec:secuencia}).
 
-\input{capitulos/fig_arquitectura}
+% FIG-RECORTE
+% \input{capitulos/fig_arquitectura}
 
 \subsection{Decisiones de diseño}
 \label{sec:decisiones}
@@ -245,27 +246,28 @@ botón de parada de emergencia. Las capturas de pantalla de esta
 subsección corresponden a la interfaz de principios de septiembre de
 2026; los elementos incorporados después se describen en el texto.
 
-\begin{figure}[H]
-  \centering
-  \begin{subfigure}[t]{0.48\textwidth}
-    \centering
-    \includegraphics[width=\textwidth]{ventana_laser}
-    \caption{Control del láser.}
-    \label{fig:ventana_laser}
-  \end{subfigure}
-  \hfill
-  \begin{subfigure}[t]{0.48\textwidth}
-    \centering
-    \includegraphics[width=\textwidth]{ventana_osciloscopio}
-    \caption{Control del osciloscopio.}
-    \label{fig:ventana_osciloscopio}
-  \end{subfigure}
-  \caption{Ventanas de control individual. La de la derecha muestra el
-           bloque de escalas y disparo consultado al instrumento, que la
-           aplicación no escribe; el modo de adquisición y el número de
-           promedios sí se aplican desde esa ventana.}
-  \label{fig:ventanas_individuales}
-\end{figure}
+% FIG-RECORTE
+% \begin{figure}[H]
+%   \centering
+%   \begin{subfigure}[t]{0.48\textwidth}
+%     \centering
+%     \includegraphics[width=\textwidth]{ventana_laser}
+%     \caption{Control del láser.}
+%     \label{fig:ventana_laser}
+%   \end{subfigure}
+%   \hfill
+%   \begin{subfigure}[t]{0.48\textwidth}
+%     \centering
+%     \includegraphics[width=\textwidth]{ventana_osciloscopio}
+%     \caption{Control del osciloscopio.}
+%     \label{fig:ventana_osciloscopio}
+%   \end{subfigure}
+%   \caption{Ventanas de control individual. La de la derecha muestra el
+%            bloque de escalas y disparo consultado al instrumento, que la
+%            aplicación no escribe; el modo de adquisición y el número de
+%            promedios sí se aplican desde esa ventana.}
+%   \label{fig:ventanas_individuales}
+% \end{figure}
 
 La ventana principal del modo combinado
 (\texttt{app/gui/ventana\_ambos.py}) se organiza en tres pestañas, que
@@ -304,38 +306,39 @@ se muestran en la \cref{fig:ventana_ambos}:
     convertirla a formato \texttt{.mat} (\textit{Convertir a MATLAB}).
 \end{itemize}
 
-\begin{figure}[H]
-  \centering
-  \begin{subfigure}[t]{0.9\textwidth}
-    \centering
-    \includegraphics[width=\textwidth]{ventana_auto_1}
-    \caption{Pestaña \textit{Parámetros}.}
-    \label{fig:ventana_ambos_parametros}
-  \end{subfigure}
-
-  \vspace{0.6em}
-
-  \begin{subfigure}[t]{0.9\textwidth}
-    \centering
-    \includegraphics[width=\textwidth]{ventana_auto_2}
-    \caption{Pestaña \textit{Medición}.}
-    \label{fig:ventana_ambos_medicion}
-  \end{subfigure}
-
-  \vspace{0.6em}
-
-  \begin{subfigure}[t]{0.9\textwidth}
-    \centering
-    \includegraphics[width=\textwidth]{ventana_auto_3}
-    \caption{Pestaña \textit{Visualizar datos}.}
-    \label{fig:ventana_ambos_visualizacion}
-  \end{subfigure}
-  \caption{Ventana principal del modo combinado. La barra superior
-           conserva en las tres pestañas los indicadores de conexión de
-           los tres dispositivos, las lecturas de los cuatro sensores de
-           temperatura y el botón de parada de emergencia.}
-  \label{fig:ventana_ambos}
-\end{figure}
+% FIG-RECORTE
+% \begin{figure}[H]
+%   \centering
+%   \begin{subfigure}[t]{0.9\textwidth}
+%     \centering
+%     \includegraphics[width=\textwidth]{ventana_auto_1}
+%     \caption{Pestaña \textit{Parámetros}.}
+%     \label{fig:ventana_ambos_parametros}
+%   \end{subfigure}
+%
+%   \vspace{0.6em}
+%
+%   \begin{subfigure}[t]{0.9\textwidth}
+%     \centering
+%     \includegraphics[width=\textwidth]{ventana_auto_2}
+%     \caption{Pestaña \textit{Medición}.}
+%     \label{fig:ventana_ambos_medicion}
+%   \end{subfigure}
+%
+%   \vspace{0.6em}
+%
+%   \begin{subfigure}[t]{0.9\textwidth}
+%     \centering
+%     \includegraphics[width=\textwidth]{ventana_auto_3}
+%     \caption{Pestaña \textit{Visualizar datos}.}
+%     \label{fig:ventana_ambos_visualizacion}
+%   \end{subfigure}
+%   \caption{Ventana principal del modo combinado. La barra superior
+%            conserva en las tres pestañas los indicadores de conexión de
+%            los tres dispositivos, las lecturas de los cuatro sensores de
+%            temperatura y el botón de parada de emergencia.}
+%   \label{fig:ventana_ambos}
+% \end{figure}
 
 La barra superior muestra el estado de conexión de cada dispositivo
 (láser, osciloscopio, ESP32) mediante indicadores de color: verde para
@@ -449,7 +452,7 @@ promedio terminó y entonces transfiere el registro. Antes de iniciar,
 la interfaz estima la duración de una captura a partir de la tasa de
 adquisición, de unas 10 adquisiciones por segundo según las ventanas
 del modo temperatura medidas el 3 de noviembre de 2026
-(\cref{sec:falla_testigo}), del
+(\cref{sec:verificacion_adquisicion}), del
 número de promedios y del tiempo de transferencia de la longitud de
 registro vigente, y rechaza un intervalo menor que esa estimación
 indicando el mínimo realizable. Si durante la secuencia una captura
@@ -566,7 +569,7 @@ como una caída entre dos lecturas. Con \texttt{ACQ:STOPAFTER
 SEQUENCE}, el régimen de los modos automáticos, cada
 \texttt{ACQ:STATE RUN} inicia una secuencia nueva y sí reinicia el
 contador, también con retraso; esa diferencia, que no se había medido,
-se documenta en la \cref{sec:falla_testigo}. La clase \texttt{TestigoNumacq}
+se describe más adelante en esta subsección. La clase \texttt{TestigoNumacq}
 sigue el contador a lo largo de la captura y aplica dos criterios. La
 captura es \emph{fresca} si el contador subió respecto a la primera
 lectura sin caer, o si cayó y después volvió a subir. Es
@@ -638,8 +641,7 @@ integrada en el commit \texttt{9696e4e}. La verificación en los modos
 automáticos se ejercitó con pruebas sin hardware
 (\cref{sec:validacion}). Su primera observación en secuencias con
 instrumentos, el 3 de noviembre de 2026, reveló falsos positivos en
-ambos modos automáticos, que se documentan en la
-\cref{sec:falla_testigo}.
+ambos modos automáticos, y se corrigió (véase más arriba).
 
 \subsection{Formato de datos de sesión}
 \label{sec:formato_datos}

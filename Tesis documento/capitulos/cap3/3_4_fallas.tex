@@ -660,7 +660,7 @@ tiempo de un segundo, el intervalo pudo durar entre cinco y siete
 segundos, lo que admite tasas de 8.0 a 11.2 adquisiciones por segundo.
 Las ventanas del modo temperatura del 3 de noviembre de 2026, cuya
 duración se registra con resolución de milisegundos, dan entre 9.9 y
-10.0 adquisiciones por segundo (\cref{sec:falla_testigo}): en esa
+10.0 adquisiciones por segundo (\cref{sec:verificacion_adquisicion}): en esa
 sesiones, la suposición de \SI{10}{\hertz} resultó prácticamente
 correcta. El defecto del campo no estaba en su valor, sino en que el
 archivo no ofrecía manera de comprobarlo; para el 8 de septiembre sigue
@@ -799,60 +799,12 @@ confirmación antes de la primera escritura en una sesión reabierta, y
 su prueba específica aprueba sus 12 casos. Fue detectada mediante pruebas de la interfaz sin hardware, nivel de
 detección que no figuraba entre los anteriores.
 
-\subsection{Una comprobación del registro: el punto perturbado}
-\label{sec:registro_corrige}
-
-Durante la sesión del 8 de septiembre de 2026 hubo una interrupción
-física del arreglo mientras la secuencia estaba en curso: se colocó una
-protección sobre el láser con la adquisición corriendo. El hecho quedó
-anotado en la bitácora de la sesión junto con la atribución que el
-operador hizo en ese momento, señalando dos capturas concretas como
-afectadas.
-
-El análisis posterior de los archivos, realizado días después y
-sin más elementos que los datos guardados, contradice esa atribución.
-Las dos capturas señaladas no se distinguen de sus vecinas por ningún
-criterio: ni su amplitud pico a pico, que sigue la tendencia
-descendente de la serie, ni el instante de su máximo, que coincide con
-el del resto dentro de medio microsegundo.
-
-La captura que sí se aparta es \texttt{m0004}. Dos indicadores
-independientes la señalan. Su amplitud pico a pico es
-\SI{1.732}{\milli\volt}, el valor más alto de toda la sesión, en medio
-de una serie que desciende de forma sostenida. Y el instante de su
-máximo absoluto cae en \SI{78.08}{\micro\second}, cuando en las ocho
-capturas restantes se ubica entre \SI{94.37}{\micro\second} y
-\SI{94.89}{\micro\second}. No se trata de la misma señal medida con
-ruido: es una señal distinta.
-
-El episodio ilustra el argumento de este capítulo mejor que ninguna de
-las anomalías anteriores, y conviene enunciarlo con precisión para no
-reclamar de más. El sistema no detectó la perturbación: ningún campo
-del archivo levantó bandera, y no debía hacerlo, porque nada en la
-adquisición había fallado. Lo que el sistema hizo fue registrar, junto
-a cada forma de onda, las condiciones bajo las que se obtuvo y la
-trazabilidad suficiente para que la pregunta pudiera formularse
-después. La perturbación se identificó comparando nueve capturas entre
-sí, algo que solo es posible si las nueve están guardadas con sus
-escalas, su temperatura y su orden.
-
-Ese es el criterio con el que debe juzgarse un sistema de
-automatización de medición: no que anticipe todo lo que puede salir
-mal, sino que deje registro suficiente para reconstruirlo. En este
-caso el registro corrigió al operador, que estuvo presente, sobre lo
-que el operador creyó haber visto.
-
-\input{capitulos/cap3/3_4_falla_testigo}
-
 \subsection{Balance}
 \label{sec:fallas_balance}
 
 La \cref{tab:resumen_fallas} reúne los quince modos de falla
 documentados en esta sección, con el nivel al que cada uno resultó
-detectable y su estado con el código congelado. El punto perturbado de
-la \cref{sec:registro_corrige} no se cuenta entre ellos: no fue una
-falla del sistema, sino una perturbación del arreglo que el registro
-permitió identificar.
+detectable y su estado con el código congelado.
 
 \begin{table}[H]
   \centering

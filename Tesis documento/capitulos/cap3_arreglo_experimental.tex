@@ -87,6 +87,7 @@ entrada del haz. Un volumen menor dejaría parte de la ventana en
 contacto con aire y modificaría la trayectoria óptica; uno mayor no
 aporta beneficio y aproxima la superficie libre al eje del haz.
 
+% FIG-RECORTE
 % \begin{figure}[H]
 %   \centering
 %   \includegraphics[width=0.8\textwidth]{celda_ensamble}
@@ -434,6 +435,7 @@ Como se indicó en la \cref{sec:celda}, la trayectoria óptica no se
 encuentra fijada de manera permanente y debe restablecerse al inicio
 de cada sesión.
 
+% FIG-RECORTE
 % \begin{figure}[H]
 %   \centering
 %   \includegraphics[width=0.9\textwidth]{esquema_optico}
@@ -442,6 +444,7 @@ de cada sesión.
 %   \label{fig:esquema_optico}
 % \end{figure}
 
+% FIG-RECORTE
 % \begin{figure}[H]
 %   \centering
 %   \includegraphics[width=0.9\textwidth]{arreglo_fotografia}
@@ -614,7 +617,7 @@ captura se conserva, pero se guarda con su bandera de error y una
 descripción del motivo. Entre las anomalías de captura figuran la
 ausencia de una adquisición nueva, un promedio incompleto, una curva cuya longitud no
 coincide con \texttt{WFMPRE:NR\_PT?} y un cambio de escala durante la
-captura, descritos a continuación. Esta distinción evita que una
+captura, descritos en la \cref{sec:verificacion_adquisicion}. Esta distinción evita que una
 captura defectuosa aislada provoque la desconexión innecesaria del
 instrumento y la interrupción de una secuencia en curso, sin que el
 defecto pase inadvertido en el registro.
@@ -628,10 +631,6 @@ que la orden surtió efecto. Al cerrar una secuencia restituye además
 el modo de adquisición y el número de promedios previos, de modo que
 el osciloscopio quede en condiciones de uso manual sin intervención
 adicional.
-
-\subsection*{Verificación de adquisición nueva}
-
-El registro que entrega \texttt{CURVE?} no es necesariamente posterior a la orden de captura: con la adquisición detenida, o poco después de un cambio de escala, el instrumento devuelve el último registro almacenado sin indicarlo. El módulo lo detecta apoyándose en el contador de adquisiciones \texttt{ACQ:NUMACQ?}, en la comparación de las escalas leídas antes y después de la transferencia y en la longitud de la curva frente a \texttt{WFMPRE:NR\_PT?}. Ninguna de estas comprobaciones descarta la captura: cada una que falla agrega su motivo a la descripción de error del registro y activa la bandera de error, de modo que la decisión de excluirla corresponde al análisis posterior. El procedimiento completo se describe en la \cref{sec:verificacion_adquisicion}.
 
 % ============================================================
 \section{Automatización del láser}
@@ -786,7 +785,8 @@ sensor deja intactos a los restantes y resulta además localizable, pues
 la línea afectada identifica al dispositivo. La
 \cref{fig:modulo_temperatura} muestra esta topología.
 
-\input{capitulos/fig_modulo_temperatura}
+% FIG-RECORTE
+% \input{capitulos/fig_modulo_temperatura}
 
 La comunicación con la computadora de control se realiza por enlace
 serial a \SI{115200}{baud}. El microcontrolador transmite cada segundo
