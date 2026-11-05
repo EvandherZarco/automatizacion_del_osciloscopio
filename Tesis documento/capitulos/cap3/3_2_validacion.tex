@@ -47,8 +47,7 @@ metadatos, descritos en la \cref{sec:val_cadena}.
 \begin{table}[htbp]
   \centering
   \caption{Escenarios de la simulación de la secuencia por temperatura.
-    Corrida del 3 de octubre de 2026 con la versión congelada del código
-    (\emph{commit} \texttt{c67ae06}).}
+    Corrida del 3 de octubre de 2026 con la versión congelada del código.}
   \label{tab:casos_simulador}
   \small
   \begin{tabularx}{\textwidth}{c >{\raggedright\arraybackslash}p{4.4cm} X c}
@@ -151,7 +150,7 @@ de temperatura (\texttt{temperatura\_\allowbreak{}estancada}), presencia de
 capturas marcadas con error (\texttt{error\_flag}) y dispersión
 excesiva de la amplitud pico a pico (\texttt{dispersion\_vpp}). Es la
 herramienta con la que se detectaron las anomalías descritas en la
-\cref{sec:falla_buffer} y en la \cref{sec:falla_regresion}.
+\cref{sec:fallas_entorno} y en la \cref{tab:fallas_software}.
 
 Una herramienta de auditoría que nunca se ha visto fallar no es una
 herramienta verificada, sino una herramienta afortunada. Su validación
@@ -231,57 +230,81 @@ que ninguna de las pruebas anteriores alcanza: el archivo resultante
 es correcto, pero el operador decide sobre una premisa falsa. Para
 atenderla se realizó, entre el 25 y el 26 de septiembre de 2026, una
 auditoría de las banderas de estado del código, que dio lugar a doce
-commits (\texttt{2104c39} a \texttt{c67ae06}) y a la versión que se
+commits y a la versión que se
 congeló para esta tesis.
 
-\subsubsection*{Familias de defectos corregidos}
+\subsubsection*{Clases de defectos y reglas de diseño}
 
 La auditoría se organizó en cuatro grupos, uno por subsistema: la
 ventana principal (grupo~A), el osciloscopio (B), el módulo de
 temperatura (C) y el almacenamiento (D), con un commit de corrección
-por grupo. Los defectos encontrados se reparten en cinco familias.
+por grupo. Sus hallazgos, junto con los que aportaron las demás vías
+de detección (\cref{sec:fallas}), se agrupan en las clases de la
+\cref{tab:clases_defectos}. Cada clase dejó una regla de diseño que el
+sistema aplica hoy y que se describe en la \cref{sec:protecciones}; los
+casos concretos, con su nivel de detección y su estado, están en la
+\cref{tab:fallas_software}.
 
-\begin{enumerate}[leftmargin=*]
-  \item \emph{Éxito anunciado por envío, no por confirmación.} El
-    stop de emergencia y la aplicación de parámetros del láser
-    informaban éxito sin consultar el resultado de cada comando; el
-    estado de emisión se fijaba en marcha o detenido por haber enviado
-    la orden; el canal del osciloscopio se daba por cambiado aunque el
-    comando hubiera fallado. Tras la corrección, el estado del láser se
-    marca como incierto hasta releer su registro de estado, y la
-    selección de canal visible vuelve al canal real si el cambio
-    falla.
-  \item \emph{Señales de error sin destinatario.} Los avisos del
-    módulo de temperatura (\texttt{TempWorker.\allowbreak error}), los fallos de
-    guardado (\texttt{Almacenamiento.\allowbreak guardado\_err}) y los errores del
-    hilo de medición (\texttt{MedicionWorker.\allowbreak error}) no estaban
-    conectados a ningún elemento de la interfaz: un fallo al guardar
-    no producía aviso visible. Se conectaron al registro de la
-    ventana, igual que las del láser y el osciloscopio.
-  \item \emph{Filas que parecen limpias sin serlo.} Un sensor
-    DS18B20 ausente no activaba \texttt{error\_flag}, aunque el propio
-    mensaje del módulo lo prometía; si la escritura del archivo
-    \texttt{.npy} fallaba, la fila se registraba con
-    \texttt{error\_flag = 0} y sin archivo de muestras; y la fila de
-    una captura manual tomaba la temperatura y los parámetros del
-    láser al pulsar Guardar, no al capturar. Las tres condiciones
-    marcan ahora la fila o registran el valor del instante de la
-    captura.
-  \item \emph{Estado obsoleto.} Al agotarse los reintentos de lectura
-    del osciloscopio, el controlador seguía apuntando al enlace caído;
-    la estimación del tiempo de captura usaba la longitud de registro
-    leída al conectar; el cierre de la ventana a mitad de secuencia
-    dejaba el osciloscopio con el número de promedios de la secuencia;
-    y el hilo de temperatura giraba indefinidamente ante una racha de
-    tramas inválidas, porque solo contaba como silencio la ausencia
-    total de líneas.
-  \item \emph{Liberación prematura de la interfaz.} El stop de
-    emergencia liberaba los controles antes de que la secuencia
-    confirmara su fin, lo que permitía arrancar una secuencia nueva con
-    la anterior todavía activa.
-\end{enumerate}
+\begin{table}[H]
+  \centering
+  \caption{Clases de defectos de software y regla de diseño que resultó
+           de cada una. Los números remiten a la
+           \cref{tab:fallas_software}.}
+  \label{tab:clases_defectos}
+  \footnotesize
+  \setstretch{1.0}
+  \begin{tabular}{>{\raggedright\arraybackslash}p{2.8cm}c>{\raggedright\arraybackslash}p{5.0cm}>{\raggedright\arraybackslash}p{4.4cm}}
+    \toprule
+    \textbf{Clase} & \textbf{Defectos} & \textbf{Qué ocurría} &
+    \textbf{Regla de diseño} \\
+    \midrule
+    Estado anunciado, no confirmado & 8, 13 &
+    El paro de emergencia, la aplicación de parámetros del láser y el
+    cambio de canal informaban éxito por haber enviado la orden; la
+    bandera de conexión del osciloscopio no bajaba al agotarse los
+    reintentos; los fallos de guardado y los avisos del módulo de
+    temperatura no llegaban a la interfaz &
+    Un estado cambia con la confirmación del dispositivo; tras un
+    envío queda incierto hasta releerlo, y una lectura fallida se
+    trata como desconocida, no como detenida \\
+    \addlinespace[2pt]
+    Valor obsoleto presentado como vigente & 2, 10 &
+    Se escribía o se mostraba el último valor leído cuando ya no había
+    lectura; también se usaba la longitud de registro leída al conectar &
+    Sin lectura fresca no hay dato: \texttt{nan} en el registro y guion
+    gris en la pantalla, nunca el último valor \\
+    \addlinespace[2pt]
+    Metadatos incompletos & 3, 5, 11 &
+    Filas con bandera y sin descripción, columnas declaradas y vacías,
+    geometría tomada después de crear la sesión; un sensor ausente sin
+    bandera y un fallo de guardado sin marca &
+    Toda anomalía queda en la fila con su descripción; lo que el
+    encabezado declara se escribe en la misma rutina que obtiene la
+    captura; la geometría se fija al crear la sesión \\
+    \addlinespace[2pt]
+    Escritura silenciosa & 14 &
+    Una sesión reabierta, quizá de otro día, recibía capturas sin aviso &
+    Ninguna primera escritura en una sesión reabierta sin confirmar su
+    fecha \\
+    \addlinespace[2pt]
+    Supuesto no medido & 7, 15 &
+    Una frecuencia supuesta se registraba como dato; una propiedad del
+    contador medida con el osciloscopio en marcha continua se extendió
+    al régimen de secuencias &
+    El registro guarda lo que el instrumento reporta; una propiedad
+    medida en un régimen no se extiende a otro sin volver a medirla \\
+    \addlinespace[2pt]
+    Comunicación sin arranque explícito & 9 &
+    El firmware no reanudaba la transmisión tras \texttt{STOP} y la
+    aplicación no enviaba \texttt{START} &
+    El puerto se abre sin activar el reinicio de la placa y se envía
+    \texttt{START} al abrir \\
+    \bottomrule
+  \end{tabular}
+\end{table}
 
-La corrección de la última familia abrió un problema propio. Si la
+La corrección del paro de emergencia, que liberaba los controles antes de que la
+secuencia confirmara su fin, abrió un problema propio. Si la
 interfaz espera la confirmación del fin de la secuencia y esa
 confirmación nunca llega, la interfaz queda bloqueada. Se identificó
 al menos una causa concreta: con un paso de \SI{0}{\celsius}, valor
@@ -469,7 +492,9 @@ pasó a guardar los límites de la ventana de integración
 (\texttt{t\_apertura}, \texttt{t\_cierre} y
 \texttt{duracion\_ventana\_s}) y la lectura de cada sensor. Con la
 versión congelada, el modo por temperatura se ejercitó en el simulador
-(\cref{sec:val_simulador}), pero no se ha recorrido en el equipo.
+(\cref{sec:val_simulador}) y se recorrió después en el equipo, en las
+sesiones del 3 de noviembre de 2026
+(\cref{sec:verificacion_adquisicion}).
 
 \subsubsection*{Resumen de la validación}
 

@@ -223,3 +223,54 @@ y marca al mismo tiempo su frontera. La simulación verificó
 correctamente todo lo que estaba a su alcance; lo que quedó fuera de su
 alcance falló en dos de cinco casos.
 
+
+% ===================================================================
+% RECORTADO de cap3/3_2_validacion.tex: «Familias de defectos corregidos» (pasada 2; sustituida por la tabla de clases)
+% ===================================================================
+\subsubsection*{Familias de defectos corregidos}
+
+La auditoría se organizó en cuatro grupos, uno por subsistema: la
+ventana principal (grupo~A), el osciloscopio (B), el módulo de
+temperatura (C) y el almacenamiento (D), con un commit de corrección
+por grupo. Los defectos encontrados se reparten en cinco familias.
+
+\begin{enumerate}[leftmargin=*]
+  \item \emph{Éxito anunciado por envío, no por confirmación.} El
+    stop de emergencia y la aplicación de parámetros del láser
+    informaban éxito sin consultar el resultado de cada comando; el
+    estado de emisión se fijaba en marcha o detenido por haber enviado
+    la orden; el canal del osciloscopio se daba por cambiado aunque el
+    comando hubiera fallado. Tras la corrección, el estado del láser se
+    marca como incierto hasta releer su registro de estado, y la
+    selección de canal visible vuelve al canal real si el cambio
+    falla.
+  \item \emph{Señales de error sin destinatario.} Los avisos del
+    módulo de temperatura (\texttt{TempWorker.\allowbreak error}), los fallos de
+    guardado (\texttt{Almacenamiento.\allowbreak guardado\_err}) y los errores del
+    hilo de medición (\texttt{MedicionWorker.\allowbreak error}) no estaban
+    conectados a ningún elemento de la interfaz: un fallo al guardar
+    no producía aviso visible. Se conectaron al registro de la
+    ventana, igual que las del láser y el osciloscopio.
+  \item \emph{Filas que parecen limpias sin serlo.} Un sensor
+    DS18B20 ausente no activaba \texttt{error\_flag}, aunque el propio
+    mensaje del módulo lo prometía; si la escritura del archivo
+    \texttt{.npy} fallaba, la fila se registraba con
+    \texttt{error\_flag = 0} y sin archivo de muestras; y la fila de
+    una captura manual tomaba la temperatura y los parámetros del
+    láser al pulsar Guardar, no al capturar. Las tres condiciones
+    marcan ahora la fila o registran el valor del instante de la
+    captura.
+  \item \emph{Estado obsoleto.} Al agotarse los reintentos de lectura
+    del osciloscopio, el controlador seguía apuntando al enlace caído;
+    la estimación del tiempo de captura usaba la longitud de registro
+    leída al conectar; el cierre de la ventana a mitad de secuencia
+    dejaba el osciloscopio con el número de promedios de la secuencia;
+    y el hilo de temperatura giraba indefinidamente ante una racha de
+    tramas inválidas, porque solo contaba como silencio la ausencia
+    total de líneas.
+  \item \emph{Liberación prematura de la interfaz.} El stop de
+    emergencia liberaba los controles antes de que la secuencia
+    confirmara su fin, lo que permitía arrancar una secuencia nueva con
+    la anterior todavía activa.
+\end{enumerate}
+
