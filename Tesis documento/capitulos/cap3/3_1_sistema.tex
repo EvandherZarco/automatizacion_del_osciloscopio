@@ -55,7 +55,18 @@ pruebas de la interfaz sin hardware (\cref{sec:validacion}). La
 ocupa la posición central y coordina a los tres instrumentos.
 
 % FIG-RECORTE
-% \input{capitulos/fig_arquitectura}
+\begin{figure}[H]
+  \centering
+  \figurapendiente
+  \caption[Arquitectura de módulos del sistema de automatización]{%
+    Arquitectura de módulos del sistema de automatización. Las flechas
+    continuas indican control o transferencia de datos; las discontinuas,
+    la vigilancia pasiva del estado de conexión. El módulo de medición
+    coordina la secuencia y es el único que escribe en el registro de
+    sesión. El modo seguro actúa exclusivamente sobre el láser: la
+    configuración del osciloscopio no se modifica desde el programa.}
+  \label{fig:arquitectura}
+\end{figure}
 
 El módulo de conexión y monitoreo no participa en la secuencia: vigila
 los enlaces de forma continua y en paralelo, de modo que la pérdida de
@@ -174,27 +185,27 @@ subsección corresponden a la interfaz de principios de septiembre de
 2026; los elementos incorporados después se describen en el texto.
 
 % FIG-RECORTE
-% \begin{figure}[H]
-%   \centering
-%   \begin{subfigure}[t]{0.48\textwidth}
-%     \centering
-%     \includegraphics[width=\textwidth]{ventana_laser}
-%     \caption{Control del láser.}
-%     \label{fig:ventana_laser}
-%   \end{subfigure}
-%   \hfill
-%   \begin{subfigure}[t]{0.48\textwidth}
-%     \centering
-%     \includegraphics[width=\textwidth]{ventana_osciloscopio}
-%     \caption{Control del osciloscopio.}
-%     \label{fig:ventana_osciloscopio}
-%   \end{subfigure}
-%   \caption{Ventanas de control individual. La de la derecha muestra el
-%            bloque de escalas y disparo consultado al instrumento, que la
-%            aplicación no escribe; el modo de adquisición y el número de
-%            promedios sí se aplican desde esa ventana.}
-%   \label{fig:ventanas_individuales}
-% \end{figure}
+\begin{figure}[H]
+  \centering
+  \begin{subfigure}[t]{0.48\textwidth}
+    \centering
+    \figurapendiente
+    \caption{Control del láser.}
+    \label{fig:ventana_laser}
+  \end{subfigure}
+  \hfill
+  \begin{subfigure}[t]{0.48\textwidth}
+    \centering
+    \figurapendiente
+    \caption{Control del osciloscopio.}
+    \label{fig:ventana_osciloscopio}
+  \end{subfigure}
+  \caption{Ventanas de control individual. La de la derecha muestra el
+           bloque de escalas y disparo consultado al instrumento, que la
+           aplicación no escribe; el modo de adquisición y el número de
+           promedios sí se aplican desde esa ventana.}
+  \label{fig:ventanas_individuales}
+\end{figure}
 
 La ventana principal del modo combinado
 (\texttt{app/gui/ventana\_ambos.py}) se organiza en tres pestañas, que
@@ -234,38 +245,38 @@ se muestran en la \cref{fig:ventana_ambos}:
 \end{itemize}
 
 % FIG-RECORTE
-% \begin{figure}[H]
-%   \centering
-%   \begin{subfigure}[t]{0.9\textwidth}
-%     \centering
-%     \includegraphics[width=\textwidth]{ventana_auto_1}
-%     \caption{Pestaña \textit{Parámetros}.}
-%     \label{fig:ventana_ambos_parametros}
-%   \end{subfigure}
-%
-%   \vspace{0.6em}
-%
-%   \begin{subfigure}[t]{0.9\textwidth}
-%     \centering
-%     \includegraphics[width=\textwidth]{ventana_auto_2}
-%     \caption{Pestaña \textit{Medición}.}
-%     \label{fig:ventana_ambos_medicion}
-%   \end{subfigure}
-%
-%   \vspace{0.6em}
-%
-%   \begin{subfigure}[t]{0.9\textwidth}
-%     \centering
-%     \includegraphics[width=\textwidth]{ventana_auto_3}
-%     \caption{Pestaña \textit{Visualizar datos}.}
-%     \label{fig:ventana_ambos_visualizacion}
-%   \end{subfigure}
-%   \caption{Ventana principal del modo combinado. La barra superior
-%            conserva en las tres pestañas los indicadores de conexión de
-%            los tres dispositivos, las lecturas de los cuatro sensores de
-%            temperatura y el botón de parada de emergencia.}
-%   \label{fig:ventana_ambos}
-% \end{figure}
+\begin{figure}[H]
+  \centering
+  \begin{subfigure}[t]{0.9\textwidth}
+    \centering
+    \figurapendiente
+    \caption{Pestaña \textit{Parámetros}.}
+    \label{fig:ventana_ambos_parametros}
+  \end{subfigure}
+
+  \vspace{0.6em}
+
+  \begin{subfigure}[t]{0.9\textwidth}
+    \centering
+    \figurapendiente
+    \caption{Pestaña \textit{Medición}.}
+    \label{fig:ventana_ambos_medicion}
+  \end{subfigure}
+
+  \vspace{0.6em}
+
+  \begin{subfigure}[t]{0.9\textwidth}
+    \centering
+    \figurapendiente
+    \caption{Pestaña \textit{Visualizar datos}.}
+    \label{fig:ventana_ambos_visualizacion}
+  \end{subfigure}
+  \caption{Ventana principal del modo combinado. La barra superior
+           conserva en las tres pestañas los indicadores de conexión de
+           los tres dispositivos, las lecturas de los cuatro sensores de
+           temperatura y el botón de parada de emergencia.}
+  \label{fig:ventana_ambos}
+\end{figure}
 
 La barra superior muestra el estado de conexión de cada dispositivo
 (láser, osciloscopio, ESP32) mediante indicadores de color: verde para

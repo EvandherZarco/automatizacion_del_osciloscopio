@@ -10,53 +10,53 @@ sustenta y establece el procedimiento para recalcularla cuando la
 geometría del montaje difiere de la nominal.
 
 % FIG-RECORTE
-% \begin{figure}[H]
-%   \centering
-%   \begin{subfigure}[b]{0.48\textwidth}
-%     \centering
-%     \includegraphics[width=\textwidth]{base}
-%     \caption{Base (pieza 1).}
-%     \label{fig:plano_base}
-%   \end{subfigure}
-%   \hfill
-%   \begin{subfigure}[b]{0.48\textwidth}
-%     \centering
-%     \includegraphics[width=\textwidth]{pared_laser_entrada}
-%     \caption{Pared larga con la ranura de la ventana de cuarzo (pieza 2).}
-%     \label{fig:plano_pared_laser}
-%   \end{subfigure}
-%
-%   \vspace{1em}
-%
-%   \begin{subfigure}[b]{0.32\textwidth}
-%     \centering
-%     \includegraphics[width=\textwidth]{pared_hidrofono}
-%     \caption{Cabezal, \diameter\SI{12}{\milli\meter} (pieza 3).}
-%     \label{fig:plano_pared_h1}
-%   \end{subfigure}
-%   \hfill
-%   \begin{subfigure}[b]{0.32\textwidth}
-%     \centering
-%     \includegraphics[width=\textwidth]{pared_hidrofono_2}
-%     \caption{Cuerpo, \diameter\SI{16}{\milli\meter} (pieza 4).}
-%     \label{fig:plano_pared_h2}
-%   \end{subfigure}
-%   \hfill
-%   \begin{subfigure}[b]{0.32\textwidth}
-%     \centering
-%     \includegraphics[width=\textwidth]{pared_hidrofono_3}
-%     \caption{Cable, \diameter\SI{24}{\milli\meter} (pieza 5).}
-%     \label{fig:plano_pared_h3}
-%   \end{subfigure}
-%
-%   \caption{Planos de fabricación de la celda fotoacústica, en acrílico de
-%            \SI{3}{\milli\meter} de espesor y con cotas en milímetros. Las
-%            tres placas de la pared del hidrófono son coaxiales y sus
-%            barrenos alojan sucesivamente el cabezal, el cuerpo y el cable
-%            del transductor, de modo que su eje se mantenga perpendicular
-%            al del haz. Tomados de Rangel Mendieta \cite{Rangel2023}.}
-%   \label{fig:planos_celda}
-% \end{figure}
+\begin{figure}[H]
+  \centering
+  \begin{subfigure}[b]{0.48\textwidth}
+    \centering
+    \figurapendiente
+    \caption{Base (pieza 1).}
+    \label{fig:plano_base}
+  \end{subfigure}
+  \hfill
+  \begin{subfigure}[b]{0.48\textwidth}
+    \centering
+    \figurapendiente
+    \caption{Pared larga con la ranura de la ventana de cuarzo (pieza 2).}
+    \label{fig:plano_pared_laser}
+  \end{subfigure}
+
+  \vspace{1em}
+
+  \begin{subfigure}[b]{0.32\textwidth}
+    \centering
+    \figurapendiente
+    \caption{Cabezal, \diameter\SI{12}{\milli\meter} (pieza 3).}
+    \label{fig:plano_pared_h1}
+  \end{subfigure}
+  \hfill
+  \begin{subfigure}[b]{0.32\textwidth}
+    \centering
+    \figurapendiente
+    \caption{Cuerpo, \diameter\SI{16}{\milli\meter} (pieza 4).}
+    \label{fig:plano_pared_h2}
+  \end{subfigure}
+  \hfill
+  \begin{subfigure}[b]{0.32\textwidth}
+    \centering
+    \figurapendiente
+    \caption{Cable, \diameter\SI{24}{\milli\meter} (pieza 5).}
+    \label{fig:plano_pared_h3}
+  \end{subfigure}
+
+  \caption{Planos de fabricación de la celda fotoacústica, en acrílico de
+           \SI{3}{\milli\meter} de espesor y con cotas en milímetros. Las
+           tres placas de la pared del hidrófono son coaxiales y sus
+           barrenos alojan sucesivamente el cabezal, el cuerpo y el cable
+           del transductor, de modo que su eje se mantenga perpendicular
+           al del haz. Tomados de Rangel Mendieta \cite{Rangel2023}.}
+  \label{fig:planos_celda}
+\end{figure}
 
 \section*{Hipótesis geométricas}
 
@@ -97,7 +97,18 @@ La \cref{fig:celda_corte} reúne las cuatro hipótesis en el plano sobre
 el que se resuelve el problema.
 
 % FIG-RECORTE
-% \input{capitulos/fig_celda_corte}
+\begin{figure}[H]
+  \centering
+  \figurapendiente
+  \caption{Corte de la celda en el plano que contiene al hidrófono. El
+           haz se ve de punta, a la altura $h_f$ sobre el fondo que fija
+           la ranura de la ventana de cuarzo. La separación $d$ entre el
+           eje del haz y la cara sensora se mide en cada sesión. Las
+           líneas punteadas son las trayectorias de las primeras
+           reflexiones en la superficie libre y en el fondo. La escala vertical está
+           exagerada respecto de la horizontal.}
+  \label{fig:celda_corte}
+\end{figure}
 
 \section*{Posición del haz dentro de la cavidad}
 

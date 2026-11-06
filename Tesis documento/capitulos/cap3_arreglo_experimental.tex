@@ -786,7 +786,16 @@ la línea afectada identifica al dispositivo. La
 \cref{fig:modulo_temperatura} muestra esta topología.
 
 % FIG-RECORTE
-% \input{capitulos/fig_modulo_temperatura}
+\begin{figure}[H]
+  \centering
+  \figurapendiente
+  \caption{Módulo de medición de temperatura. Cada sensor DS18B20 ocupa
+           un bus 1-Wire propio, con su resistencia de polarización y
+           alimentación externa. La topología evita que el fallo de un
+           dispositivo degrade la lectura de los restantes y hace que la
+           línea afectada identifique al sensor.}
+  \label{fig:modulo_temperatura}
+\end{figure}
 
 La comunicación con la computadora de control se realiza por enlace
 serial a \SI{115200}{baud}. El microcontrolador transmite cada segundo
