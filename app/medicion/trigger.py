@@ -47,7 +47,7 @@ VENTANA_MEDIANA = 3  # lecturas usadas por el filtro de mediana móvil
 CONFIRMACIONES_UMBRAL = 2  # lecturas consecutivas que validan un cruce
 TIMEOUT_ADVERTENCIA_S = 30.0  # sin lectura fresca: se avisa
 TIMEOUT_ABORTO_S = 300.0  # sin lectura fresca: se aborta la secuencia
-MARGEN_UMBRAL = 0.1  # semiancho de la banda alrededor del objetivo
+MARGEN_UMBRAL = 0.02  # semiancho de la banda alrededor del objetivo
 
 
 class TriggerWorker(QObject):
