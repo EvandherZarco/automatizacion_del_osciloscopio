@@ -516,6 +516,9 @@ class OsciloscopioController(QObject):
                 return False
             self._ventana = None
             try:
+                self._inst.write("ACQ:STATE STOP")
+                self._inst.write("ACQ:MODE AVERAGE")
+                self._inst.write("ACQ:STOPAFTER SEQUENCE")
                 testigo, reinicio_visto = self._correr_hasta_reinicio(self._inst)
                 escalas = self._leer_escalas(self._inst)
             except Exception as exc:
