@@ -55,18 +55,7 @@ pruebas de la interfaz sin hardware (\cref{sec:validacion}). La
 ocupa la posición central y coordina a los tres instrumentos.
 
 % FIG-RECORTE
-\begin{figure}[H]
-  \centering
-  \figurapendiente
-  \caption[Arquitectura de módulos del sistema de automatización]{%
-    Arquitectura de módulos del sistema de automatización. Las flechas
-    continuas indican control o transferencia de datos; las discontinuas,
-    la vigilancia pasiva del estado de conexión. El módulo de medición
-    coordina la secuencia y es el único que escribe en el registro de
-    sesión. El modo seguro actúa exclusivamente sobre el láser: la
-    configuración del osciloscopio no se modifica desde el programa.}
-  \label{fig:arquitectura}
-\end{figure}
+\input{capitulos/fig_arquitectura}
 
 El módulo de conexión y monitoreo no participa en la secuencia: vigila
 los enlaces de forma continua y en paralelo, de modo que la pérdida de
