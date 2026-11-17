@@ -11,8 +11,8 @@ espectrofotometría de transmisión, lo que la hace apropiada para
 líquidos que son esencialmente transparentes a la longitud de onda de
 excitación. Su costo es operativo: cada punto experimental exige
 coordinar el disparo del láser, la adquisición del osciloscopio y el
-registro de la temperatura de la muestra, una coordinación que
-realizada a mano resulta lenta y difícil de reproducir entre sesiones.
+registro de la temperatura de la muestra, una coordinación que,
+realizada a mano, resulta lenta y difícil de reproducir entre sesiones.
 
 Este trabajo desarrolla el sistema de control e instrumentación de un
 arreglo fotoacústico del Laboratorio de Fotofísica y Películas Delgadas
@@ -49,13 +49,14 @@ banderas de estado del código dio lugar a pruebas de la interfaz sin
 hardware: 51 casos, más 12 de la escritura en una sesión reabierta. Lo
 que depende de la respuesta del equipo se verificó en sesiones de
 laboratorio, en las que el sistema fue operado por el M. en C. Arturo
-Ronquillo Arvizu con el autor conectado de forma remota. Con la versión
-congelada, ambos modos automáticos se recorrieron sobre agua con los
-tres instrumentos: en régimen estable, la amplitud pico a pico repite
-dentro de unas décimas de por ciento, mientras que al inicio de una
-secuencia deriva hasta \SI{13}{\percent} y entre sesiones hasta
-\SI{42}{\percent}, derivas que el arreglo, al no medir la energía del
-pulso, no permite atribuir al láser ni a la muestra.
+Ronquillo Arvizu con el autor conectado de forma remota. Ambos modos
+automáticos se recorrieron sobre agua con los tres instrumentos: entre
+capturas consecutivas la amplitud de la señal principal se dispersa unas
+décimas de por ciento en torno a una tendencia, pero a lo largo de una
+sesión deriva de forma monótona hasta un \SI{34}{\percent}, y a la misma
+temperatura llegó a caer \SI{42}{\percent} en media hora; el arreglo, al
+no medir la energía del pulso, no permite atribuir esa deriva al láser,
+al transductor ni a la muestra.
 
 El criterio con el que se juzga el resultado no es la ausencia de
 fallas, inevitable en un sistema que integra tres instrumentos

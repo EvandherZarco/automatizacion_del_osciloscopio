@@ -27,7 +27,7 @@ salvedades se desarrollan en las limitaciones que cierran esta sección.
 \begin{table}[H]
   \centering
   \caption{Objetivos particulares, evidencia que los respalda y estado
-           con la versión congelada del código.}
+           con la versión entregada del código (\texttt{v1.0-tesis}).}
   \label{tab:objetivos_evidencia}
   \footnotesize
   \setstretch{1.0}
@@ -57,8 +57,8 @@ salvedades se desarrollan en las limitaciones que cierran esta sección.
     está definida y no aplicada \\
     \addlinespace[2pt]
     4 & Modos de secuencia por tiempo y por temperatura &
-    \cref{sec:secuencia}, \cref{sec:val_simulador} y
-    \cref{sec:val_instrumento} &
+    \cref{sec:secuencia}, \cref{sec:val_simulador},
+    \cref{sec:val_instrumento} y \cref{sec:prueba_integrada} &
     Cumplido; ambos modos recorridos con el equipo, el de temperatura
     sobre agua en enfriamiento pasivo \\
     \addlinespace[2pt]
@@ -72,9 +72,11 @@ salvedades se desarrollan en las limitaciones que cierran esta sección.
     \cref{sec:validacion}, \cref{sec:val_auditoria} y
     \cref{tab:resumen_validacion}; 51 casos de interfaz y 12 de sesión
     reabierta &
-    Cumplido; simulador y verificador corridos con la versión congelada
-    sin hardware; la prueba de mutación del verificador es de una
-    versión anterior \\
+    Cumplido con salvedades; simulador, verificador y pruebas de la
+    interfaz corridos sin hardware con la versión del 3 de octubre; el
+    simulador, repetido el 3 de noviembre, mostró un caso no
+    determinista (caso~6); la prueba de mutación del verificador es de
+    una versión anterior \\
     \bottomrule
   \end{tabular}
 \end{table}
@@ -99,16 +101,17 @@ aplicó. Entrega menos control y más confianza, y para un sistema cuyo
 producto son datos destinados a sostener afirmaciones, la confianza es
 lo que importa.
 
-Las sesiones con la versión congelada (\cref{sec:sesiones_congeladas})
-acotan cuánto vale ese dato. En régimen estable, capturas sucesivas
-repiten la amplitud pico a pico dentro de 0.25 a \SI{0.34}{\percent},
-del mismo orden que la sesión en la que el sistema distinguió un cambio
-deliberado de un parámetro del láser (\cref{sec:discriminacion}). Esa
-repetibilidad no se extiende más allá de la sesión: al inicio de una
-secuencia la amplitud deriva hasta \SI{12.8}{\percent} y entre
-sesiones hasta \SI{42}{\percent}. El sistema no oculta esas derivas;
-las registra con la información suficiente para verlas, aunque no para
-atribuirlas, lo que exige medir la energía del pulso.
+Las sesiones de noviembre (\cref{sec:sesiones_congeladas}) acotan
+cuánto vale ese dato. Entre capturas consecutivas, la amplitud de la
+señal principal se dispersa de 0.3 a \SI{0.6}{\percent} en torno a su
+tendencia; pero esa tendencia es una deriva monótona de hasta
+\SI{34}{\percent} a lo largo de una sesión, y a la misma temperatura la
+amplitud cayó \SI{42}{\percent} en menos de media hora. Las amplitudes
+registradas solo son comparables entre capturas cercanas en el tiempo.
+El sistema no oculta esa deriva; la registra con la información
+suficiente para verla ---la marca de tiempo, la temperatura y los
+parámetros del láser de cada captura---, aunque no para atribuirla, lo
+que exige medir la energía del pulso.
 
 \subsection*{La verificación como método}
 
@@ -154,11 +157,13 @@ noviembre de 2026, que revelaron la falla del testigo de adquisición
 noviembre, marcó en el momento de ocurrir una sesión completa con el
 promedio acumulado (\cref{sec:sesiones_congeladas}). La prueba
 integrada (\cref{sec:prueba_integrada}) se apoya en las sesiones del 3 y
-del 5 de noviembre con la versión congelada: en régimen estable la
-amplitud repite al nivel de unas décimas de por ciento, pero deriva
-hasta \SI{12.8}{\percent} al inicio de una secuencia y hasta
-\SI{42}{\percent} entre sesiones, sin que pueda atribuirse al láser ni a
-la muestra mientras el arreglo no mida la energía del pulso. No queda
+del 5 de noviembre: entre capturas consecutivas la amplitud se dispersa
+unas décimas de por ciento en torno a su tendencia, pero deriva hasta
+\SI{34}{\percent} a lo largo de una sesión, sin que pueda atribuirse al
+láser, al transductor ni a la muestra mientras el arreglo no mida la
+energía del pulso; por la misma razón, la sesión del 25 de agosto
+registra el cambio de un parámetro del láser pero no permite atribuirle
+la diferencia de amplitud. No queda
 establecido el
 comportamiento del sistema sobre otros líquidos, intervalos más amplios
 o regímenes distintos del enfriamiento pasivo, y el modo por temperatura
@@ -170,8 +175,8 @@ el equipo.
 
 La segunda es que la calibración relativa entre los cuatro sensores de
 temperatura quedó definida pero no aplicada, de modo que las lecturas
-individuales arrastran la dispersión de fábrica del conjunto, que no se
-cuantificó. En las sesiones del 3 de noviembre de 2026, con la muestra
+individuales arrastran la dispersión entre unidades, que no se
+cuantificó en condiciones controladas. En las sesiones del 3 de noviembre de 2026, con la muestra
 entre 29 y \SI{42}{\celsius}, el sensor S4 registró entre 0.8 y
 \SI{1.8}{\celsius} menos que la media de los otros tres, mientras que
 con agua a \SI{15.6}{\celsius} la diferencia fue de
@@ -195,8 +200,12 @@ respuesta sin tiempo límite, y si nadie responde el láser permanece
 emitiendo aunque el texto del diálogo anuncie lo contrario. Es un
 recordatorio, no un mecanismo automático.
 
-La quinta agrupa restricciones menores. Los metadatos del láser se
-escriben una sola vez, al crear la sesión. El selector de modo de
+La quinta agrupa restricciones menores. Los parámetros del láser en
+\texttt{metadatos\_\allowbreak{}sesion.txt} se escriben una sola vez, al crear la
+sesión, aunque cada fila del registro guarda los vigentes en su
+captura. La interfaz no valida que la temperatura inicial de un barrido
+sea mayor que la final, y ante un intervalo invertido emite un aviso
+engañoso (\cref{sec:val_simulador}). El selector de modo de
 adquisición parte en \textit{Sample} sin leer el modo vigente del
 osciloscopio. La bandera del monitor de conexiones se actualiza con un
 ciclo de retraso (falla~12). Y el modo degradado, al que la interfaz
@@ -230,15 +239,10 @@ la celda, y debe hacerse junto con ella.
 \subsection*{Estimador de arribo y la pregunta abierta}
 
 Ningún criterio de umbral resultó robusto frente a la pérdida de
-amplitud que acompaña al enfriamiento (falla~6). Los estimadores que
-no dependen de umbral ---la correlación cruzada contra una captura de
-referencia y el instante del máximo--- coinciden en un desplazamiento
-hacia tiempos \emph{menores} al enfriarse, de signo opuesto al que
-predice la dependencia de la velocidad del sonido con la temperatura, y
-sus magnitudes no coinciden entre sí. En el barrido del 3 de noviembre,
-en cambio, el instante del máximo se desplazó hacia tiempos mayores al
-enfriarse (\cref{sec:sesiones_congeladas}), lo que agrega un dato a la
-pregunta sin resolverla. Las explicaciones posibles son
+amplitud que acompaña al enfriamiento (falla~6). En los barridos de noviembre el
+instante del máximo se desplazó hacia tiempos mayores en uno y hacia
+tiempos menores en los otros dos (\cref{sec:sesiones_congeladas}), de
+modo que tampoco su sentido es consistente entre sesiones. Las explicaciones posibles son
 instrumental (la fuente de disparo dependería de la propia señal),
 geométrica (el hidrófono sin sujeción rígida y la distancia medida con
 flexómetro) o de interpretación (la característica seguida podría ser
@@ -260,7 +264,7 @@ agitación continua--- cuyo resultado permitiría cuantificar y reducir la
 dispersión entre sensores. La reconexión automática reintenta sobre el
 puerto declarado; resolver la reasignación del puerto sin recorrer
 puertos ajenos exigiría identificar al módulo por su descriptor de
-dispositivo (\cref{sec:val_instrumento}). Una montura que fije la
+dispositivo. Una montura que fije la
 distancia hidrófono--haz, o su medición con un instrumento de mayor
 resolución, reduciría la incertidumbre que hoy domina el cálculo de la
 ventana útil (\cref{ap:tiempos_arribo}).
@@ -275,8 +279,8 @@ se mantenga dentro de \SI{5}{\percent}. Conocido ese tiempo, el sistema
 podría detener el láser entre ventanas y reanudarlo con esa anticipación
 respecto de la apertura que predice la velocidad de enfriamiento,
 reduciendo la energía depositada en la muestra. La misma
-caracterización aclararía si la deriva al inicio de las secuencias en
-modo tiempo (\cref{sec:repetibilidad}) se debe al láser.
+caracterización aclararía si la deriva de la amplitud a lo largo de las
+sesiones (\cref{sec:repetibilidad}) se debe al láser.
 
 \subsection*{Mejoras al software}
 
@@ -291,8 +295,11 @@ láser; cubrir ese caso, y dotar al aviso de inactividad de un plazo
 vencido el cual se ejecute el mismo procedimiento que el paro de
 emergencia, lo convertiría en la protección que su texto anuncia. El
 selector de modo de adquisición debería leer el modo vigente al
-conectarse. La tasa de adquisición que registra el osciloscopio
-(entre 9.2 y 10.0 por segundo en las ventanas del modo temperatura,
+conectarse, y la aplicación de los parámetros del láser y del canal del
+osciloscopio debería confirmarse releyendo el valor aplicado, como ya
+se hace con el estado del láser (\cref{sec:protecciones}). La tasa de
+adquisición que registra el osciloscopio
+(entre 9.1 y 10.0 por segundo en las ventanas del modo temperatura,
 según la sesión)
 debería contrastarse con una lectura independiente del láser, como el
 contador de pulsos que este expone y que la interfaz ya muestra.

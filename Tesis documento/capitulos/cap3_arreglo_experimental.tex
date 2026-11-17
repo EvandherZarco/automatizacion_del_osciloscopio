@@ -66,7 +66,7 @@ fuente. De las dos ventanas de cuarzo, la rectangular es la que aloja
 el ingreso del haz en una de las paredes largas, según se describe en
 la \cref{sec:excitacion}.
 
-El ensamble resulta en una cavidad interna aproximada de
+El ensamble (\cref{fig:celda_completa}) resulta en una cavidad interna aproximada de
 $200 \times 70 \times \SI{70}{\milli\meter}$. El volumen de muestra
 empleado es de \SI{400}{\milli\liter} \cite{Rangel2023}, que
 corresponde a un tirante de líquido de
@@ -82,7 +82,7 @@ Este valor no es arbitrario. La ranura que aloja la ventana
 rectangular de cuarzo en la pared larga abarca de \SI{12}{\milli\meter}
 a \SI{29}{\milli\meter} de altura medidos desde el fondo de la celda,
 de modo que el volumen de \SI{400}{\milli\liter} corresponde
-precisamente al nivel mínimo que cubre por completo la ventana de
+aproximadamente al nivel mínimo que cubre por completo la ventana de
 entrada del haz. Un volumen menor dejaría parte de la ventana en
 contacto con aire y modificaría la trayectoria óptica; uno mayor no
 aporta beneficio y aproxima la superficie libre al eje del haz.
@@ -153,14 +153,17 @@ hipótesis geométricas empleadas, se presenta en el
     Señal directa                      &  10 &  6.8 \\
     Reflexión en superficie libre      &  19 & 12.9 \\
     Reflexión en el fondo              &  42 & 28.5 \\
-    Reflexión en paredes transversales & 100 & 67.6 \\
+    Pared transversal (solo ida)       & 100 & 67.6 \\
     \bottomrule
   \end{tabular}
 \end{table}
 
-De la \cref{tab:tiempos_celda} se desprende que la ventana temporal
-libre de reflexiones es de aproximadamente \SI{6}{\micro\second}
-contados a partir de la llegada de la señal directa. Este intervalo
+De la \cref{tab:tiempos_celda} se desprende que, con la geometría
+nominal, la ventana temporal libre de reflexiones es de aproximadamente
+\SI{6}{\micro\second} contados a partir de la llegada de la señal
+directa; con las separaciones registradas en las sesiones de medición,
+mayores que la nominal, se reduce a entre 1.7 y
+\SI{2.8}{\micro\second} (\cref{ap:tiempos_arribo}). Este intervalo
 es el que contiene el pulso bipolar de generación fotoacústica en
 volumen, y determina tanto la base de tiempo que debe configurarse
 en el osciloscopio como la longitud de registro necesaria para
@@ -182,15 +185,19 @@ dentro de un registro adquirido, y la distinción importa porque el
 \cref{cap:resultados} reporta instantes que difieren de ellos en varias
 decenas de microsegundos.
 
-La razón es instrumental. El eje temporal reconstruido mediante la
-\cref{eq:conv_tiempo} tiene su cero en el evento de disparo, y la
-posición de ese evento dentro del registro la fija el operador con el
-control de posición horizontal del osciloscopio al preparar la sesión.
-Ese control no se opera desde la aplicación, según la decisión de
-diseño expuesta en la \cref{sec:decisiones}, y su ajuste no queda
-registrado como un desplazamiento conocido. En consecuencia, el
-instante absoluto en que aparece la señal dentro de un registro
-depende del montaje del día y no es comparable entre sesiones.
+Una razón es que el instante que reporta ese capítulo no es el de
+arribo, sino el del máximo de la señal, que llega después del inicio de
+la perturbación. El eje temporal reconstruido mediante la
+\cref{eq:conv_tiempo} tiene su cero en el evento de disparo: el
+preámbulo de cada registro incluye la posición del disparo
+(\texttt{PT\_OFF}) y el desplazamiento horizontal (\texttt{XZERO}, nulo
+en todas las sesiones), de modo que mover la posición horizontal del
+osciloscopio cambia el índice en que aparece la señal, no el instante
+reconstruido. Aun así, el instante absoluto depende de la geometría del
+día ---la separación hidrófono--haz, que se restablece en cada
+sesión--- y del punto en que dispara el fotodiodo, que se retira y se
+reinstala entre sesiones, por lo que no se compara entre sesiones
+distintas.
 
 Lo que sí es comparable, y lo que la \cref{tab:tiempos_celda} predice,
 son las \emph{diferencias} entre arribos: el intervalo de
@@ -198,8 +205,9 @@ aproximadamente \SI{6}{\micro\second} que separa la señal directa de
 la primera reflexión se conserva con independencia de dónde caiga el
 conjunto dentro del registro. Por esa razón, las magnitudes que el
 \cref{cap:resultados} emplea para juzgar la repetibilidad del sistema
-son intervalos y dispersiones, y no posiciones absolutas sobre el eje
-de tiempos.
+son amplitudes dentro de una ventana fija del eje reconstruido,
+intervalos y dispersiones, y no posiciones absolutas comparadas entre
+sesiones.
 
 \subsection*{Condiciones de operación y limitaciones identificadas}
 
@@ -364,8 +372,9 @@ De acuerdo con la \cref{eq:presion_general}, la amplitud registrada
 es proporcional al producto $E_0\,\alpha$, de modo que las
 variaciones de amplitud entre mediciones no pueden atribuirse de
 manera unívoca al coeficiente de absorción del medio. Por esta razón,
-el análisis de las señales en este trabajo se sustenta en su forma
-temporal y en su contenido espectral, y no en su amplitud absoluta.
+el análisis de las señales en este trabajo se limita a amplitudes
+relativas entre capturas de una misma sesión y a su forma temporal, y
+no a su amplitud absoluta.
 
 % ============================================================
 \section{Fuente de excitación y trayectoria óptica}
@@ -380,7 +389,8 @@ características relevantes se resumen en la \cref{tab:laser}.
 
 \begin{table}[H]
   \centering
-  \caption{Características del láser de excitación.}
+  \caption{Características del láser de excitación, según la
+    documentación del fabricante \cite{EksplaNL300}.}
   \label{tab:laser}
   \begin{tabular}{ll}
     \toprule
@@ -391,7 +401,7 @@ características relevantes se resumen en la \cref{tab:laser}.
     Longitudes de onda & \SI{1064}{\nano\meter} (fundamental),
                          \SI{532}{\nano\meter} (segundo armónico) \\
     Longitud de onda empleada & \SI{1064}{\nano\meter} \\
-    Duración de pulso & \SI{7}{\nano\second} \\
+    Duración de pulso (FWHM) & \SIrange{3}{6}{\nano\second} \\
     Frecuencia de repetición & \SI{10}{\hertz} (nominal) \\
     Interfaz de control & RS-232 \\
     \bottomrule
@@ -403,10 +413,12 @@ de \SI{1064}{\nano\meter}. La frecuencia de repetición de
 \SI{10}{\hertz} de la \cref{tab:laser} es el valor nominal del
 fabricante, y el sistema no la emplea para contar pulsos: el número de
 adquisiciones que integra cada captura se lee del propio osciloscopio
-(\texttt{ACQ:NUMACQ?}) y se guarda junto con ella. La tasa de
-adquisición medida en el osciloscopio fue de aproximadamente 9.3
-adquisiciones por segundo, valor que el software utiliza únicamente
-para estimar la duración de una captura.
+(\texttt{ACQ:NUMACQ?}) y se guarda junto con ella. El software usa el
+valor nominal de \SI{10}{\hertz} solo para estimar la duración de una
+captura y para acotar el exceso de adquisiciones en modo temperatura. La
+tasa medida en el osciloscopio varió entre sesiones: de 9.1 a 10.0
+adquisiciones por segundo el 3 de noviembre y de 9.2 a 9.4 el 5 de
+noviembre de 2026.
 
 \subsection*{Control de energía}
 
@@ -473,8 +485,9 @@ La \cref{fig:esquema_optico} resume el arreglo y la
 
 Los osciloscopios de la serie TDS5000B implementan el protocolo
 VXI-11, un estándar de control de instrumentos sobre TCP/IP basado en
-llamadas a procedimiento remoto. La comunicación se establece con la
-biblioteca \texttt{python-vxi11}, que expone las operaciones de
+llamadas a procedimiento remoto \cite{VXI11}. La comunicación se
+establece con la biblioteca \texttt{python-vxi11} \cite{PythonVXI11},
+que expone las operaciones de
 escritura y consulta necesarias para enviar comandos SCPI y recibir
 sus respuestas.
 
@@ -497,7 +510,8 @@ responda a nivel de red.
 Antes de cualquier adquisición, el módulo de control establece los
 parámetros que gobiernan el formato de transferencia de la forma de
 onda, mediante la secuencia de comandos SCPI de la
-\cref{lst:config_base}.
+\cref{lst:config_base}, definidos en el manual de programación del
+instrumento \cite{TektronixTDS5000B}.
 
 \begin{lstlisting}[caption={Configuración base de la transferencia de
     forma de onda.},
@@ -653,14 +667,14 @@ adicional.
 
 El láser expone su control remoto a través de un enlace RS-232 y de
 una biblioteca de enlace dinámico proporcionada por el fabricante,
-\texttt{REMOTECONTROL64.dll}, acompañada de un archivo de
+\texttt{REMOTECONTROL64.dll} \cite{EksplaRemote}, acompañada de un archivo de
 configuración que declara los registros accesibles del instrumento y
 sus valores admisibles.
 
 La biblioteca se carga desde Python mediante \texttt{ctypes.WinDLL}.
-Al tratarse de una biblioteca exclusivamente de \SI{64}{bits}, debe
+Al tratarse de una biblioteca exclusivamente de 64~bits, debe
 cargarse en el espacio de proceso de un intérprete de la misma
-arquitectura; el uso de Python~3.12.10 de \SI{64}{bits} satisface esta
+arquitectura; el uso de Python~3.12.10 de 64~bits satisface esta
 condición sin requerir un proceso puente ni capa intermedia alguna.
 
 La carga presenta una particularidad: la biblioteca resuelve sus
@@ -715,7 +729,7 @@ carácter no reentrante del enlace RS-232 subyacente.
 El sistema incorpora un procedimiento que devuelve el láser a una
 condición de operación segura. Dicho procedimiento se activa ante
 cuatro condiciones: conclusión de una secuencia de medición, ya sea
-normal o por aborto; parada de emergencia solicitada por el operador;
+normal o por aborto; paro de emergencia solicitado por el operador;
 fallo irrecuperable de comunicación con el láser o con el osciloscopio
 tras agotar los tres reintentos de reconexión; y cierre de la ventana
 de operación o regreso a la ventana de bienvenida con el láser
@@ -784,8 +798,9 @@ variaciones observadas.
 
 \subsection*{Arquitectura del módulo}
 
-El módulo se compone de un microcontrolador ESP32 WROOM-32 y cuatro
-sensores digitales de temperatura DS18B20 en encapsulado sumergible.
+El módulo se compone de un microcontrolador ESP32 WROOM-32
+\cite{EspressifWROOM32} y cuatro sensores digitales de temperatura
+DS18B20 \cite{MaximDS18B20} en encapsulado sumergible.
 Cada sensor se conecta a un bus 1-Wire independiente, sobre las líneas
 de entrada y salida de propósito general 16, 17, 18 y 19 del
 microcontrolador, con una resistencia de polarización de
@@ -886,10 +901,11 @@ Dos consideraciones acompañan esta elección.
 La primera es de naturaleza acústica y resulta favorable. Con la
 geometría establecida en la \cref{sec:celda}, una esquina se
 encuentra a aproximadamente \SI{100}{\milli\meter} del eje del haz.
-Una eventual reflexión acústica en el encapsulado metálico de un
-sensor arribaría al hidrófono alrededor de \SI{68}{\micro\second}
-después del disparo, muy por fuera de la ventana útil de
-\SI{6}{\micro\second} establecida en la \cref{tab:tiempos_celda}. La
+Una onda acústica tardaría unos \SI{68}{\micro\second} solo en llegar
+desde el haz hasta el encapsulado metálico de un sensor, y su eventual
+reflexión arribaría al hidrófono todavía después, fuera de la ventana
+útil de unos pocos microsegundos que sigue a la señal directa
+(\cref{tab:tiempos_celda}). La
 presencia de los sensores no perturba, por tanto, el intervalo de la
 señal que se analiza.
 
@@ -905,8 +921,9 @@ se retoma en el \cref{cap:conclusiones}.
 
 \subsection*{Calibración relativa entre sensores}
 
-Los sensores DS18B20 presentan una dispersión de fábrica entre
-unidades. Dado que el criterio de disparo de la secuencia automática
+Los sensores DS18B20 no leen exactamente lo mismo aunque estén a la
+misma temperatura: el fabricante declara una exactitud de
+$\pm\SI{0.5}{\celsius}$ por unidad \cite{MaximDS18B20}. Dado que el criterio de disparo de la secuencia automática
 descrito en el \cref{cap:resultados} opera sobre una banda de
 $\pm\SI{0.02}{\celsius}$ en torno a la temperatura objetivo
 ($\pm\SI{0.1}{\celsius}$ en las sesiones previas), una
@@ -914,8 +931,8 @@ dispersión entre sensores del orden de ese margen bastaría para que
 las lecturas individuales discreparan en la misma magnitud que el
 propio criterio de decisión. Este trabajo no cuantificó la dispersión
 del conjunto en condiciones controladas, aunque en las sesiones de
-medición se observaron diferencias de hasta \SI{1.18}{\celsius} entre
-sensores en una misma captura (\cref{sec:sesiones_congeladas}); se
+medición se observaron diferencias de hasta \SI{2.0}{\celsius} entre
+sensores en una misma captura (sesión \texttt{20261103\_200010}); se
 describe a continuación el procedimiento definido para cuantificarla y
 corregirla.
 
@@ -933,13 +950,17 @@ varios puntos a lo largo del intervalo de operación. Se designa un
 sensor como referencia y se calcula el desplazamiento medio de cada
 uno de los tres restantes respecto de él. Las constantes de corrección
 resultantes se incorporarían al firmware, de modo que la compensación
-se aplicara antes del promediado.
+se aplicara antes del promediado. Este procedimiento supone que el
+desvío de cada sensor es fijo; los datos de las sesiones no lo
+confirman, porque el desvío de uno de los sensores cambió de signo
+entre sesiones (\cref{cap:conclusiones}), de modo que unas constantes
+fijas podrían no bastar.
 
 Esta corrección no está implementada en la versión del firmware
 empleada en este trabajo: los cuatro sensores se promedian sin
 compensación entre unidades. En consecuencia, el valor de temperatura
-registrado en cada captura arrastra la dispersión de fábrica del
-conjunto, y la banda que gobierna el criterio de
+registrado en cada captura arrastra la dispersión entre unidades, y la
+banda que gobierna el criterio de
 disparo opera sobre lecturas que no han sido igualadas entre sí. La
 consecuencia práctica es acotada, pues dicho criterio se evalúa sobre
 el descenso del promedio y no sobre la concordancia entre sensores,

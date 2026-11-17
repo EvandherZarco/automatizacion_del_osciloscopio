@@ -79,7 +79,7 @@ y para conocer las condiciones bajo las cuales fue adquirida.
   \item Implementar el control programático del láser a través de la
         biblioteca de enlace dinámico del fabricante, incluido un
         procedimiento de retorno a estado seguro ante la conclusión de
-        una secuencia, una parada de emergencia o un fallo de
+        una secuencia, un paro de emergencia o un fallo de
         comunicación.
 
   \item Implementar el control del osciloscopio sobre el protocolo
@@ -155,6 +155,12 @@ osciloscopio del laboratorio, del que solo emplea dos canales
 
 El desarrollo se organizó en cinco etapas.
 
+Le precedió una prueba de comunicación con el osciloscopio por TCP/IP
+hecha en LabVIEW en agosto de 2025. El desarrollo continuó en Python
+porque ofrecía más versatilidad para integrar los tres instrumentos y
+porque un programa escrito como texto resultaba más fácil de seguir,
+depurar y versionar que uno construido por bloques.
+
 La primera consistió en resolver el control de cada instrumento por
 separado, atendiendo a las particularidades de su interfaz: la carga de
 una biblioteca de 64 bits que resuelve sus dependencias por rutas
@@ -179,8 +185,9 @@ comprobaciones se desactivó por separado para confirmar que su ausencia
 hacía fallar el caso correspondiente.
 
 La cuarta etapa evaluó el comportamiento del sistema integrado en
-sesiones reales de laboratorio, incluida la verificación en hardware, en captura manual, de
-que cada captura corresponde a una adquisición nueva del osciloscopio, y
+sesiones reales de laboratorio ---incluida la verificación con el
+equipo, en capturas manuales, de que cada captura corresponde a una
+adquisición nueva del osciloscopio---, y
 documentó las fallas observadas durante el desarrollo junto con el nivel
 al que fue posible detectarlas.
 
@@ -188,9 +195,12 @@ La quinta etapa fue una auditoría de las banderas de estado del código,
 es decir, de si lo que la interfaz declara sobre su propio estado
 corresponde a lo ocurrido. Se organizó por subsistemas, dio lugar a doce
 commits (ocho de corrección, uno de funcionalidad y tres de pruebas) y a pruebas de la interfaz sin hardware: 51 casos
-verificados y commiteados, más 12 que ejercitan la escritura en una
-sesión reabierta. Esta etapa produjo la versión del programa que se
-congeló para este trabajo.
+verificados y registrados en el repositorio, más 12 que ejercitan la escritura en una
+sesión reabierta. Esta etapa produjo la versión del 3 de octubre de
+2026, sobre la que se hicieron las últimas correcciones derivadas de
+las sesiones de noviembre; la versión entregada se identifica con la
+etiqueta \texttt{v1.0-tesis} del repositorio
+(\cref{sec:validacion}).
 
 % =========================================================
 \section{Estructura del documento}

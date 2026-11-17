@@ -13,59 +13,75 @@ Conviene precisar de entrada qué se pretende demostrar. Las sesiones no
 caracterizan el agua: el arreglo no normaliza por la energía del pulso,
 según se estableció en la \cref{sec:equipos}, y la señal registrada
 lleva impresa la respuesta del transductor. Lo que se evalúa es la
-herramienta. Si capturas tomadas bajo los mismos parámetros producen
-resultados equivalentes dentro de una dispersión acotada, si un cambio
-deliberado en un parámetro del láser se distingue de esa dispersión, y
-si el registro de sesión conserva la información necesaria para afirmar
-ambas cosas después sin recurrir a la memoria del operador, entonces el
-sistema entrega lo que declara entregar.
+herramienta: cuánto varía de una captura a otra lo que el sistema
+registra bajo condiciones que cambian lentamente, si el eje de tiempos
+reconstruido es estable, y si el registro de sesión conserva la
+información necesaria para examinar todo ello después sin recurrir a la
+memoria del operador.
 
 La evidencia proviene de dos grupos de sesiones. El principal son las
-sesiones del 3 y del 5 de noviembre de 2026, tomadas con la versión
-congelada del código y con el formato de registro de 34 columnas
-(\cref{sec:formato_datos}); con ellas se evalúan la repetibilidad, la
-estabilidad del eje de tiempos y el comportamiento del ruido en ambos
-modos automáticos. El segundo es la sesión del 25 de agosto de 2026,
-anterior a la congelación, que se conserva porque es la única que
-contiene un cambio deliberado de un parámetro del láser.
+sesiones del 3 y del 5 de noviembre de 2026, tomadas con el formato de
+registro de 34 columnas (\cref{sec:formato_datos}) y con las versiones
+del código que se detallan abajo; con ellas se evalúan la
+repetibilidad, la estabilidad del eje de tiempos y el comportamiento
+del ruido en ambos modos automáticos. El segundo es la sesión del 25 de
+agosto de 2026, que se conserva porque es la única que contiene un
+cambio deliberado de un parámetro del láser.
 
 % ---------------------------------------------------------
-\subsection{Sesiones con la versión congelada}
+\subsection{Sesiones de noviembre de 2026}
 \label{sec:sesiones_congeladas}
 % ---------------------------------------------------------
 
 Las sesiones se realizaron sobre agua en enfriamiento pasivo, con el
 osciloscopio a \SI{2}{\milli\volt} por división y
 \SI{200}{\micro\second} por división, registros de \num{25000}
-muestras y el láser en disparo continuo. En todas ellas el
+muestras, el láser en disparo continuo con el nivel \textit{E Adjust} y
+un \textit{EO delay} de \SI{3700}{\micro\second}, y una separación
+hidrófono--haz registrada de \SI{50}{\milli\meter}. En todas ellas el
 M.~en~C. Arturo Ronquillo Arvizu operó el sistema en el laboratorio y
-el autor lo supervisó a distancia. La \cref{tab:sesiones_congeladas}
-resume las capturas automáticas consideradas.
+el autor lo supervisó a distancia.
+
+No todas corrieron con el mismo código, y la diferencia importa para
+lo que sigue. Las del 3 de noviembre usaron la primera versión del
+testigo de adquisición, la que dio lugar a la falla~15
+(\cref{tab:fallas_software}). La sesión \texttt{20261105\_191232} usó
+ya el testigo corregido, con el margen de ventana de
+$\pm\SI{0.1}{\celsius}$; la \texttt{20261105\_195004} añadió la
+reafirmación del modo de adquisición antes de cada orden de marcha y
+un margen de $\pm\SI{0.05}{\celsius}$; y las dos últimas,
+\texttt{20261105\_200231} y \texttt{20261105\_201925}, corrieron con el
+margen de $\pm\SI{0.02}{\celsius}$, es decir, con el código de la
+versión entregada (etiqueta \texttt{v1.0-tesis}). La
+\cref{tab:sesiones_congeladas} resume las capturas automáticas
+consideradas.
 
 \begin{table}[htbp]
   \centering
-  \caption{Capturas automáticas de las sesiones con la versión
-    congelada. $N$: adquisiciones promediadas por captura. El CV es el
-    coeficiente de variación del valor pico a pico; el CV residual es el
-    de los residuos tras ajustar una recta del valor pico a pico contra
-    la temperatura registrada.}
+  \caption{Capturas automáticas de las sesiones de noviembre. $N$:
+    adquisiciones promediadas por captura. La amplitud es el valor pico a
+    pico en la ventana de \SIrange{55}{75}{\micro\second} del eje
+    reconstruido. CV: coeficiente de variación de la amplitud. Pendiente
+    y $R^2$: recta de la amplitud contra la temperatura registrada,
+    con la pendiente relativa a la amplitud media. CV residual: el de los
+    residuos de esa recta, con $n-2$ grados de libertad.}
   \label{tab:sesiones_congeladas}
   \small
-  \setlength{\tabcolsep}{4pt}
-  \begin{tabular}{l l c c c c c}
+  \setlength{\tabcolsep}{3.5pt}
+  \begin{tabular}{l l c c c c c c}
     \toprule
-    Sesión & Modo & Capturas & $N$ & CV & CV residual & $R^2$ \\
+    Sesión & Modo & Capt. & $N$ & CV & Pendiente & $R^2$ & CV resid. \\
     \midrule
     \texttt{20261103\_194433} & tiempo & 8 & 100 &
-      \SI{2.1}{\percent} & \SI{1.4}{\percent} & 0.62 \\
-    \texttt{20261103\_200010} & temperatura & 6 & 416--452 &
-      \SI{2.3}{\percent} & \SI{0.7}{\percent} & 0.92 \\
-    \texttt{20261105\_191232} & temperatura, $\pm\SI{0.1}{\celsius}$ & 5 &
-      728--924 & \SI{2.1}{\percent} & \SI{1.8}{\percent} & 0.41 \\
-    \texttt{20261105\_200231} & temperatura, $\pm\SI{0.02}{\celsius}$ & 6 &
-      14--140 & \SI{6.2}{\percent} & \SI{3.8}{\percent} & 0.70 \\
+      \SI{2.1}{\percent} & \SI{6.7}{\percent\per\celsius} & 0.62 & \SI{1.4}{\percent} \\
+    \texttt{20261103\_200010} & temp., $\pm\SI{0.1}{\celsius}$ & 6 & 416--452 &
+      \SI{3.6}{\percent} & \SI{3.8}{\percent\per\celsius} & 0.99 & \SI{0.3}{\percent} \\
+    \texttt{20261105\_191232} & temp., $\pm\SI{0.1}{\celsius}$ & 5 & 728--924 &
+      \SI{6.3}{\percent} & \SI{7.9}{\percent\per\celsius} & 0.99 & \SI{0.6}{\percent} \\
+    \texttt{20261105\_200231} & temp., $\pm\SI{0.02}{\celsius}$ & 6 & 14--140 &
+      \SI{14.9}{\percent} & \SI{15.5}{\percent\per\celsius} & 0.98 & \SI{2.4}{\percent} \\
     \texttt{20261105\_201925} & tiempo & 10 & 100 &
-      \SI{4.4}{\percent} & \SI{3.8}{\percent} & 0.33 \\
+      \SI{8.1}{\percent} & \SI{16.5}{\percent\per\celsius} & 1.00 & \SI{0.5}{\percent} \\
     \bottomrule
   \end{tabular}
 \end{table}
@@ -77,13 +93,14 @@ criterios de exclusión forman parte del resultado. La sesión
 instrumento registró más adquisiciones de las que el láser pudo
 producir, es decir, el promedio arrastraba las capturas anteriores. Son
 las seis capturas con exceso que el testigo de entonces aceptó
-(falla~15, \cref{tab:fallas_software}). En sentido opuesto, las
-capturas \texttt{m0006} y \texttt{m0007} de esa sesión y siete de la
-\texttt{20261103\_194433} llevan la marca de error del testigo anterior
-y se incluyen, porque su conteo de adquisiciones es coherente con el
-ritmo del láser: son falsos positivos de la misma falla. La captura
-\texttt{m0010} de la \texttt{20261103\_194433} se excluye porque
-promedió 84 de las 100 adquisiciones solicitadas.
+(falla~15). En sentido opuesto, las capturas \texttt{m0006} y
+\texttt{m0007} de esa sesión y siete de la \texttt{20261103\_194433}
+llevan la marca de error del testigo anterior y se incluyen, porque su
+conteo de adquisiciones es coherente con el ritmo del láser: son falsos
+positivos de la misma falla. La captura \texttt{m0010} de la
+\texttt{20261103\_194433} se excluye porque promedió 84 de las 100
+adquisiciones solicitadas. La sesión \texttt{20261105\_195004} contiene
+una sola captura automática y solo se usa como referencia puntual.
 
 La sesión \texttt{20261105\_184959} se descartó completa. El contador
 de adquisiciones no se reinició entre ventanas (de 966 a 3304) y los
@@ -92,67 +109,83 @@ con el láser a unos \SI{10}{\hertz}. La causa probable es que se
 presionó el botón de marcha y paro del panel frontal, que deja la
 condición de paro del instrumento en un estado distinto al que el
 sistema programa. A diferencia del 3 de noviembre, el testigo corregido
-marcó todas las capturas de esa sesión en el momento de tomarlas. A
-partir de la siguiente sesión, el sistema reafirma el modo de
+marcó todas las capturas de esa sesión en el momento de tomarlas. Desde
+la sesión \texttt{20261105\_195004}, el sistema reafirma el modo de
 adquisición y la condición de paro antes de cada orden de marcha.
 
-\subsubsection{Repetibilidad}
+\subsubsection{Métrica de amplitud}
+
+La amplitud se mide como el valor pico a pico, una vez restada la línea
+base, dentro de una ventana fija de \SIrange{55}{75}{\micro\second} del
+eje reconstruido mediante la \cref{eq:conv_tiempo}. El eje tiene su cero
+en el evento de disparo y su reconstrucción no depende de la posición
+horizontal del osciloscopio (\cref{sec:origen_tiempos}): en todas las
+sesiones de noviembre el máximo de la señal principal cayó entre
+\SI{65.6}{\micro\second} y \SI{67.7}{\micro\second}, dentro de la
+ventana.
+
+Medir sobre la traza completa no es equivalente. La traza contiene,
+además de la señal principal, rasgos posteriores (a unos 88, 159 y
+\SI{309}{\micro\second}) cuya amplitud relativa cambia de una captura a
+otra; en varias capturas del 5 de noviembre el máximo de la traza
+completa salta a uno de ellos y el mínimo queda en otro, de modo que el
+valor pico a pico de la traza completa mezcla rasgos distintos y
+subestima la variación de la señal principal.
+
+\subsubsection{Repetibilidad y deriva}
 \label{sec:repetibilidad}
 
-La métrica empleada para la amplitud es el valor pico a pico calculado
-sobre la traza completa, una vez restada la línea base. No se utiliza
-una ventana temporal fija, porque el origen del eje de tiempos lo fija
-el operador con el control de posición horizontal del osciloscopio y no
-es reproducible entre sesiones, según se discute en la
-\cref{sec:origen_tiempos}.
-
 El coeficiente de variación dentro de cada sesión va de
-\SI{2.1}{\percent} a \SI{6.2}{\percent}. Esa cifra mezcla dos cosas que
-conviene separar. En el modo por temperatura la amplitud desciende con
-la temperatura de la muestra; en la sesión \texttt{20261103\_200010},
-la única con ventanas de duración regular y sin capturas anómalas, la
-recta contra la temperatura explica el \SI{92}{\percent} de la varianza
-y la dispersión residual es de \SI{0.7}{\percent}. En las demás, la
-temperatura explica una fracción menor y la dispersión residual se
-mantiene entre \SI{1.4}{\percent} y \SI{3.8}{\percent}.
+\SI{2.1}{\percent} a \SI{14.9}{\percent}, pero casi toda esa variación
+es una tendencia y no dispersión de captura a captura. En cuatro de las
+cinco sesiones, la amplitud desciende de forma monótona y casi lineal a
+lo largo de la secuencia ($R^2 \geq 0.98$ contra la temperatura
+registrada), y la dispersión en torno a esa tendencia es de
+\SIrange{0.3}{0.6}{\percent} cuando cada captura promedia 100
+adquisiciones o más. Esa dispersión residual acota lo que la
+herramienta añade de una captura a la siguiente. En la sesión con
+margen de $\pm\SI{0.02}{\celsius}$ sube a \SI{2.4}{\percent}, con
+capturas de solo 14 a 140 adquisiciones. La excepción es la
+\texttt{20261103\_194433}, en modo por tiempo: la amplitud cae
+\SI{5.7}{\percent} en las primeras cuatro capturas y en las cuatro
+siguientes se mantiene con un coeficiente de variación de
+\SI{0.25}{\percent}.
 
-Las dos sesiones en modo por tiempo muestran el mismo patrón. La
-amplitud cae durante las primeras cuatro o cinco capturas
----\SI{5.7}{\percent} el 3 de noviembre y \SI{12.8}{\percent} el 5 de
-noviembre--- y después se estabiliza: en el tramo estable el
-coeficiente de variación es de \SI{0.25}{\percent} y
-\SI{0.34}{\percent}, respectivamente. En régimen estable, por lo tanto,
-la herramienta repite al nivel de unas décimas de por ciento; la mayor
-parte de la dispersión de la \cref{tab:sesiones_congeladas} es una
-deriva al inicio de la secuencia. Su causa no puede atribuirse con los
-datos disponibles: el arreglo no mide la energía del pulso, de modo que
-una variación de la emisión del láser y un cambio de la muestra
-producen en el registro el mismo efecto.
+La tendencia no puede atribuirse a la temperatura de la muestra. Su
+pendiente relativa va de \SI{3.8}{\percent\per\celsius} a
+\SI{16.5}{\percent\per\celsius} según la sesión, y llega a cuadruplicarse
+entre sesiones de la misma tarde. Más directo:
+a temperaturas casi iguales, la amplitud fue de \SI{9.85}{\milli\volt}
+a \SI{34.4}{\celsius} a las 19:53 (\texttt{20261105\_195004}) y de
+\SI{5.74}{\milli\volt} a \SI{34.3}{\celsius} a las 20:20
+(\texttt{20261105\_201925}): una caída de \SI{42}{\percent} a la misma
+temperatura en menos de media hora. En las
+secuencias, la temperatura y el tiempo transcurrido avanzan juntos, y
+la deriva con el tiempo domina. Su causa ---la emisión del láser, el
+acoplamiento del transductor o la propia muestra--- no puede
+determinarse sin medir la energía de cada pulso.
 
-La deriva entre sesiones es mayor que la deriva dentro de una sesión. A
-temperaturas cercanas a \SI{34}{\celsius}, el valor pico a pico fue de
-\SI{9.85}{\milli\volt}, \SI{8.39}{\milli\volt} y
-\SI{6.92}{\milli\volt} en tres sesiones del mismo día, una diferencia de
-hasta \SI{42}{\percent}. Las amplitudes registradas por el sistema solo
-son comparables dentro de una misma sesión.
+En consecuencia, las amplitudes que registra el sistema son comparables
+entre capturas consecutivas, con una dispersión de unas décimas de por
+ciento en torno a la tendencia, pero no entre capturas separadas por
+varios minutos ni entre sesiones.
 
 \subsubsection{Estabilidad del eje de tiempos}
 
-Con el eje reconstruido mediante la \cref{eq:conv_tiempo}, el instante
-del máximo de la amplitud absoluta se mantuvo entre
+El instante del máximo de la señal principal se mantuvo entre
 \SI{66.64}{\micro\second} y \SI{66.72}{\micro\second} en las ocho
 capturas en modo por tiempo del 3 de noviembre, una diferencia de una
-sola muestra (\SI{0.08}{\micro\second}). En el barrido por temperatura
-del mismo día, ese instante se recorrió de \SI{65.60}{\micro\second} a
-\SI{65.84}{\micro\second} mientras la muestra se enfriaba de
-\SI{40.4}{\celsius} a \SI{37.9}{\celsius}. En esta sesión el corrimiento
-tiene el sentido que corresponde a la menor velocidad del sonido en agua
-más fría; en sesiones anteriores se observó el sentido opuesto, una
-discrepancia que se discute en la \cref{sec:trabajo_futuro}. No se
-cuantifica esa relación, que pertenece a la física de la muestra; lo que
-interesa aquí
-es que el sistema resuelve y registra un corrimiento de tres muestras
-de forma consistente con la temperatura asignada a cada captura.
+sola muestra (\SI{0.08}{\micro\second}). A lo largo de los barridos ese
+instante se desplaza unas pocas muestras, pero su sentido no es
+consistente: en el del 3 de noviembre pasó de \SI{65.60}{\micro\second}
+a \SI{65.84}{\micro\second} mientras la muestra se enfriaba de
+\SI{40.4}{\celsius} a \SI{37.9}{\celsius}, y en los dos del 5 de
+noviembre se desplazó hacia tiempos menores (de \SI{67.44}{} a
+\SI{67.20}{\micro\second} y de \SI{67.52}{} a
+\SI{66.80}{\micro\second}). Lo que la prueba establece es que el sistema
+resuelve y registra corrimientos de pocas muestras de forma estable; su
+interpretación física queda fuera del alcance de este trabajo y se
+retoma como pregunta abierta en la \cref{sec:trabajo_futuro}.
 
 \subsubsection{Ruido y número de promedios}
 
@@ -162,28 +195,31 @@ promediadas $N$: de \SI{16.3}{\micro\volt} con $N = 14$ a
 \SI{3.4}{\micro\volt} con $N = 396$, un factor de 4.9 frente al 5.3 que
 predice la dependencia $1/\sqrt{N}$. Por encima de unas 400
 adquisiciones se estanca en un piso de unos \SI{3}{\micro\volt}
-(\SIrange{2.8}{3.2}{\micro\volt} con $N$ de 728 a 924), lo que sugiere una
-componente que el promedio no elimina; no se identificó su origen.
+(\SIrange{2.8}{3.2}{\micro\volt} con $N$ de 728 a 924), lo que sugiere
+una componente que el promedio no elimina; no se identificó su origen.
 
 En el modo por temperatura, $N$ no lo fija el operador sino la duración
 de la ventana, es decir, el tiempo que tarda la muestra en cruzar el
-margen alrededor de cada objetivo. El ancho de la ventana de integración
-se fijó en $\pm\SI{0.02}{\celsius}$ alrededor de cada temperatura
-objetivo en la sesión final (en sesiones previas,
-$\pm\SI{0.1}{\celsius}$). Este valor no representa la incertidumbre de
-la temperatura asignada a cada señal: el DS18B20 resuelve
-\SI{0.0625}{\celsius} a 12 bits y su exactitud declarada por el
-fabricante es de $\pm\SI{0.5}{\celsius}$; además, en una misma captura
-de esa sesión se observaron diferencias de hasta \SI{1.18}{\celsius}
-entre los cuatro sensores. La incertidumbre de temperatura está
-dominada, por tanto, por la exactitud y la dispersión de los sensores,
-no por el ancho de la ventana. Con un margen tan estrecho, $N$ varió de
-14 a 140 entre objetivos de la misma sesión, y en dos de ellos la
-temperatura registrada al abrir y al cerrar la ventana fue la misma: el
-sensor no resolvió el cambio dentro de la ventana. Un margen más
-estrecho que la resolución del sensor no mejora la asignación de
-temperatura y, en cambio, reduce y vuelve irregular el número de
-promedios.
+margen alrededor de cada objetivo. El semiancho de la ventana de
+integración se fijó en $\pm\SI{0.02}{\celsius}$ alrededor de cada
+temperatura objetivo en la sesión final (en sesiones previas,
+$\pm\SI{0.1}{\celsius}$ y $\pm\SI{0.05}{\celsius}$). Este valor no
+representa la incertidumbre de la temperatura asignada a cada señal: el
+DS18B20 resuelve \SI{0.0625}{\celsius} a 12 bits y su exactitud
+declarada por el fabricante es de $\pm\SI{0.5}{\celsius}$; además, en
+una misma captura de esa sesión se observaron diferencias de hasta
+\SI{1.18}{\celsius} entre los cuatro sensores. La incertidumbre de
+temperatura está dominada, por tanto, por la exactitud y la dispersión
+de los sensores, no por el ancho de la ventana. Con un margen tan
+estrecho, $N$ varió de 14 a 140 entre objetivos de la misma sesión, y
+en dos de ellos las lecturas registradas al abrir y al cerrar la
+ventana coinciden. Esas lecturas son valores tomados después de que el
+disparo decidió con la mediana filtrada, por lo que pueden quedar
+ligeramente fuera de la banda. Un margen más estrecho que la resolución
+del sensor no mejora la asignación de temperatura y, en cambio, reduce
+y vuelve irregular el número de promedios. El valor de
+$\pm\SI{0.02}{\celsius}$ se adoptó en la sesión final a petición del
+responsable del arreglo; estos datos documentan su costo.
 
 % ---------------------------------------------------------
 \subsection{Sesión con un cambio controlado}
@@ -192,22 +228,24 @@ promedios.
 
 La sesión \texttt{20260825\_192627} fue la primera realizada con el
 módulo de temperatura ya integrado a la secuencia automática. Es
-anterior a la versión congelada y a su formato de registro, pero es la
-única que contiene un cambio deliberado de un parámetro del láser.
-Consta de diecisiete capturas de \num{50000} muestras cada una,
-repartidas en dos series separadas por una interrupción durante la cual
-se reprogramó el microcontrolador y se modificó el retardo del
-conmutador electro-óptico del láser.
+anterior a las versiones de noviembre y a su formato de registro, pero
+es la única que contiene un cambio deliberado de un parámetro del
+láser. Consta de diecisiete capturas de \num{50000} muestras cada una,
+repartidas en dos series separadas por una interrupción de unos doce
+minutos durante la cual se reprogramó el microcontrolador y se modificó
+el retardo del conmutador electro-óptico del láser.
 
 La primera serie (\texttt{m0002}--\texttt{m0006}) se tomó con un
 \textit{EO delay} de \SI{3800}{\micro\second} y con la lectura de
 temperatura activa, que descendió de \SI{37.27}{\celsius} a
 \SI{36.97}{\celsius}. La segunda (\texttt{m0008}--\texttt{m0017}) se
 tomó con un \textit{EO delay} de \SI{3700}{\micro\second} y sin lectura
-de temperatura, por la pérdida del módulo que se documenta en la
-\cref{tab:fallas_entorno}. Los dos valores del retardo no constan en el
-registro de la sesión: su formato, de dieciocho columnas, es anterior a
-la incorporación de los parámetros del láser a cada fila.
+de temperatura válida, por la pérdida del módulo que se documenta en la
+\cref{tab:fallas_entorno}: su columna de temperatura repite el último
+valor leído, \SI{36.06}{\celsius}, con la marca de error activa. Los
+dos valores del retardo no constan en el registro de la sesión: su
+formato, de dieciocho columnas, es anterior a la incorporación de los
+parámetros del láser a cada fila.
 
 \subsubsection{Reconstrucción temporal entre escalas distintas}
 \label{sec:reconstruccion_escalas}
@@ -232,38 +270,34 @@ conversión los interpreta como corresponde. La
 entre muestras y metadatos falló y produjo una reconstrucción falsa que
 no se anunciaba como tal.
 
-\subsubsection{Discriminación del cambio}
+\subsubsection{Registro del cambio}
 \label{sec:discriminacion}
 
-Dentro de cada serie, el coeficiente de variación del valor pico a pico
-fue de \SI{0.33}{\percent} en la primera y de \SI{0.64}{\percent} en la
-segunda, cifras del mismo orden que las del régimen estable de las
-sesiones congeladas. La amplitud media pasa de \SI{9.87}{\milli\volt}
-en la primera serie a \SI{9.07}{\milli\volt} en la segunda, una
-diferencia cercana al \SI{8}{\percent}: más de diez veces la
-dispersión interna de cualquiera de las dos.
+Con la métrica de la \cref{sec:sesiones_congeladas}, la amplitud media
+pasa de \SI{9.67}{\milli\volt} en la primera serie a
+\SI{8.74}{\milli\volt} en la segunda, una diferencia cercana al
+\SI{10}{\percent}, mientras que el coeficiente de variación dentro de
+cada serie es de \SI{0.42}{\percent} y \SI{0.77}{\percent}.
 
-Tres salvedades acotan lo que puede afirmarse. La primera es que entre
-series se perdió también la lectura del módulo de temperatura, de modo
-que lo que se controló fue un parámetro y lo que cambió fueron dos; esa
-segunda diferencia es de registro y no de excitación, porque la
-temperatura no interviene en el cálculo de la amplitud. La segunda es
-que la comparación vale solo dentro de la sesión: las sesiones
-congeladas muestran derivas de hasta \SI{12.8}{\percent} al inicio de
-una secuencia y de hasta \SI{42}{\percent} entre sesiones, de modo que
-un cambio del \SI{8}{\percent} entre días distintos no sería
-distinguible. La tercera es que la atribución de la diferencia a su
-causa descansa en esta sesión sobre información externa al archivo,
-porque el formato de entonces no guardaba el retardo del conmutador. El
+Esa diferencia no puede atribuirse al cambio del retardo. Entre una
+serie y otra transcurrieron unos doce minutos y la muestra se enfrió al
+menos \SI{0.9}{\celsius}; las sesiones de noviembre muestran que, en
+lapsos así, la amplitud deriva varios por ciento por sí sola, y la
+segunda serie desciende de forma monótona a lo largo de sus diez
+capturas. El retardo, el tiempo transcurrido y la temperatura cambiaron
+juntos, y la sesión no permite separarlos.
+
+Lo que la sesión sí muestra es el valor del registro completo. Con el
+formato de entonces, ni siquiera el cambio del retardo podía
+reconstruirse desde el archivo: dependía de la memoria del operador. El
 formato vigente registra en cada fila \texttt{output\_level},
 \texttt{eo\_delay\_us} y \texttt{burst\_mode}
-(\cref{sec:formato_datos}); con él, un cambio como este queda atribuible
-a su causa sin depender de que alguien lo haya anotado aparte.
-
-No se afirma una relación cuantitativa entre el retardo del conmutador
-electro-óptico y la amplitud fotoacústica: el arreglo no mide la
-energía del pulso, y dos puntos no sostienen una curva. Lo que se afirma
-es que el sistema distingue el cambio y conserva su causa.
+(\cref{sec:formato_datos}), además de la marca de tiempo y la
+temperatura, de modo que en una sesión como esta las tres variables
+quedarían a la vista. Separar el efecto de un parámetro del láser
+exige, además, alternar el parámetro varias veces dentro de la misma
+sesión y medir la energía del pulso, lo que queda como trabajo a
+futuro.
 
 % ---------------------------------------------------------
 \subsection{Alcance de la prueba}
@@ -271,21 +305,23 @@ es que el sistema distingue el cambio y conserva su causa.
 % ---------------------------------------------------------
 
 Ambos modos automáticos se recorrieron de punta a punta con los tres
-instrumentos reales y con la versión congelada. Quedan cuatro límites
-que conviene declarar.
+instrumentos reales; las dos últimas sesiones, con el código de la
+versión entregada. Quedan cuatro límites que conviene declarar.
 
 El primero es la normalización. Sin una medida de la energía de cada
-pulso, la deriva al inicio de cada secuencia y la deriva entre sesiones
-no pueden atribuirse al láser ni a la muestra, y las amplitudes solo son
-comparables dentro de una sesión.
+pulso, la deriva de la amplitud a lo largo de una sesión y entre
+sesiones no puede atribuirse al láser, al transductor ni a la muestra,
+y las amplitudes solo son comparables entre capturas cercanas en el
+tiempo.
 
-El segundo es el marcador temporal. El máximo de la amplitud absoluta
-fue estable en las sesiones del 25 de agosto y del 3 de noviembre, pero
-en varias capturas del 5 de noviembre saltó a otros picos de la traza,
-a \num{160}, \num{309} y \num{88} microsegundos, cuando cambió la
-amplitud relativa entre ellos. Como instante de arribo, el máximo
-absoluto no es un criterio robusto, y la identificación de cada pico con
-un trayecto de la celda (\cref{ap:tiempos_arribo}) queda como trabajo a
+El segundo es la métrica. La amplitud se mide en una ventana fija
+alrededor de la señal de mayor amplitud; los rasgos posteriores de la
+traza, cuya amplitud relativa cambia entre capturas, no se analizan. Ni
+esa señal ni los rasgos posteriores se identificaron con trayectos de
+la celda (\cref{ap:tiempos_arribo}): con la separación de
+\SI{50}{\milli\meter}, el arribo directo esperado es de unos
+\SI{34}{\micro\second} y el máximo aparece hacia los
+\SI{66}{\micro\second}. Esa identificación queda como trabajo a
 futuro.
 
 El tercero es la temperatura. La incertidumbre de la temperatura
@@ -293,7 +329,7 @@ asignada a cada captura la fijan la exactitud y la dispersión de los
 sensores, no el margen de la ventana, y el modo por temperatura recorre
 solo objetivos en descenso (\cref{sec:secuencia}).
 
-El cuarto es el alcance experimental. Las sesiones cubren agua
-destilada entre unos 29 y \SI{42}{\celsius} en enfriamiento pasivo; no
-queda establecido el comportamiento del sistema con otros líquidos,
-intervalos más amplios o regímenes distintos del enfriamiento pasivo.
+El cuarto es el alcance experimental. Las sesiones cubren agua entre
+unos 29 y \SI{42}{\celsius} en enfriamiento pasivo; no queda establecido
+el comportamiento del sistema con otros líquidos, intervalos más
+amplios o regímenes distintos del enfriamiento pasivo.
