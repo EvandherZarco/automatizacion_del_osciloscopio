@@ -3,64 +3,54 @@ flowchart TD
     %% ─────────────────────────────
     %% SUB-FLUJO 1: CONEXIÓN INICIAL
     %% ─────────────────────────────
-    INIT([Temperatura: Conexión inicial])
-    INIT --> CONNECT["Abre puerto serial\nESP32-C3 · USB · 9600 baud"]
-    CONNECT --> CONNOK{¿Conexión OK?}
-    CONNOK --> |No| CONNERR[/"ESP32 no encontrado\nVerifique cable USB y puerto"/]
-    CONNERR --> CONNFAIL([Reporta error a\nConexión y monitoreo])
+    INIT([🌡️ Temperatura: Conexión inicial])
+    INIT --> CONNECT["Abre puerto serial (TEMP_COM_PORT)\nESP32 WROOM-32 · USB · 115200 baud\nDTR y RTS en bajo · envía START"]
+    CONNECT --> CONNOK{¿Puerto abierto?}
+    CONNOK --> |No| CONNERR[/"⚠️ No se pudo abrir el puerto\nVerifique cable USB y puerto en Conexión"/]
+    CONNERR --> CONNFAIL([Emite desconectado\na Conexión y monitoreo])
 
-    CONNOK --> |Sí| WAITFIRST["Espera primer mensaje\ndel ESP32"]
-    WAITFIRST --> FIRSTOK{¿Llega mensaje\nválido?}
-    FIRSTOK --> |No — timeout 5s| CONNERR
-    FIRSTOK --> |Sí| PARSECHECK["Parsea: temp, S1, S2, S3, S4
-    formato: '25.3,1,1,0,1'"]
-    PARSECHECK --> SENSORCHECK{¿Todos los sensores\nconectados?}
+    CONNOK --> |Sí| WAITFIRST["Espera primera trama válida\n(máx. 5 s)"]
+    WAITFIRST --> FIRSTOK{¿Llega trama\nválida?}
+    FIRSTOK --> |No — 5 s| CONNERR
+    FIRSTOK --> |Sí| PARSECHECK["Parsea: promedio, S1, S2, S3, S4 en °C\nformato: '21.47,21.44,21.69,21.25,21.50'"]
+    PARSECHECK --> SENSORCHECK{¿S1–S4 dentro\nde 10–50 °C?}
     SENSORCHECK --> |Sí| READY
-    SENSORCHECK --> |No| SENSORWARN[/"Sensores desconectados: [lista]
-    Los datos faltantes se marcarán
-    en el CSV con error_flag"/]
+    SENSORCHECK --> |No| SENSORWARN[/"⚠️ Sensores no detectados: [lista]\n(NaN o 85 °C cuentan como ausentes)\nMediciones afectadas → error_flag=1"/]
     SENSORWARN --> READY
 
-    READY(["ESP32 conectado\nInicia loop de lectura"])
+    READY(["✅ Emite conectado\nInicia loop de lectura"])
     READY --> LOOP
 
     %% ─────────────────────────────
     %% SUB-FLUJO 2: LOOP DE LECTURA
-    %% (corre en background continuo)
+    %% (QThread separado)
     %% ─────────────────────────────
-    LOOP["Loop continuo\nen hilo separado"]
-    LOOP --> READLINE["Espera línea serial\ndel ESP32 ~1 s"]
-    READLINE --> LINEOK{¿Llegó dato?}
+    LOOP["🔄 Loop continuo\nen QThread"]
+    LOOP --> READLINE["Lee línea serial\n(timeout 1.5 s; ESP32 envía ~1/s)"]
+    READLINE --> PARSE{"¿Trama válida?\n5 campos numéricos y\npromedio en 10–50 °C"}
 
-    LINEOK --> |No — timeout| TOCHECK{¿Timeout\n> 5 s?}
+    PARSE --> |No — vacía, mal formada\no promedio fuera de rango| TOCHECK{¿> 5 s sin\ntrama válida?}
     TOCHECK --> |No| READLINE
-    TOCHECK --> |Sí — ESP32 no responde| DISCON[/"ESP32 desconectado\nÚltima temp. conocida conservada"/]
-    DISCON --> NOTIFYCONN["Notifica a\nConexión y monitoreo"]
-    NOTIFYCONN --> READLINE
+    TOCHECK --> |Sí| DISCON[/"⚠️ ESP32 sin tramas válidas por 5 s\nEmite desconectado · cierra puerto\n(sin conservar dato como vigente)"/]
+    DISCON --> RECON([Reconexión a cargo de\nConexión y monitoreo])
 
-    LINEOK --> |Sí| PARSE["Parsea línea:\ntemp · S1 · S2 · S3 · S4"]
-    PARSE --> PARSEOK{¿Formato\ncorrecto?}
-    PARSEOK --> |No| PARSEERR["Descarta línea\nregistra en log"]
-    PARSEERR --> READLINE
-
-    PARSEOK --> |Sí| RANGECHECK{¿Temp. dentro\nde 10 – 50 °C?}
-    RANGECHECK --> |No — valor sospechoso| SUSPWARN["Descarta valor\nregistra en log"]
-    SUSPWARN --> READLINE
-
-    RANGECHECK --> |Sí| UPDATE["Actualiza en memoria:
+    PARSE --> |Sí| UPDATE["Actualiza en memoria:
     ─────────────────────────────
-    ultima_temp ← temp
-    estado_sensores ← S1..S4
+    ultima_temp ← promedio
+    lecturas S1–S4 (None si ausente)
+    repetidos S1–S4 (valor idéntico al anterior)
     timestamp_lectura ← ahora"]
-    UPDATE --> READLINE
+    UPDATE --> EMIT["Emite trigger(promedio)"]
+    EMIT --> READLINE
 
     %% ─────────────────────────────
     %% SUB-FLUJO 3: CONSULTA
-    %% (llamado por Trigger o Conexión y monitoreo)
+    %% (Trigger, Medición, GUI)
     %% ─────────────────────────────
-    QUERY([Temperatura: Consulta\nllamado por Trigger o Conexión])
-    QUERY --> FRESHCHECK{¿Última lectura\n< 3 s de antigüedad?}
-    FRESHCHECK --> |Sí| RETURN[/"Devuelve: ultima_temp\nestado_sensores"/]
-    FRESHCHECK --> |No — dato viejo| STALE[/"Dato desactualizado\nDevuelve último valor + advertencia"/]
+    QUERY([🌡️ Temperatura: Consulta])
+    QUERY --> GET["consultar() / consultar_sensores()\n(thread-safe)"]
+    GET --> FRESHCHECK{¿Última lectura\n< 3 s de antigüedad?}
+    FRESHCHECK --> |Sí| RETURN[/"Devuelve valores\ncon es_fresco = True"/]
+    FRESHCHECK --> |No| STALE[/"Devuelve valores\ncon es_fresco = False\n→ quien consulta no los usa como vigentes"/]
     RETURN --> CALLER([Regresa al módulo\nque consultó])
     STALE --> CALLER

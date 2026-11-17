@@ -47,7 +47,8 @@ salvedades se desarrollan en las limitaciones que cierran esta sección.
     \cref{sec:reconstruccion_escalas} &
     Cumplido; testigo de adquisición nueva validado en capturas
     manuales con el equipo descrito en la \cref{sec:equipos}; la versión
-    corregida para los modos automáticos, verificada sin hardware \\
+    corregida para los modos automáticos, verificada sin hardware y con
+    instrumentos (\cref{sec:sesiones_congeladas}) \\
     \addlinespace[2pt]
     3 & Interfaz de temperatura &
     \cref{sec:modulo_temperatura}, \cref{tab:fallas_entorno} y
@@ -98,6 +99,17 @@ aplicó. Entrega menos control y más confianza, y para un sistema cuyo
 producto son datos destinados a sostener afirmaciones, la confianza es
 lo que importa.
 
+Las sesiones con la versión congelada (\cref{sec:sesiones_congeladas})
+acotan cuánto vale ese dato. En régimen estable, capturas sucesivas
+repiten la amplitud pico a pico dentro de 0.25 a \SI{0.34}{\percent},
+del mismo orden que la sesión en la que el sistema distinguió un cambio
+deliberado de un parámetro del láser (\cref{sec:discriminacion}). Esa
+repetibilidad no se extiende más allá de la sesión: al inicio de una
+secuencia la amplitud deriva hasta \SI{12.8}{\percent} y entre
+sesiones hasta \SI{42}{\percent}. El sistema no oculta esas derivas;
+las registra con la información suficiente para verlas, aunque no para
+atribuirlas, lo que exige medir la energía del pulso.
+
 \subsection*{La verificación como método}
 
 El acceso al laboratorio fue el recurso más escaso, y obligó a separar
@@ -138,11 +150,16 @@ ejercitó por simulación y se recorrió contra los tres instrumentos
 reales sobre agua, en enfriamiento pasivo; ambos modos automáticos se
 recorrieron con el formato de 34 columnas en las sesiones del 3 de
 noviembre de 2026, que revelaron la falla del testigo de adquisición
-(falla~15). La versión corregida se verificó sin hardware y su
-repetición con instrumentos queda pendiente. La prueba integrada
-(\cref{sec:prueba_integrada}) se apoya en la sesión del 25 de agosto, y
-su repetición con la versión congelada se hará con las mediciones del
-M.~en~C. Arturo Ronquillo Arvizu. No queda establecido el
+(falla~15). La versión corregida se verificó sin hardware y, el 5 de
+noviembre, marcó en el momento de ocurrir una sesión completa con el
+promedio acumulado (\cref{sec:sesiones_congeladas}). La prueba
+integrada (\cref{sec:prueba_integrada}) se apoya en las sesiones del 3 y
+del 5 de noviembre con la versión congelada: en régimen estable la
+amplitud repite al nivel de unas décimas de por ciento, pero deriva
+hasta \SI{12.8}{\percent} al inicio de una secuencia y hasta
+\SI{42}{\percent} entre sesiones, sin que pueda atribuirse al láser ni a
+la muestra mientras el arreglo no mida la energía del pulso. No queda
+establecido el
 comportamiento del sistema sobre otros líquidos, intervalos más amplios
 o regímenes distintos del enfriamiento pasivo, y el modo por temperatura
 recorre solo objetivos en descenso (\cref{sec:secuencia}). En la
@@ -218,7 +235,10 @@ no dependen de umbral ---la correlación cruzada contra una captura de
 referencia y el instante del máximo--- coinciden en un desplazamiento
 hacia tiempos \emph{menores} al enfriarse, de signo opuesto al que
 predice la dependencia de la velocidad del sonido con la temperatura, y
-sus magnitudes no coinciden entre sí. Las explicaciones posibles son
+sus magnitudes no coinciden entre sí. En el barrido del 3 de noviembre,
+en cambio, el instante del máximo se desplazó hacia tiempos mayores al
+enfriarse (\cref{sec:sesiones_congeladas}), lo que agrega un dato a la
+pregunta sin resolverla. Las explicaciones posibles son
 instrumental (la fuente de disparo dependería de la propia señal),
 geométrica (el hidrófono sin sujeción rígida y la distancia medida con
 flexómetro) o de interpretación (la característica seguida podría ser
@@ -245,19 +265,35 @@ distancia hidrófono--haz, o su medición con un instrumento de mayor
 resolución, reduciría la incertidumbre que hoy domina el cálculo de la
 ventana útil (\cref{ap:tiempos_arribo}).
 
+\subsection*{Estabilización del láser}
+
+El disparo continuo en modo temperatura (\cref{sec:secuencia}) es una
+decisión tomada ante un tiempo de estabilización no medido. Un primer
+paso es caracterizarlo: con el láser recién encendido y una adquisición
+por disparo, registrar el valor pico a pico contra el tiempo hasta que
+se mantenga dentro de \SI{5}{\percent}. Conocido ese tiempo, el sistema
+podría detener el láser entre ventanas y reanudarlo con esa anticipación
+respecto de la apertura que predice la velocidad de enfriamiento,
+reduciendo la energía depositada en la muestra. La misma
+caracterización aclararía si la deriva al inicio de las secuencias en
+modo tiempo (\cref{sec:repetibilidad}) se debe al láser.
+
 \subsection*{Mejoras al software}
 
 La prueba de mutación del verificador (\cref{sec:val_verificador}) se
 aplicó a mano; incorporarla como procedimiento automatizado es lo que
-mantendría válido su resultado cuando la herramienta cambie. La
-verificación del testigo corregido debe repetirse con instrumentos.
+mantendría válido su resultado cuando la herramienta cambie. El
+testigo corregido marcó con instrumentos una sesión con el promedio
+acumulado, pero no se ha provocado deliberadamente cada una de sus
+condiciones frente al equipo.
 Una terminación anómala del proceso no pasa por el modo seguro del
 láser; cubrir ese caso, y dotar al aviso de inactividad de un plazo
 vencido el cual se ejecute el mismo procedimiento que el paro de
 emergencia, lo convertiría en la protección que su texto anuncia. El
 selector de modo de adquisición debería leer el modo vigente al
 conectarse. La tasa de adquisición que registra el osciloscopio
-(entre 9.9 y 10.0 por segundo en las ventanas del modo temperatura)
+(entre 9.2 y 10.0 por segundo en las ventanas del modo temperatura,
+según la sesión)
 debería contrastarse con una lectura independiente del láser, como el
 contador de pulsos que este expone y que la interfaz ya muestra.
 Finalmente, una vista previa en tiempo real, una base de datos ligera

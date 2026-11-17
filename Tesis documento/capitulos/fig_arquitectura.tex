@@ -11,85 +11,94 @@
       font=\footnotesize,
       modulo/.style={
         draw, rounded corners=2pt, align=center,
-        text width=30mm, minimum height=11mm, inner sep=2pt},
+        text width=34mm, minimum height=11mm, inner sep=2pt},
       hw/.style={modulo, fill=black!6},
       capa/.style={
-        draw=black!35, dashed, rounded corners=4pt, inner sep=4mm, inner ysep=5mm},
+        draw=black!35, dashed, rounded corners=4pt, inner sep=3mm, inner ysep=5mm},
       etiqueta/.style={font=\scriptsize\itshape, text=black!55},
       flecha/.style={-{Stealth[length=2mm]}, thick},
+      linea/.style={thick},
       pasiva/.style={-{Stealth[length=2mm]}, densely dashed, black!55},
-      node distance=8mm and 10mm
+      nodo/.style={circle, fill, inner sep=0pt, minimum size=1.6mm},
+      node distance=16mm and 10mm
     ]
 
     % --- Presentación ---
     \node[modulo] (gui) {Interfaz gráfica\\\scriptsize eventos y presentación};
 
     % --- Coordinación ---
-    \node[modulo, below=14mm of gui] (med)
+    \node[modulo, below=of gui] (med)
       {Medición\\\scriptsize orquestación de la secuencia};
-    \node[modulo, left=of med] (conn)
-      {Conexión y monitoreo\\\scriptsize estado y reintentos};
-    \node[modulo, right=of med] (trig)
+    \node[modulo, left=of med] (trig)
       {Disparo\\\scriptsize por tiempo o temperatura};
+    \node[modulo, right=of med] (conn)
+      {Conexión y monitoreo\\\scriptsize estado y reintentos};
 
-    % --- Hardware ---
-    \node[hw, below=14mm of med] (oscil)
+    % --- Instrumentos ---
+    \node[hw, below=of med] (oscil)
       {Osciloscopio\\\scriptsize VXI-11 sobre Ethernet};
-    \node[hw, left=of oscil] (laser)
-      {Láser\\\scriptsize RS-232};
-    \node[hw, right=of oscil] (temp)
+    \node[hw, left=of oscil] (temp)
       {Temperatura\\\scriptsize ESP32 y sensores};
+    \node[hw, right=of oscil] (laser)
+      {Láser\\\scriptsize RS-232};
 
     % --- Datos y seguridad ---
-    \node[modulo, below=14mm of oscil] (store)
+    \node[modulo, below=of oscil] (store)
       {Almacenamiento\\\scriptsize registro de sesión};
-    \node[modulo, left=of store] (safe)
-      {Modo seguro\\\scriptsize solo actúa sobre el láser};
-    \node[modulo, right=of store] (viz)
+    \node[modulo, left=of store] (viz)
       {Visualización\\\scriptsize consulta y exportación};
+    \node[modulo, right=of store] (safe)
+      {Modo seguro\\\scriptsize solo actúa sobre el láser};
 
     % --- Cajas de capa ---
     \begin{scope}[on background layer]
-      \node[capa, fit=(conn)(med)(trig)] (cap_coord) {};
-      \node[capa, fit=(laser)(oscil)(temp)] (cap_hw) {};
-      \node[capa, fit=(safe)(store)(viz)] (cap_datos) {};
+      \node[capa, fit=(trig)(med)(conn)] (cap_coord) {};
+      \node[capa, fit=(temp)(oscil)(laser)] (cap_hw) {};
+      \node[capa, fit=(viz)(store)(safe)] (cap_datos) {};
     \end{scope}
 
-    \node[etiqueta, anchor=north west] at ([xshift=1mm,yshift=-0.5mm]cap_coord.north west) {coordinación};
-    \node[etiqueta, anchor=north west] at ([xshift=1mm,yshift=-0.5mm]cap_hw.north west) {instrumentos};
-    \node[etiqueta, anchor=north west] at ([xshift=1mm,yshift=-0.5mm]cap_datos.north west) {datos};
+    \node[etiqueta, anchor=north east] at ([xshift=-1mm,yshift=-0.5mm]cap_coord.north east) {coordinación};
+    \node[etiqueta, anchor=north east] at ([xshift=-1mm,yshift=-0.5mm]cap_hw.north east) {instrumentos};
+    \node[etiqueta, anchor=north east] at ([xshift=-1mm,yshift=-0.5mm]cap_datos.north east) {datos};
 
-    % --- Flujo de control ---
+    % --- Flujo de control desde la interfaz ---
     \draw[flecha] (gui) -- node[right, font=\scriptsize] {modo automático} (med);
-    \draw[flecha] (gui.west) -- ++(-2.2,0) |- (conn.north);
+    \draw[flecha] (gui.east) -| (conn.north);
+
+    % --- Coordinación ---
     \draw[flecha] (med) -- (trig);
-    \draw[flecha] (med) -- (oscil);
-    \draw[flecha] (med.south west) -- (laser.north east);
-    \draw[flecha] (med.south east) -- (temp.north west);
-    \draw[flecha] (trig.south) -- (temp.north);
+    \draw[flecha] ([xshift=-8mm]trig.south) -- ([xshift=-8mm]temp.north);
+
+    % --- Bus de control de Medición hacia los instrumentos ---
+    \coordinate (bus) at ([yshift=-8mm]med.south);
+    \coordinate (carril) at ([xshift=5mm]oscil.east);
+    \draw[linea] (med.south) -- (bus);
+    \draw[linea] ([xshift=8mm]temp.north |- bus) -- (laser.north |- bus);
+    \draw[flecha] ([xshift=8mm]temp.north |- bus) -- ([xshift=8mm]temp.north);
+    \draw[flecha] (bus) -- (oscil.north);
+    \draw[flecha] (laser.north |- bus) -- (laser.north);
+    \draw[flecha] (carril |- bus) -- (carril |- safe.west) -- (safe.west);
+    \node[nodo] at (bus) {};
+    \node[nodo] at (carril |- bus) {};
+
+    % --- Datos ---
     \draw[flecha] (oscil) -- (store);
-    \draw[flecha] (med.north west) -- ++(-0.35,0) -- ++(0,-0.4)
-      -| ([xshift=-6mm]cap_hw.west) |- (safe.west);
-
-    % --- Vigilancia pasiva ---
-    \draw[pasiva] (conn.south) -- (laser.north);
-    \draw[pasiva] (conn.south east) -- (oscil.north west);
-    \draw[pasiva] (conn.east) -- ++(0.3,0) -- ++(0,-0.55)
-      -| ([xshift=6mm]temp.north east) -- ([xshift=6mm]temp.north east|-temp.east) -- (temp.east);
-
-    % --- Modo seguro ---
+    \draw[flecha] (store) -- (viz);
     \draw[flecha] (safe) -- (laser);
 
-    % --- Consulta ---
-    \draw[flecha] (store) -- (viz);
+    % --- Vigilancia pasiva de los enlaces ---
+    \draw[pasiva] (conn.east) -- ++(6mm,0) |- (cap_hw.east)
+      node[pos=0.25, right, font=\scriptsize, text=black!55, align=left]
+      {vigila los\\tres enlaces};
 
   \end{tikzpicture}
   \caption[Arquitectura de módulos del sistema de automatización]{%
     Arquitectura de módulos del sistema de automatización. Las flechas
-    continuas indican control o transferencia de datos; las discontinuas,
-    la vigilancia pasiva del estado de conexión. El módulo de medición
-    coordina la secuencia y es el único que escribe en el registro de
-    sesión. El modo seguro actúa exclusivamente sobre el láser: la
-    configuración del osciloscopio no se modifica desde el programa.}
+    continuas indican control o transferencia de datos; la discontinua,
+    la vigilancia pasiva del estado de conexión de los tres
+    instrumentos. El módulo de medición coordina la secuencia y es el
+    único que escribe en el registro de sesión. El modo seguro actúa
+    exclusivamente sobre el láser: la configuración del osciloscopio no
+    se modifica desde el programa.}
   \label{fig:arquitectura}
 \end{figure}

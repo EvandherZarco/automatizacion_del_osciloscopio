@@ -1,0 +1,85 @@
+% =========================================================
+% Figura: esquema del arreglo experimental
+% Requiere tikz con positioning, arrows.meta, fit, backgrounds
+% =========================================================
+\begin{figure}[H]
+  \centering
+  \begin{tikzpicture}[
+      font=\footnotesize,
+      equipo/.style={draw, rounded corners=2pt, align=center,
+        fill=black!6, minimum height=10mm, inner sep=3pt},
+      haz/.style={very thick, red!70!black},
+      fraccion/.style={thick, densely dashed, red!70!black},
+      senal/.style={-{Stealth[length=2mm]}, thick},
+      enlace/.style={{Stealth[length=2mm]}-{Stealth[length=2mm]}, thick, black!60},
+      etq/.style={font=\scriptsize, text=black!65, align=center},
+      node distance=8mm and 12mm
+    ]
+
+    % --- Fuente ---
+    \node[equipo, text width=27mm] (laser)
+      {Láser Nd:YAG\\\scriptsize EKSPLA NL303HT-10-SH};
+
+    % --- Celda ---
+    \node[draw, thick, minimum width=34mm, minimum height=24mm,
+          right=22mm of laser, fill=blue!5] (celda) {};
+    \node[anchor=south, font=\scriptsize] at (celda.north)
+      {Celda con muestra};
+    \node[draw, fill=black!25, minimum width=1.2mm, minimum height=9mm,
+          inner sep=0pt] (ventana) at (celda.west) {};
+    \node[etq, anchor=north west] at ([xshift=1mm]celda.south west)
+      {ventana de cuarzo};
+    \node[draw, fill=black!70, text=white, circle, inner sep=1.5pt,
+          font=\tiny] (hidro) at ([yshift=-6mm]celda.center) {H};
+    \node[etq, right=0.8mm of hidro, inner sep=0pt] {hidrófono};
+    \foreach \i/\x/\y in {1/-14/-9,2/-14/9,3/14/-9,4/14/9} {
+      \node[draw, fill=white, minimum size=2.2mm, inner sep=0pt]
+        (s\i) at ([xshift=\x mm, yshift=\y mm]celda.center) {};
+    }
+    \node[etq, anchor=north] at (celda.north) {DS18B20 ×4};
+
+    % --- Bloqueador ---
+    \node[draw, fill=black!45, minimum width=2mm, minimum height=14mm,
+          inner sep=0pt, right=10mm of celda] (dump) {};
+    \node[etq, anchor=north] at (dump.south) {bloqueador\\del haz};
+
+    % --- Haz ---
+    \draw[haz] (laser.east) -- (ventana.west)
+      coordinate[pos=0.5] (m)
+      node[midway, above, etq, text=red!70!black] {\SI{1064}{\nano\meter}};
+    \draw[haz, densely dotted] (ventana.east) -- (dump.west);
+
+    % --- Fotodiodo ---
+    \node[equipo, text width=27mm] (pd) at ([yshift=-20mm]m)
+      {Fotodiodo\\\scriptsize Thorlabs PDA10A};
+    \draw[fraccion, -{Stealth[length=2mm]}] (m) -- (pd.north)
+      node[pos=0.72, left, etq, text=red!70!black] {fracción\\del haz};
+
+    % --- Osciloscopio ---
+    \node[equipo, below=30mm of celda, text width=34mm] (osc)
+      {Osciloscopio\\\scriptsize Tektronix TDS5000B};
+    \draw[senal] (hidro) -- (osc.north) node[midway, right, etq] {CH1};
+    \draw[senal] (pd.south) |- ([yshift=-3mm]osc.west)
+      node[pos=0.3, left, etq] {CH2\\(disparo)};
+
+    % --- Temperatura ---
+    \node[equipo, right=12mm of osc, text width=22mm] (esp)
+      {Módulo de\\temperatura\\\scriptsize ESP32};
+    \draw[senal, rounded corners=2pt] (s4.north) -- ++(0,7mm) -| (esp.north)
+      node[pos=0.75, right, etq] {1-Wire};
+
+    % --- Computadora ---
+    \node[equipo, below=12mm of osc, text width=40mm] (pc)
+      {Computadora de control\\\scriptsize aplicación de automatización};
+    \draw[enlace] (osc.south) -- (pc.north)
+      node[midway, right, etq] {Ethernet (VXI-11)};
+    \draw[enlace] (esp.south) |- (pc.east)
+      node[pos=0.25, right, etq] {USB};
+    \draw[enlace] (laser.west) -- ++(-5mm,0) |- (pc.west)
+      node[pos=0.25, left, etq] {RS-232\\(DLL del\\fabricante)};
+  \end{tikzpicture}
+  \caption{Esquema del arreglo experimental: trayectoria del haz,
+    señales hacia el osciloscopio y enlaces de control con la
+    computadora. Distancias no a escala.}
+  \label{fig:esquema_optico}
+\end{figure}

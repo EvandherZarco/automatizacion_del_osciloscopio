@@ -178,14 +178,14 @@ subsección corresponden a la interfaz de principios de septiembre de
   \centering
   \begin{subfigure}[t]{0.48\textwidth}
     \centering
-    \figurapendiente
+    \includegraphics[width=\linewidth]{pestaña_laser.png}
     \caption{Control del láser.}
     \label{fig:ventana_laser}
   \end{subfigure}
   \hfill
   \begin{subfigure}[t]{0.48\textwidth}
     \centering
-    \figurapendiente
+    \includegraphics[width=\linewidth]{pestaña_osciloscopio.png}
     \caption{Control del osciloscopio.}
     \label{fig:ventana_osciloscopio}
   \end{subfigure}
@@ -236,34 +236,36 @@ se muestran en la \cref{fig:ventana_ambos}:
 % FIG-RECORTE
 \begin{figure}[H]
   \centering
-  \begin{subfigure}[t]{0.9\textwidth}
+  \begin{subfigure}[t]{\textwidth}
     \centering
-    \figurapendiente
+    \includegraphics[height=0.25\textheight,keepaspectratio]{principal_laser_osciloscopio.png}
     \caption{Pestaña \textit{Parámetros}.}
     \label{fig:ventana_ambos_parametros}
   \end{subfigure}
 
-  \vspace{0.6em}
+  \vspace{0.4em}
 
-  \begin{subfigure}[t]{0.9\textwidth}
+  \begin{subfigure}[t]{\textwidth}
     \centering
-    \figurapendiente
+    \includegraphics[height=0.25\textheight,keepaspectratio]{pestana_medicion.jpeg}
     \caption{Pestaña \textit{Medición}.}
     \label{fig:ventana_ambos_medicion}
   \end{subfigure}
 
-  \vspace{0.6em}
+  \vspace{0.4em}
 
-  \begin{subfigure}[t]{0.9\textwidth}
+  \begin{subfigure}[t]{\textwidth}
     \centering
-    \figurapendiente
+    \includegraphics[height=0.25\textheight,keepaspectratio]{principal_laser_osciloscopio_medicion.png}
     \caption{Pestaña \textit{Visualizar datos}.}
     \label{fig:ventana_ambos_visualizacion}
   \end{subfigure}
   \caption{Ventana principal del modo combinado. La barra superior
            conserva en las tres pestañas los indicadores de conexión de
-           los tres dispositivos, las lecturas de los cuatro sensores de
-           temperatura y el botón de parada de emergencia.}
+           los tres dispositivos, las lecturas de temperatura y el botón
+           de parada de emergencia. Las capturas (a) y (c) corresponden a
+           una versión anterior de la barra, que mostraba solo el
+           promedio.}
   \label{fig:ventana_ambos}
 \end{figure}
 
@@ -340,7 +342,7 @@ reglas de diseño que de ellos resultaron, en la
     esa reapertura; una negativa cancela solo esa escritura. En la
     secuencia, la pregunta se formula después de que el operador
     acepta iniciarla, de modo que la confirmación solo queda registrada
-    si la secuencia efectivamente arranca.
+    si la secuencia llega a arrancar.
 
   \item \textbf{Parada de emergencia, red de seguridad y modo
     degradado.} El botón de parada envía las órdenes de modo seguro al
@@ -391,6 +393,15 @@ láser opera de forma continua durante toda la secuencia; su activación
 y desactivación forman parte del flujo de inicio y del procedimiento de
 modo seguro, respectivamente.
 
+En modo temperatura el láser dispara de forma continua durante toda la
+secuencia. Se consideró detenerlo entre ventanas para reducir la energía
+depositada en la muestra; sin embargo, se observó cualitativamente que
+la señal tarda varios segundos en estabilizarse tras reanudar los
+disparos, y ese tiempo no se caracterizó. Ante esa incertidumbre se optó
+por el disparo continuo, que garantiza que todas las adquisiciones de
+cada ventana correspondan a régimen estable, a costa de una mayor
+exposición de la muestra.
+
 En \textbf{modo tiempo}, la secuencia toma el número de capturas que
 indica el operador, separadas por el intervalo que este fija, de
 \SI{15}{\second} como mínimo y medido entre el inicio de una captura y
@@ -417,11 +428,15 @@ integrador, configurado con \texttt{ACQ:MODE AVERAGE} y
 \texttt{ACQ:NUMAVG 10000} para que no detenga la adquisición por sí
 mismo. Para cada objetivo $T_\text{obj}$, la ventana de integración se
 abre (\texttt{ACQ:STATE RUN}) cuando la temperatura de la muestra
-desciende hasta $T_\text{obj} + \SI{0.1}{\celsius}$ y se cierra
-(\texttt{ACQ:STATE STOP}) cuando desciende hasta
-$T_\text{obj} - \SI{0.1}{\celsius}$, de modo que cada captura promedia
-las adquisiciones obtenidas mientras la muestra atraviesa una banda de
-\SI{0.2}{\celsius} centrada en el objetivo.
+desciende hasta $T_\text{obj} + m$ y se cierra
+(\texttt{ACQ:STATE STOP}) cuando desciende hasta $T_\text{obj} - m$, de
+modo que cada captura promedia las adquisiciones obtenidas mientras la
+muestra atraviesa una banda de ancho $2m$ centrada en el objetivo. El
+semiancho $m$ fue de \SI{0.1}{\celsius} en las sesiones anteriores al 5
+de noviembre de 2026 y es de \SI{0.02}{\celsius} en la versión
+entregada; su efecto sobre el número de promedios y su relación con la
+resolución de los sensores se discuten en la
+\cref{sec:sesiones_congeladas}.
 
 La decisión sobre los cruces de umbral no se toma con lecturas
 aisladas. El trigger consulta la temperatura cada \SI{0.5}{\second},
@@ -526,6 +541,14 @@ manuales y las de modo tiempo terminan, ocurra lo que ocurra, con
 \texttt{ACQ:STOPAFTER RUNSTOP} y \texttt{ACQ:STATE RUN} en un bloque
 \texttt{finally}, y se verifica con \texttt{ACQ:STATE?} que el
 instrumento volvió a adquirir; así no queda detenido entre capturas.
+En modo temperatura, antes de cada orden de marcha se reafirman
+\texttt{ACQ:STATE STOP}, \texttt{ACQ:MODE AVERAGE} y
+\texttt{ACQ:STOPAFTER SEQUENCE}, porque presionar el botón de marcha y
+paro del panel frontal deja el instrumento en adquisición continua y el
+promedio dejaría de reiniciarse entre ventanas. Si el operador lo
+presiona a mitad de una ventana, el sistema no puede impedirlo; el
+testigo lo detecta y marca la captura
+(\cref{sec:sesiones_congeladas}).
 
 \paragraph{Marcas.} Cada condición agrega a \texttt{error\_desc} una
 marca legible y activa \texttt{error\_flag}: \texttt{osciloscopio sin
@@ -684,7 +707,7 @@ parámetros del láser en ese instante; y la geometría de la sesión
 (separación hidrófono--haz y volumen vertido, o la leyenda \texttt{no
 registrado}). Cada barrido por temperatura anexa a ese archivo un bloque
 numerado con su instante de arranque y las temperaturas inicial, final y
-el paso efectivamente usados, sin reescribir los anteriores.
+el paso usados, sin reescribir los anteriores.
 
 Una sesión reabierta conserva el encabezado con el que fue creada. Para
 reabrirla basta con que el registro contenga un subconjunto mínimo de
