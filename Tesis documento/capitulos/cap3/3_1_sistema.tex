@@ -5,158 +5,86 @@
 
 El software se desarrolló como una aplicación de escritorio en
 Python~3.12 con interfaz gráfica basada en \texttt{PySide6}~6.11, el
-enlace oficial de Qt~6 para Python. La arquitectura sigue un patrón
-modular en el que cada subsistema de hardware corresponde a un paquete
-independiente, y la interfaz gráfica actúa como coordinador de alto
-nivel.
+enlace oficial de Qt~6 para Python. Cada subsistema de hardware
+corresponde a un paquete independiente, y la interfaz gráfica actúa
+como coordinador de alto nivel.
 
 \subsection{Arquitectura modular}
 \label{sec:arquitectura}
 
 El proyecto se organiza en torno a un paquete principal \texttt{app/}
-que agrupa los siguientes módulos:
+con un subpaquete por subsistema. El punto de entrada es
+\texttt{main.py}, que aplica la configuración de conexión, instancia la
+ventana de bienvenida y entrega el control al ciclo de eventos de Qt;
+en la computadora del laboratorio se lanza con \texttt{iniciar.bat},
+que mantiene abierta la consola si la aplicación termina con error, de
+modo que el operador no necesita abrir una terminal. Los módulos son
+los siguientes.
 
 {\sloppy
 \begin{itemize}
-  \item \texttt{app/laser/control\_laser.py} — gestión de la conexión
-    con el láser mediante la biblioteca de enlace dinámico
-    \texttt{REMOTECONTROL64.dll}. Expone una interfaz pública de
-    operación (\texttt{start}, \texttt{stop}, \texttt{leer\_estado},
-    \texttt{ping}, \texttt{modo\_seguro}), de lectura
-    (\texttt{read\_output\_level}, \texttt{read\_eo\_delay},
-    \texttt{read\_burst\_mode}, \texttt{read\_cooling\_temp},
-    \texttt{read\_pulse\_counter}, \texttt{leer\_parametros}) y de
-    escritura (\texttt{set\_output\_level}, \texttt{set\_eo\_delay},
-    \texttt{set\_burst\_mode}, \texttt{set\_burst\_length},
-    \texttt{set\_cooling\_temp}); el acceso directo a registros queda
-    encapsulado y no se invoca desde la interfaz gráfica.
-
-  \item \texttt{app/osciloscopio/control\_osciloscopio.py} —
-    comunicación VXI-11 con el osciloscopio; implementa la consulta de
-    parámetros de adquisición, la configuración del modo de acumulación
-    de cada secuencia, la transferencia binaria de forma de onda, la
-    lectura del preámbulo necesario para la conversión a unidades
-    físicas y la verificación de que cada registro leído corresponde a
-    una adquisición nueva (\cref{sec:verificacion_adquisicion}).
-
-  \item \texttt{app/temperatura/temperatura.py} — hilo de lectura
-    continua de los cuatro sensores DS18B20 conectados al módulo
-    ESP32~WROOM-32; mantiene la última lectura en memoria, indica si el
-    valor es reciente y emite señales Qt cuando se actualiza. El
-    firmware del módulo se conserva en \texttt{esp32/temperatura/}.
-
-  \item \texttt{app/medicion/medicion.py} — fachada de hardware y
-    orquestador de la secuencia de medición automática; coordina el
-    láser, el osciloscopio y el módulo de temperatura según el modo de
-    operación seleccionado, y emite advertencias sin interrumpir la
-    secuencia.
-
-  \item \texttt{app/medicion/trigger.py} — lógica de disparo; evalúa
-    la condición de inicio y fin de adquisición en función de la
-    temperatura o del tiempo según el modo activo.
-
-  \item \texttt{app/almacenamiento/almacenamiento.py} — persistencia
-    de datos; guarda las muestras crudas en archivos \texttt{.npy}, los
-    metadatos de cada medición en un registro \texttt{.csv} de sesión y
-    las condiciones generales en \texttt{metadatos\_sesion.txt}.
-
-  \item \texttt{app/conexion/monitoreo.py} — hilo de monitoreo de
-    conexión; comprueba periódicamente el estado de cada dispositivo,
-    intenta la reconexión y actualiza los indicadores de la interfaz.
-    El módulo vecino \texttt{prueba\_conexion.py} sondea los
-    dispositivos con valores de conexión que todavía no se han
-    guardado.
-
-  \item \texttt{app/modo\_seguro/modo\_seguro.py} — procedimiento de
-    seguridad descrito en la \cref{sec:auto_laser}; desactiva el láser
-    de forma controlada ante una parada de emergencia, un fallo de
-    comunicación o la conclusión de la secuencia.
-
-  \item \texttt{app/exportacion/exportar\_mat.py} — conversión de una
-    sesión completa al formato \texttt{.mat} para su análisis
-    posterior en MATLAB.
-
-  \item \texttt{app/gui/} — conjunto de ventanas y componentes
-    gráficos: la bienvenida (\texttt{bienvenida.py}), las tres
-    ventanas de operación, la pestaña de visualización
-    (\texttt{visualizacion.py}) y el diálogo de conexión
-    (\texttt{dialogo\_conexion.py}).
-
-  \item \texttt{app/config.py}, \texttt{app/config\_local.py} y
-    \texttt{app/config\_usuario.py} — parámetros de conexión (puertos
-    serie del ESP32 y del láser, dirección IP del osciloscopio). Se
-    leen con el orden de prioridad: archivo JSON del usuario, guardado
-    fuera del repositorio desde el diálogo de conexión; después
-    \texttt{config\_local.py}, propio de cada computadora y no
-    versionado; y por último los valores por omisión de
-    \texttt{config.py}. Si el JSON no existe o está dañado, la
-    aplicación arranca con los valores siguientes en ese orden.
+  \item \texttt{laser/} — conexión con el láser mediante
+    \texttt{REMOTECONTROL64.dll}; el acceso a registros queda
+    encapsulado.
+  \item \texttt{osciloscopio/} — comunicación VXI-11, transferencia
+    binaria y verificación de adquisición nueva
+    (\cref{sec:verificacion_adquisicion}).
+  \item \texttt{temperatura/} — hilo de lectura continua de los cuatro
+    DS18B20 a través del ESP32; conserva la última lectura e indica si
+    es reciente. El firmware está en \texttt{esp32/temperatura/}.
+  \item \texttt{medicion/} — orquestador de la secuencia y lógica de
+    disparo por tiempo o por temperatura; las anomalías se emiten como
+    advertencias sin interrumpir la secuencia.
+  \item \texttt{almacenamiento/}, \texttt{conexion/},
+    \texttt{modo\_seguro/} (\cref{sec:auto_laser}),
+    \texttt{exportacion/} y \texttt{gui/} — registro de sesión,
+    vigilancia de los enlaces, estado seguro, conversión a \texttt{.mat}
+    y ventanas de la interfaz.
+  \item \texttt{config.py}, \texttt{config\_local.py} y
+    \texttt{config\_usuario.py} — parámetros de conexión, leídos con la
+    prioridad: archivo JSON del usuario (fuera del repositorio),
+    \texttt{config\_local.py} (propio de cada computadora, no
+    versionado) y valores por omisión.
 \end{itemize}
 \par}
 
-El punto de entrada de la aplicación es \texttt{main.py}, ubicado en la
-raíz del proyecto, que aplica la configuración de conexión, instancia
-la ventana de bienvenida y entrega el control al ciclo de eventos de
-Qt. En la computadora del laboratorio se ejecuta mediante
-\texttt{iniciar.bat}, que lanza \texttt{main.py} con el intérprete del
-entorno virtual del proyecto y mantiene abierta la consola si la
-aplicación termina con error, de modo que el operador no necesita
-abrir una terminal. Fuera de \texttt{app/}, la carpeta
-\texttt{herramientas/} reúne los programas auxiliares de verificación
-y prueba (\texttt{verificar\_sesion.py}, \texttt{simular\_barrido.py},
-\texttt{generar\_sesion\_prueba.py}, \texttt{prueba\_buffer.py}, entre
-otros) y \texttt{codigos\_de\_prueba/} las pruebas de la interfaz sin
-hardware; ambos se describen en la \cref{sec:validacion}.
+Fuera de \texttt{app/}, \texttt{herramientas/} y
+\texttt{codigos\_de\_prueba/} reúnen los programas de verificación y las
+pruebas de la interfaz sin hardware (\cref{sec:validacion}). La
+\cref{fig:arquitectura} resume la organización: el módulo de medición
+ocupa la posición central y coordina a los tres instrumentos.
 
-La \cref{fig:arquitectura} resume esta organización y las relaciones
-entre los módulos. El de medición ocupa la posición central: coordina la
-secuencia, consulta a los tres instrumentos y escribe en el registro de
-sesión las mediciones automáticas; la captura manual guarda sus filas
-desde la interfaz, con el mismo módulo de almacenamiento. El de
-conexión y monitoreo no participa en la secuencia; vigila el estado de
-los enlaces de forma continua y en paralelo, de modo que la pérdida de
-un dispositivo se detecta también fuera de una medición en curso.
-
-El monitoreo no trata igual a los tres dispositivos. Del láser lee
-activamente el registro \texttt{State}; del osciloscopio consulta la
-bandera de conexión que mantiene su controlador, sin enviar una orden
-al instrumento; del ESP32 comprueba que la última lectura recibida sea
-reciente. El ciclo se repite cada \SI{5}{\second} en reposo y cada
-\SI{1}{\second} durante una secuencia, y se suspende mientras dura una
-captura para no competir con la transferencia de la forma de onda.
-Cuando un dispositivo no responde, su indicador pasa a amarillo y se
-lanzan hasta tres intentos de reconexión en un hilo propio; si fallan,
-el indicador pasa a rojo. Solo la pérdida del láser o del osciloscopio
-activa el modo seguro: el ESP32 no es crítico para la seguridad del
-haz, y su ausencia se registra en cada medición afectada
-(\cref{sec:secuencia}).
-
+% FIG-RECORTE
 \input{capitulos/fig_arquitectura}
+
+El módulo de conexión y monitoreo no participa en la secuencia: vigila
+los enlaces de forma continua y en paralelo, de modo que la pérdida de
+un dispositivo se detecta también fuera de una medición. Del láser lee
+activamente el registro \texttt{State}; del osciloscopio consulta la
+bandera de conexión de su controlador, sin enviarle órdenes; del ESP32
+comprueba que la última lectura sea reciente. El ciclo se repite cada
+\SI{5}{\second} en reposo y cada \SI{1}{\second} durante una secuencia,
+y se suspende durante una captura para no competir con la transferencia
+de la forma de onda. Cuando un dispositivo no responde, su indicador
+pasa a amarillo y se lanzan hasta tres intentos de reconexión en un
+hilo propio; si fallan, pasa a rojo. Solo la pérdida del láser o del
+osciloscopio activa el modo seguro: el ESP32 no es crítico para la
+seguridad del haz, y su ausencia se registra en cada medición afectada
+(\cref{sec:secuencia}).
 
 \subsection{Decisiones de diseño}
 \label{sec:decisiones}
 
-La elección de \texttt{PySide6} frente a otras bibliotecas gráficas
-responde a tres criterios: compatibilidad nativa con Qt~6, soporte
-activo de largo plazo por parte de The Qt Company, y disponibilidad del
-módulo \texttt{pyqtgraph} para visualización en tiempo real sin pérdida
-de rendimiento.
-
-Todas las operaciones de hardware se ejecutan en hilos secundarios
-(\texttt{QThread}) independientes del hilo principal de la interfaz.
-Esta separación es obligatoria en aplicaciones Qt: bloquear el hilo
-principal durante una transferencia de forma de onda o una espera de
-conexión provoca que la ventana quede sin respuesta. Cada hilo comunica
-su resultado al hilo principal mediante señales Qt (\texttt{Signal}),
-que Qt entrega de forma segura entre hilos.
-
-El control del láser mediante \texttt{ctypes} directo, en lugar de un
-subproceso separado o una capa intermedia, obedece a la restricción de
-arquitectura de la \texttt{DLL}: la biblioteca
-\texttt{REMOTECONTROL64.dll} es exclusivamente de 64~bits y debe
-cargarse en el mismo espacio de proceso que el intérprete de Python. El
-uso de \texttt{ctypes.WinDLL} desde Python~3.12 de 64~bits satisface
-esta condición sin dependencias adicionales.
+\texttt{PySide6} se eligió por su compatibilidad nativa con Qt~6, su
+soporte de largo plazo y la disponibilidad de \texttt{pyqtgraph} para
+visualización en tiempo real. Todas las operaciones de hardware se
+ejecutan en hilos secundarios (\texttt{QThread}) y comunican su
+resultado al hilo principal mediante señales Qt, porque bloquear ese hilo
+durante una transferencia o una espera de conexión deja la ventana sin
+respuesta. El láser se controla con \texttt{ctypes} directo, sin
+subproceso ni capa intermedia, porque \texttt{REMOTECONTROL64.dll} es
+exclusivamente de 64~bits y debe cargarse en el mismo espacio de proceso
+que el intérprete de Python~3.12 de 64~bits.
 
 La configuración de los ejes y del disparo del osciloscopio se opera en
 modo de solo lectura desde la aplicación. Las escalas vertical y
@@ -211,7 +139,7 @@ ausente entre varias y exige identificar cuál falló; con buses
 separados, la línea que deja de responder nombra al dispositivo sin
 ambigüedad. Esa correspondencia es la que permite que el registro de
 sesión consigne qué sensor se perdió y no solo que se perdió alguno,
-como se documenta en la \cref{sec:falla_temperatura}.
+como se documenta en la \cref{tab:fallas_entorno}.
 
 \subsection{Interfaz gráfica}
 \label{sec:gui}
@@ -245,18 +173,19 @@ botón de parada de emergencia. Las capturas de pantalla de esta
 subsección corresponden a la interfaz de principios de septiembre de
 2026; los elementos incorporados después se describen en el texto.
 
+% FIG-RECORTE
 \begin{figure}[H]
   \centering
   \begin{subfigure}[t]{0.48\textwidth}
     \centering
-    \includegraphics[width=\textwidth]{ventana_laser}
+    \includegraphics[width=\linewidth]{pestaña_laser.png}
     \caption{Control del láser.}
     \label{fig:ventana_laser}
   \end{subfigure}
   \hfill
   \begin{subfigure}[t]{0.48\textwidth}
     \centering
-    \includegraphics[width=\textwidth]{ventana_osciloscopio}
+    \includegraphics[width=\linewidth]{pestaña_osciloscopio.png}
     \caption{Control del osciloscopio.}
     \label{fig:ventana_osciloscopio}
   \end{subfigure}
@@ -304,36 +233,39 @@ se muestran en la \cref{fig:ventana_ambos}:
     convertirla a formato \texttt{.mat} (\textit{Convertir a MATLAB}).
 \end{itemize}
 
+% FIG-RECORTE
 \begin{figure}[H]
   \centering
-  \begin{subfigure}[t]{0.9\textwidth}
+  \begin{subfigure}[t]{\textwidth}
     \centering
-    \includegraphics[width=\textwidth]{ventana_auto_1}
+    \includegraphics[height=0.25\textheight,keepaspectratio]{principal_laser_osciloscopio.png}
     \caption{Pestaña \textit{Parámetros}.}
     \label{fig:ventana_ambos_parametros}
   \end{subfigure}
 
-  \vspace{0.6em}
+  \vspace{0.4em}
 
-  \begin{subfigure}[t]{0.9\textwidth}
+  \begin{subfigure}[t]{\textwidth}
     \centering
-    \includegraphics[width=\textwidth]{ventana_auto_2}
+    \includegraphics[height=0.25\textheight,keepaspectratio]{pestana_medicion.jpeg}
     \caption{Pestaña \textit{Medición}.}
     \label{fig:ventana_ambos_medicion}
   \end{subfigure}
 
-  \vspace{0.6em}
+  \vspace{0.4em}
 
-  \begin{subfigure}[t]{0.9\textwidth}
+  \begin{subfigure}[t]{\textwidth}
     \centering
-    \includegraphics[width=\textwidth]{ventana_auto_3}
+    \includegraphics[height=0.25\textheight,keepaspectratio]{principal_laser_osciloscopio_medicion.png}
     \caption{Pestaña \textit{Visualizar datos}.}
     \label{fig:ventana_ambos_visualizacion}
   \end{subfigure}
   \caption{Ventana principal del modo combinado. La barra superior
            conserva en las tres pestañas los indicadores de conexión de
-           los tres dispositivos, las lecturas de los cuatro sensores de
-           temperatura y el botón de parada de emergencia.}
+           los tres dispositivos, las lecturas de temperatura y el botón
+           de parada de emergencia. Las capturas (a) y (c) corresponden a
+           una versión anterior de la barra, que mostraba solo el
+           promedio.}
   \label{fig:ventana_ambos}
 \end{figure}
 
@@ -344,25 +276,44 @@ una captura terminó con advertencia, y rojo para desconectado. Cuando
 el ESP32 queda desconectado aparece junto a su indicador el botón
 \textit{Reconectar}, que se oculta al restablecerse la conexión. La
 temperatura y el estado de los cuatro sensores se actualizan cada
-segundo; si no hay una lectura reciente del ESP32, la temperatura se
-sustituye por un guion y los indicadores de los sensores pasan a gris,
-de modo que el último valor recibido no se presente como si
-correspondiera a la muestra. El estado del láser se lee del registro
-\texttt{State} cada segundo, con independencia de quién lo haya
-cambiado: un arranque o una detención ordenados desde el control del
-propio láser se reflejan en la interfaz sin intervención del operador.
+segundo, y el estado del láser se lee del registro \texttt{State} cada
+segundo con independencia de quién lo haya cambiado: un arranque o una
+detención ordenados desde el control del propio láser se reflejan en la
+interfaz sin intervención del operador. Qué muestra la barra cuando no
+hay una lectura vigente se describe en la \cref{sec:protecciones}.
 
 \subsection{Protecciones de la operación}
 \label{sec:protecciones}
 
 Además del modo seguro del láser (\cref{sec:auto_laser}), la interfaz
 incorpora un conjunto de bloqueos y confirmaciones cuyo propósito es
-que ninguna acción del operador produzca un registro que no
-corresponda a lo ocurrido. Los modos de falla que motivaron varios de
-ellos se documentan en la \cref{sec:fallas}; aquí se describe su
-diseño.
+que ninguna acción del operador, ni ningún indicador, produzca un
+registro o una pantalla que no corresponda a lo ocurrido. Los defectos
+que motivaron varios de ellos se resumen en la \cref{sec:fallas}, y las
+reglas de diseño que de ellos resultaron, en la
+\cref{tab:clases_defectos}; aquí se describe su diseño.
 
 \begin{itemize}
+  \item \textbf{Estado confirmado, no supuesto.} Ninguna orden cambia
+    un indicador por haberse enviado. El estado del láser se lee de su
+    registro \texttt{State} cada segundo; una lectura fallida se
+    presenta como estado desconocido y bloquea los controles como si
+    el láser estuviera en marcha, en lugar de mostrar como detenido un
+    estado que no se confirmó. El paro de emergencia, la aplicación de
+    los parámetros del láser y el cambio de canal del osciloscopio
+    informan éxito solo si el dispositivo lo confirma; si el cambio de
+    canal falla, la selección visible vuelve al canal real.
+
+  \item \textbf{Sin lectura vigente no hay dato.} Si el ESP32 no tiene
+    una lectura reciente, la barra superior sustituye la temperatura
+    por un guion y pone en gris los indicadores de los sensores, de
+    modo que el último valor recibido no se presente como si
+    correspondiera a la muestra. En el registro, la temperatura se
+    escribe como \texttt{nan} ---no como cero, que es una temperatura
+    físicamente válida---, se activa \texttt{error\_flag} y
+    \texttt{error\_desc} nombra al dispositivo y su puerto; un sensor
+    ausente se nombra en la descripción.
+
   \item \textbf{Bloqueo durante la secuencia.} Mientras una secuencia
     automática está en curso, el worker de medición es el único que
     configura y lee el osciloscopio. Por ello se deshabilitan la
@@ -391,7 +342,7 @@ diseño.
     esa reapertura; una negativa cancela solo esa escritura. En la
     secuencia, la pregunta se formula después de que el operador
     acepta iniciarla, de modo que la confirmación solo queda registrada
-    si la secuencia efectivamente arranca.
+    si la secuencia llega a arrancar.
 
   \item \textbf{Parada de emergencia, red de seguridad y modo
     degradado.} El botón de parada envía las órdenes de modo seguro al
@@ -430,6 +381,10 @@ diseño.
     limitación de la versión actual.
 \end{itemize}
 
+Los modos de falla que no se previenen con un bloqueo se registran
+con una marca en la fila afectada, como se describe en la
+\cref{sec:secuencia}.
+
 \subsection{Secuencia de medición automática}
 \label{sec:secuencia}
 
@@ -437,6 +392,15 @@ El sistema implementa dos modos de medición automática. En ambos, el
 láser opera de forma continua durante toda la secuencia; su activación
 y desactivación forman parte del flujo de inicio y del procedimiento de
 modo seguro, respectivamente.
+
+En modo temperatura el láser dispara de forma continua durante toda la
+secuencia. Se consideró detenerlo entre ventanas para reducir la energía
+depositada en la muestra; sin embargo, se observó cualitativamente que
+la señal tarda varios segundos en estabilizarse tras reanudar los
+disparos, y ese tiempo no se caracterizó. Ante esa incertidumbre se optó
+por el disparo continuo, que garantiza que todas las adquisiciones de
+cada ventana correspondan a régimen estable, a costa de una mayor
+exposición de la muestra.
 
 En \textbf{modo tiempo}, la secuencia toma el número de capturas que
 indica el operador, separadas por el intervalo que este fija, de
@@ -447,83 +411,67 @@ que el propio osciloscopio acumula con \texttt{ACQ:MODE AVERAGE},
 aplicación consulta \texttt{ACQ:STATE?} hasta constatar que el
 promedio terminó y entonces transfiere el registro. Antes de iniciar,
 la interfaz estima la duración de una captura a partir de la tasa de
-adquisición medida ($\sim$9.3 adquisiciones por segundo), del
-número de promedios y del tiempo de transferencia de la longitud de
-registro vigente, y rechaza un intervalo menor que esa estimación
-indicando el mínimo realizable. Si durante la secuencia una captura
-excede el intervalo, el exceso queda anotado en \texttt{error\_desc},
-sin activar \texttt{error\_flag}.
+adquisición (unas 10 por segundo), del número de promedios y del tiempo
+de transferencia de la longitud de registro vigente, y rechaza un
+intervalo menor que esa estimación indicando el mínimo realizable. Si
+durante la secuencia una captura excede el intervalo, el exceso queda
+anotado en \texttt{error\_desc}, sin activar \texttt{error\_flag}.
 
-En \textbf{modo temperatura}, la muestra se enfría desde una
-temperatura inicial hasta una final, y la secuencia recorre los
-objetivos de mayor a menor separados por el paso indicado. El
-osciloscopio actúa como integrador, configurado con
-\texttt{ACQ:MODE AVERAGE} y \texttt{ACQ:NUMAVG 10000} para que no
-detenga la adquisición por sí mismo: para cada objetivo
-$T_\text{obj}$, la ventana de integración se abre
-(\texttt{ACQ:STATE RUN}) cuando la temperatura de la muestra desciende
-hasta $T_\text{obj} + \SI{0.1}{\celsius}$ y se cierra
-(\texttt{ACQ:STATE STOP}) cuando desciende hasta
-$T_\text{obj} - \SI{0.1}{\celsius}$. El propósito es que cada captura
-promedie las adquisiciones obtenidas mientras la muestra atraviesa una
-banda de \SI{0.2}{\celsius} centrada en el objetivo.
+En \textbf{modo temperatura}, la secuencia recorre una lista de
+temperaturas objetivo separadas por el paso indicado, \emph{de mayor a
+menor}. El sentido es una decisión de diseño y no una limitación del
+algoritmo: la muestra de agua se calienta en un horno de microondas y se
+mide durante su enfriamiento pasivo, y el arreglo no cuenta con un
+calentador controlado en la celda, de modo que la rampa de enfriamiento
+es la única monótona de que se dispone. El osciloscopio actúa como
+integrador, configurado con \texttt{ACQ:MODE AVERAGE} y
+\texttt{ACQ:NUMAVG 10000} para que no detenga la adquisición por sí
+mismo. Para cada objetivo $T_\text{obj}$, la ventana de integración se
+abre (\texttt{ACQ:STATE RUN}) cuando la temperatura de la muestra
+desciende hasta $T_\text{obj} + m$ y se cierra
+(\texttt{ACQ:STATE STOP}) cuando desciende hasta $T_\text{obj} - m$, de
+modo que cada captura promedia las adquisiciones obtenidas mientras la
+muestra atraviesa una banda de ancho $2m$ centrada en el objetivo. El
+semiancho $m$ fue de \SI{0.1}{\celsius} en las sesiones anteriores al 5
+de noviembre de 2026 y es de \SI{0.02}{\celsius} en la versión
+entregada; su efecto sobre el número de promedios y su relación con la
+resolución de los sensores se discuten en la
+\cref{sec:sesiones_congeladas}.
 
 La decisión sobre los cruces de umbral no se toma con lecturas
 aisladas. El trigger consulta la temperatura cada \SI{0.5}{\second},
 la filtra con una mediana móvil de tres lecturas y exige dos lecturas
-consecutivas por debajo del umbral para dar por confirmado un cruce, de
-modo que el ruido del sensor no abra ni cierre una ventana antes de
-tiempo. Al arrancar, los objetivos cuya ventana ya quedó por encima de
-la temperatura actual de la muestra se omiten con aviso, porque
-satisfarían ambos umbrales de inmediato y producirían ventanas de
-duración nula. Si la lectura se interrumpe, a los \SI{30}{\second} sin
-datos recientes se emite una advertencia y la secuencia sigue en
-espera; a los \SI{300}{\second} se aborta. Cuando la lectura se
-restablece, un objetivo cuya ventana se perdió por completo durante la
-interrupción se descarta con aviso, junto con los posteriores que
-también hayan quedado rebasados; si la interrupción ocurrió con la
-ventana ya abierta, la medición se conserva, porque el osciloscopio no
-depende del ESP32, pero se advierte que integró sobre una banda más
-ancha que la nominal.
+consecutivas por debajo del umbral para confirmar un cruce, de modo que
+el ruido del sensor no abra ni cierre una ventana antes de tiempo. Al
+arrancar, los objetivos cuya ventana ya quedó por encima de la
+temperatura actual se omiten con aviso, porque satisfarían ambos
+umbrales de inmediato y producirían ventanas de duración nula. Si la
+lectura se interrumpe, a los \SI{30}{\second} sin datos recientes se
+emite una advertencia y la secuencia sigue en espera; a los
+\SI{300}{\second} se aborta. Al restablecerse la lectura, un objetivo
+cuya ventana se perdió por completo se descarta con aviso, junto con
+los posteriores que también hayan quedado rebasados; si la
+interrupción ocurrió con la ventana ya abierta, la medición se
+conserva, porque el osciloscopio no depende del ESP32, pero se advierte
+que integró sobre una banda más ancha que la nominal.
 
-La secuencia en modo temperatura sigue los pasos descritos a
-continuación:
-
-\begin{enumerate}
-  \item El operador ajusta los parámetros del láser en la pestaña
-    \textbf{Parámetros} y los aplica, enciende la emisión, y en la
-    pestaña \textbf{Medición} indica la temperatura inicial, la final
-    y el paso, y presiona \textit{Iniciar secuencia}. La interfaz exige
-    que el láser ya esté en \texttt{RUN}.
-  \item \texttt{medicion.py} reenvía la orden de arranque al láser
-    mediante \texttt{control\_laser.py} y configura el osciloscopio
-    para el modo temperatura, después de memorizar su modo de
-    adquisición y su número de promedios. Los parámetros del láser no
-    se envían en este paso: son los que el operador aplicó.
-  \item El hilo \texttt{TriggerWorker} registra los parámetros del
-    barrido en los metadatos de la sesión y supervisa la temperatura
-    filtrada; cuando $T \leq T_\text{obj} + \SI{0.1}{\celsius}$, se
-    envía \texttt{ACQ:STATE RUN} y se registran la temperatura de
-    apertura y el instante de inicio de la ventana.
-  \item Cuando $T \leq T_\text{obj} - \SI{0.1}{\celsius}$, se registra
-    la temperatura de cierre, se envía \texttt{ACQ:STATE STOP} y se
-    calcula la duración de la ventana.
-  \item \texttt{medicion.py} transfiere la forma de onda mediante
-    \texttt{CURVE?} junto con su preámbulo, verifica que el registro
-    corresponda a una adquisición nueva
-    (\cref{sec:verificacion_adquisicion}) y entrega las muestras crudas
-    y los metadatos al módulo de almacenamiento. La conversión a
-    unidades físicas se realiza en el análisis posterior con las
-    \cref{eq:conv_voltaje,eq:conv_tiempo}. El ciclo se repite con el
-    siguiente objetivo.
-  \item Al agotarse los objetivos, el procedimiento de modo seguro
-    desactiva el láser y el osciloscopio recupera el modo de
-    adquisición y el número de promedios memorizados y vuelve a
-    adquirir de forma continua.
-  \item La interfaz informa cuántas mediciones quedaron con
-    \texttt{error\_flag}, adjunta la lista de advertencias emitidas
-    durante la secuencia y restablece los controles.
-\end{enumerate}
+En la práctica, el operador aplica los parámetros del láser, enciende
+la emisión (la interfaz exige que esté en \texttt{RUN}) e indica la
+temperatura inicial, la final y el paso. \texttt{medicion.py} reenvía la
+orden de arranque al láser y configura el osciloscopio para el modo
+temperatura, después de memorizar su modo de adquisición y su número de
+promedios. El hilo \texttt{TriggerWorker} registra los parámetros del
+barrido en los metadatos de la sesión, abre y cierra cada ventana con
+\texttt{ACQ:STATE RUN} y \texttt{STOP} y anota las temperaturas y la
+duración; tras cada cierre, \texttt{medicion.py} transfiere la forma de
+onda con \texttt{CURVE?}, verifica que sea una adquisición nueva
+(\cref{sec:verificacion_adquisicion}) y entrega las muestras crudas y
+los metadatos al almacenamiento. La conversión a unidades físicas se
+hace en el análisis posterior con las
+\cref{eq:conv_voltaje,eq:conv_tiempo}. Al agotarse los objetivos, el
+modo seguro desactiva el láser, el osciloscopio recupera el modo y los
+promedios memorizados y la interfaz informa cuántas mediciones quedaron
+con \texttt{error\_flag}.
 
 Cada medición, en cualquiera de los dos modos, se procesa con las
 mismas reglas. Si el ESP32 no tiene una lectura reciente, la
@@ -534,103 +482,111 @@ respondió y en qué puerto; si algún sensor está ausente, se activa
 que produce la verificación de adquisición se agregan a la misma
 descripción. Si la captura falla por completo, la falla se notifica
 como advertencia y no se escribe fila, porque no hay registro que
-guardar. Cada advertencia se muestra en la interfaz y la propia
-interfaz la anexa, con su hora, al archivo \texttt{advertencias.log}
-de la sesión.
+guardar. Cada advertencia se muestra en la interfaz y se anexa, con su
+hora, al archivo \texttt{advertencias.log} de la sesión.
 
 \subsection{Verificación de adquisición nueva en el osciloscopio}
 \label{sec:verificacion_adquisicion}
 
 Un registro leído con \texttt{CURVE?} no es necesariamente posterior a
-la orden de captura. Si el osciloscopio está detenido, la consulta
-devuelve el último registro que conserva en memoria; y un cambio de
-escala reinicia el promedio en curso, de modo que una lectura
-inmediatamente posterior puede devolver datos anteriores al cambio
-acompañados de metadatos ya actualizados. En las sesiones del 22 de
-septiembre de 2026 ambas situaciones produjeron capturas guardadas sin
-marca, como se documenta en la \cref{sec:falla_buffer}. Comparar el
-contenido de los registros no sirve como testigo: con el instrumento
-detenido, el registro transferido cambia al cambiar la escala aunque
-no se haya adquirido nada nuevo. La verificación se apoya, en cambio,
-en el contador de adquisiciones del instrumento.
+la orden de captura: con el osciloscopio detenido la consulta devuelve
+el último registro en memoria, y un cambio de escala reinicia el
+promedio en curso, de modo que una lectura inmediata puede traer datos
+anteriores con metadatos ya actualizados (falla~4 de la
+\cref{tab:fallas_entorno}). Comparar el contenido de los registros no
+sirve como testigo, porque con el instrumento detenido el registro
+cambia al cambiar la escala aunque no haya habido adquisición. La
+verificación se apoya en el contador \texttt{ACQ:NUMACQ?}.
 
-\paragraph{Testigo del contador.} La consulta \texttt{ACQ:NUMACQ?}
-devuelve el número de adquisiciones acumuladas. Medido en el
-TDS5054B, \texttt{ACQ:STATE RUN} no reinicia ese contador, mientras
-que un cambio de escala sí lo reinicia, con un retraso de hasta
-aproximadamente un segundo; el reinicio solo se observa, por tanto,
-como una caída entre dos lecturas. La clase \texttt{TestigoNumacq}
-sigue el contador a lo largo de la captura y aplica dos criterios. La
-captura es \emph{fresca} si el contador subió respecto a la primera
-lectura sin caer, o si cayó y después volvió a subir. Es
-\emph{completa}, en modo \textit{Average}, si las adquisiciones
+\paragraph{Comportamiento del contador.} Medido en el TDS5054B, con
+adquisición continua (\texttt{ACQ:STOPAFTER RUNSTOP}),
+\texttt{ACQ:STATE RUN} no reinicia el contador, y un cambio de escala sí,
+con un retraso de hasta aproximadamente un segundo. Con
+\texttt{ACQ:STOPAFTER SEQUENCE}, el régimen de los modos automáticos,
+cada \texttt{ACQ:STATE RUN} inicia una secuencia nueva y reinicia el
+contador, también con retraso: la lectura inmediatamente posterior a la
+orden devuelve todavía el conteo de la captura anterior. El reinicio
+solo se observa como una caída entre dos lecturas.
+
+\paragraph{Criterios.} La clase \texttt{TestigoNumacq} sigue el
+contador durante la captura. La captura es \emph{fresca} si el contador
+subió respecto a la lectura base sin caer, o si cayó y después volvió a
+subir; y \emph{completa}, en modo \textit{Average}, si las adquisiciones
 acumuladas desde el último reinicio alcanzan el número de promedios
-configurado. La última lectura del contador se toma justo antes de
-\texttt{CURVE?}, de modo que también delata un reinicio aparecido
-después de detener la adquisición.
+configurado.
 
 \paragraph{Captura manual.} Con el osciloscopio adquiriendo de forma
-continua, la captura no se acepta hasta que el testigo indica una
-captura fresca y completa y el contador lleva \SI{1}{\second} sin
-caer; cada reinicio observado vuelve a dar el plazo completo. Así, una
-perilla de escala movida justo antes de capturar alcanza a manifestarse
-en el contador. Un cambio más tardío, todavía invisible en él, se
-detecta comparando las escalas vertical y horizontal leídas al inicio
-de la espera, o tras el último reinicio observado, con las que
-acompañan al registro transferido. Si el plazo de espera vence, la
-captura se devuelve igualmente, marcada.
+continua, la captura no se acepta hasta que es fresca y completa y el
+contador lleva \SI{1}{\second} sin caer; cada reinicio observado vuelve a
+dar el plazo completo. Un cambio de escala todavía invisible en el
+contador se detecta comparando las escalas leídas tras el último
+reinicio con las que acompañan al registro. Si el plazo vence, la
+captura se devuelve marcada.
 
-\paragraph{Modos automáticos.} En modo tiempo se exigen los mismos dos
-criterios entre el arranque del promedio y la transferencia. En modo
-temperatura el testigo se inicia al abrir la ventana con
-\texttt{ACQ:STATE RUN} y solo se exige que la captura sea fresca, ya
-que el número de promedios configurado no se alcanza por diseño.
+\paragraph{Modos automáticos.} El testigo toma su base \emph{después}
+del reinicio: se lee el contador antes de enviar \texttt{ACQ:STATE RUN}
+y se sondea hasta \SI{3}{\second} hasta ver una lectura menor que la
+previa o igual a cero, que es la base; si no aparece, se avisa y la
+captura se marca. En modo tiempo se exige además el promedio completo y
+no más adquisiciones que promedios. En modo temperatura, donde el número
+de promedios no se alcanza por diseño, el contador se muestrea cada
+\SI{0.5}{\second} y una caída a mitad de la ventana marca la captura; el
+total de adquisiciones no puede exceder la duración de la ventana por la
+frecuencia del láser (\SI{10}{\hertz}) con 15\,\% de tolerancia; y las
+escalas leídas al abrir y al cerrar la ventana deben coincidir.
 
-\paragraph{Coherencia del registro.} Toda captura compara además la
-longitud del arreglo transferido con el valor de \texttt{NR\_PT} del
-preámbulo; si no coinciden, los metadatos no corresponden al registro
-y la captura se marca.
-
-\paragraph{Retorno a adquisición continua.} Las capturas manuales y
-las de modo tiempo terminan, ocurra lo que ocurra durante ellas, con
+\paragraph{Coherencia y retorno a marcha.} Toda captura compara la
+longitud del arreglo con \texttt{NR\_PT} del preámbulo. Las capturas
+manuales y las de modo tiempo terminan, ocurra lo que ocurra, con
 \texttt{ACQ:STOPAFTER RUNSTOP} y \texttt{ACQ:STATE RUN} en un bloque
-\texttt{finally}, y la aplicación verifica con \texttt{ACQ:STATE?} que
-el instrumento volvió a adquirir; si no lo hizo, emite una advertencia.
-De este modo, el osciloscopio no queda detenido entre capturas, que es
-la condición en la que una lectura posterior devolvería un registro
-viejo.
+\texttt{finally}, y se verifica con \texttt{ACQ:STATE?} que el
+instrumento volvió a adquirir; así no queda detenido entre capturas.
+En modo temperatura, antes de cada orden de marcha se reafirman
+\texttt{ACQ:STATE STOP}, \texttt{ACQ:MODE AVERAGE} y
+\texttt{ACQ:STOPAFTER SEQUENCE}, porque presionar el botón de marcha y
+paro del panel frontal deja el instrumento en adquisición continua y el
+promedio dejaría de reiniciarse entre ventanas. Si el operador lo
+presiona a mitad de una ventana, el sistema no puede impedirlo; el
+testigo lo detecta y marca la captura
+(\cref{sec:sesiones_congeladas}).
 
-\paragraph{Marcas resultantes.} Cada condición agrega a
-\texttt{error\_desc} una marca legible y activa \texttt{error\_flag}:
-\texttt{osciloscopio sin adquisición nueva}, \texttt{promedio
-incompleto ($k$ de $N$)}, \texttt{curva de $n$ puntos y NR\_PT=\ldots}
-y \texttt{escala cambiada durante la captura sin reinicio visible del
-promedio}. Además, cada fila registra el modo de adquisición, el
-número de promedios y el valor del contador leídos al instrumento
+\paragraph{Marcas.} Cada condición agrega a \texttt{error\_desc} una
+marca legible y activa \texttt{error\_flag}: \texttt{osciloscopio sin
+adquisición nueva}, \texttt{promedio incompleto ($k$ de $N$)},
+\texttt{exceso de adquisiciones}, \texttt{ACQ:NUMACQ? no mostró el
+reinicio tras RUN}, \texttt{ACQ:NUMACQ? cayó a mitad de la ventana},
+\texttt{escala cambiada entre RUN y STOP}, \texttt{curva de $n$ puntos y
+NR\_PT=\ldots} y \texttt{escala cambiada durante la captura}
+\texttt{sin reinicio visible del promedio}. Cada fila registra además el modo de
+adquisición, el número de promedios y el contador leído al instrumento
 (\cref{sec:formato_datos}).
 
-\paragraph{Validación en hardware.} El mecanismo se validó con capturas
-manuales en dos sesiones del 22 de septiembre de 2026, con un TDS5054B.
-En la sesión \texttt{20260922\_194624} se probó una primera versión,
-con el retorno a adquisición continua, el contador como testigo y la
-comparación de longitudes. Las siete primeras capturas, en modo
-\textit{Sample} y con cambios de escala horizontal entre ellas, se
-aceptaron sin marca y sus registros son distintos entre sí. Las dos
-siguientes, en modo \textit{Average} con 16 promedios y el láser sin
-emisión (\texttt{E OFF}), quedaron marcadas con
+\paragraph{Una propiedad medida en un régimen no vale en otro.} La
+primera versión del testigo suponía que \texttt{ACQ:STATE RUN} no
+reinicia el contador, propiedad medida con adquisición continua, y la
+aplicó a los modos automáticos sin volver a medirla. En las primeras
+secuencias automáticas con instrumento, el reinicio retrasado se leyó
+como una caída sin subida posterior: diez capturas con adquisición
+nueva quedaron marcadas como si no la tuvieran, y seis, con 13 a 69
+adquisiciones por segundo ---más que la repetición del láser---, se
+aceptaron sin marca. El contador sí discriminaba: marcó una captura con
+cero adquisiciones y registro idéntico al anterior (el láser había
+dejado de emitir) y otra con promedio incompleto. Las capturas válidas
+registraron entre 9.9 y 10.0 adquisiciones por segundo, la frecuencia
+del láser. Es la falla~15 de la \cref{tab:fallas_software}; la versión
+descrita arriba es la corregida.
+
+\paragraph{Validación.} El testigo de las capturas manuales se validó
+con el equipo: siete capturas en modo \textit{Sample}, con cambios de
+escala entre ellas, se aceptaron sin marca y son distintas entre sí; con
+el láser sin emisión, el promedio de 16 quedó marcado como
 \texttt{osciloscopio sin adquisición nueva; promedio incompleto (0 de
-16)}. Las dos últimas, con la emisión restablecida, se aceptaron sin
-marca, con el contador en 154 y 210. El seguimiento con
-\texttt{TestigoNumacq}, el segundo de estabilidad y la comparación de
-escalas se añadieron a continuación y se validaron en la sesión
-\texttt{20260922\_195642}: con emisión, la captura se aceptó sin marca;
-sin emisión, se marcó como \texttt{osciloscopio sin adquisición nueva},
-aunque su registro difería del de la captura anterior, lo que confirma
-que esa diferencia no sirve como testigo. La versión final quedó
-integrada en el commit \texttt{9696e4e}. La verificación en los modos
-automáticos se ejercitó con pruebas sin hardware
-(\cref{sec:validacion}) y queda por observarse en una secuencia con
-instrumentos.
+16)}, y con emisión se aceptó con el contador en 154 y 210. Una captura
+posterior sin emisión se marcó aunque su registro difería del anterior,
+lo que confirma que la diferencia de arreglos no sirve como testigo. La
+versión corregida para los modos automáticos se verificó sin hardware
+con nueve casos (\texttt{probar\_testigo\_adquisicion.py}); su
+repetición con instrumentos queda pendiente.
 
 \subsection{Formato de datos de sesión}
 \label{sec:formato_datos}
@@ -639,21 +595,19 @@ Cada sesión genera una carpeta identificada por marca de tiempo que
 contiene las muestras crudas de cada captura en archivos \texttt{.npy},
 un registro \texttt{.csv} con los metadatos de todas las mediciones, un
 archivo \texttt{metadatos\_sesion.txt} con las condiciones generales de
-la sesión, y un archivo \texttt{advertencias.log} con los avisos
-emitidos durante la ejecución, que escribe la interfaz.
+la sesión y un archivo \texttt{advertencias.log} con los avisos emitidos
+durante la ejecución.
 
 La separación entre muestras crudas y metadatos es deliberada: el
-archivo \texttt{.npy} conserva los valores enteros tal como los entrega
-el osciloscopio, y las columnas del preámbulo (\texttt{XINCR},
-\texttt{XZERO}, \texttt{YMULT}, \texttt{YOFF}, \texttt{YZERO},
-\texttt{PT\_OFF}, \texttt{NR\_PT}) permiten reconstruir la señal en
-unidades físicas en cualquier momento posterior. El registro incluye
-además los parámetros del láser, las escalas y el estado de
-adquisición consultados al osciloscopio, las lecturas de temperatura y
-los campos \texttt{error\_flag} y \texttt{error\_desc}, que señalan si
-la medición se registró en condiciones anómalas y cuál fue la
-anomalía. La \cref{tab:formato_registro} describe las 34 columnas del
-formato vigente.
+\texttt{.npy} conserva los valores enteros tal como los entrega el
+osciloscopio, y las columnas del preámbulo permiten reconstruir la señal
+en unidades físicas en cualquier momento posterior. El registro incluye
+además los parámetros del láser, las escalas y el estado de adquisición
+consultados al osciloscopio, las lecturas de temperatura y los campos
+\texttt{error\_flag} y \texttt{error\_desc}, que señalan si la medición
+se registró en condiciones anómalas y cuál fue la anomalía. La
+\cref{tab:formato_registro} describe las 34 columnas del formato
+vigente.
 
 \begin{table}[H]
   \centering
@@ -731,48 +685,37 @@ formato vigente.
 
 Las columnas de adquisición sustituyen a una estimación del número de
 pulsos integrados que versiones anteriores calculaban multiplicando la
-duración de la ventana por una frecuencia supuesta, y que se eliminó
-porque no provenía del instrumento. Ahora se registra lo que el
-osciloscopio reporta. Dos precisiones acotan su lectura. En modo
-\textit{Sample}, \texttt{numavg} conserva el último número de
-promedios configurado sin intervenir en la señal, y
-\texttt{adquisiciones\_promediadas} es simplemente el contador de
-adquisiciones. En modo temperatura, como \texttt{ACQ:STATE RUN} no
-reinicia el contador, su relación con el número de adquisiciones
-integradas en cada ventana no se ha verificado en un barrido completo
-con instrumentos; la duración de la ventana queda registrada en
-\texttt{duracion\_ventana\_s}.
+duración de la ventana por una frecuencia supuesta: ahora se registra lo
+que el osciloscopio reporta. En modo \textit{Sample}, \texttt{numavg}
+conserva el último número de promedios configurado sin intervenir en la
+señal. En modo temperatura, como \texttt{ACQ:STATE RUN} reinicia el
+contador con retraso, la relación de \texttt{adquisiciones\_promediadas}
+con las adquisiciones integradas en cada ventana se interpreta con la
+duración registrada en \texttt{duracion\_ventana\_s}.
 
-El manejo de los fallos de guardado es asimétrico. Si no se puede
-escribir el archivo \texttt{.npy}, la fila se escribe igualmente, con
-\texttt{error\_flag} activado, la causa en \texttt{error\_desc} y
+Si no se puede escribir el \texttt{.npy}, la fila se escribe igualmente,
+con \texttt{error\_flag} activado, la causa en \texttt{error\_desc} y
 \texttt{archivo\_npy} vacío, para que la medición no aparezca como
-exitosa sin datos que graficar. Si lo que falla es la escritura del
-registro \texttt{.csv}, la medición no queda registrada y la interfaz
-lo notifica.
+exitosa sin datos que graficar; si lo que falla es la escritura del
+\texttt{.csv}, la medición no queda registrada y la interfaz lo
+notifica.
 
 El archivo \texttt{metadatos\_sesion.txt} se escribe una sola vez, al
 crear la sesión, con el identificador y la fecha de creación; la
-respuesta \texttt{*IDN?}, el modelo y el canal del osciloscopio; el
-nivel de salida, el \textit{EO delay} y el modo de disparo del láser
-en ese instante; y la geometría de la sesión (separación
-hidrófono--haz y volumen vertido, o la leyenda \texttt{no registrado}).
-Los parámetros del láser de este archivo describen el inicio de la
-sesión; los de cada medición son los de su fila en el registro. Cada
-barrido por temperatura anexa al mismo archivo un bloque numerado
-(\texttt{barrido\_1}, \texttt{barrido\_2}, \ldots) con su instante de
-arranque y las temperaturas inicial, final y el paso efectivamente
-usados, sin reescribir los anteriores; las filas del registro se
-atribuyen a su barrido comparando marcas de tiempo.
+respuesta \texttt{*IDN?}, el modelo y el canal del osciloscopio; los
+parámetros del láser en ese instante; y la geometría de la sesión
+(separación hidrófono--haz y volumen vertido, o la leyenda \texttt{no
+registrado}). Cada barrido por temperatura anexa a ese archivo un bloque
+numerado con su instante de arranque y las temperaturas inicial, final y
+el paso usados, sin reescribir los anteriores.
 
-Una sesión reabierta conserva el encabezado con el que fue creada: las
-filas nuevas se escriben con las columnas de ese encabezado. Para
+Una sesión reabierta conserva el encabezado con el que fue creada. Para
 reabrirla basta con que el registro contenga un subconjunto mínimo de
-once columnas (identificación, temperatura, modo, \texttt{error\_flag},
-parte del preámbulo y archivo), lo que permite
-consultar sesiones tomadas con formatos anteriores. Las sesiones
-registradas con instrumentos hasta la fecha de esta redacción
-corresponden a formatos anteriores, de 15 a 23 columnas; el formato de
-34 columnas se ejercitó en las pruebas sin hardware del almacenamiento
-(\cref{sec:validacion}) y aún no se ha registrado en una sesión de
-laboratorio con la versión final del código.
+once columnas, lo que permite consultar sesiones tomadas con formatos
+anteriores, de 15 a 23 columnas; todas contienen ese subconjunto.
+
+La conversión a MATLAB (\textit{Convertir a MATLAB}) escribe un archivo
+\texttt{.mat} por captura con el arreglo crudo, las muestras convertidas
+a volts, el eje temporal reconstruido, la frecuencia de muestreo, el
+número de puntos y todos los campos de metadatos de la fila; con el
+formato vigente, las 34 columnas.

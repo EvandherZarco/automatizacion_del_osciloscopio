@@ -1,0 +1,76 @@
+# Caso 6 del simulador, 3 repeticiones en serie (un proceso por repetición), 2026-11-04. Commit base 5d2e4d6.
+# Entorno: Python 3.12.10 PySide6 6.11.0, QT_QPA_PLATFORM=offscreen. La envoltura solo registra datos (no modifica la prueba); la línea DATOS sale de ella.
+
+##### repetición 1 (inicio 09:21:59)
+
+
+=== Caso 6 — Rebote térmico en el umbral ===
+  Objetivo   T apertura   T cierre   Dur. ventana (s sim)
+---------------------------------------------------------
+      60.0        60.00      59.75                   50.0
+      55.0        55.06      54.81                   70.0
+      50.0        50.12      49.75                  110.0
+      45.0        45.06      44.88                  140.0
+      40.0        39.94      39.75                   60.0
+      35.0        35.06      34.88                  160.3
+      30.0        30.06      29.94                  210.3
+
+======================================================================
+RESUMEN
+======================================================================
+[OK   ] Caso 6 — Rebote térmico en el umbral
+          ventanas=7 no_cierra_durante_rebote=True duracion_objetivo=140.0 vecinos=[60.0, 110.0] comparable_ok=True
+----------------------------------------------------------------------
+1/1 casos aprobados
+DATOS 45 C: temp_apertura=45.06 t_real_apertura=287.30s t_real_cierre=294.30s duracion_real=7.00s duracion_sim=140.0s t_ini_real_rebote=290.3s fin_rebote=293.3s cierre_despues_de_rebote=True aprobado=True
+[exit=0 t=828s]
+
+##### repetición 2 (inicio 09:35:47)
+
+
+=== Caso 6 — Rebote térmico en el umbral ===
+  Objetivo   T apertura   T cierre   Dur. ventana (s sim)
+---------------------------------------------------------
+      60.0        60.00      59.81                   60.3
+      55.0        54.88      54.94                   10.0
+      50.0        50.06      49.94                   70.3
+      45.0        45.06      44.62                  150.0
+      40.0        40.12      39.75                  130.0
+      35.0        35.06      34.81                  120.0
+      30.0        30.00      29.94                  220.0
+
+======================================================================
+RESUMEN
+======================================================================
+[OK   ] Caso 6 — Rebote térmico en el umbral
+          ventanas=7 no_cierra_durante_rebote=True duracion_objetivo=150.0 vecinos=[130.0, 70.300000000002] comparable_ok=True
+----------------------------------------------------------------------
+1/1 casos aprobados
+DATOS 45 C: temp_apertura=45.06 t_real_apertura=287.73s t_real_cierre=295.23s duracion_real=7.50s duracion_sim=150.0s t_ini_real_rebote=290.73s fin_rebote=293.73s cierre_despues_de_rebote=True aprobado=True
+[exit=0 t=828s]
+
+##### repetición 3 (inicio 09:49:35)
+
+
+=== Caso 6 — Rebote térmico en el umbral ===
+  Objetivo   T apertura   T cierre   Dur. ventana (s sim)
+---------------------------------------------------------
+      60.0        60.00      59.75                   60.0
+      55.0        54.88      54.94                   10.0
+      50.0        50.00      49.88                   80.3
+      45.0        45.06      44.62                  150.0
+      40.0        40.12      39.88                  150.3
+      35.0        35.06      34.88                  100.0
+      30.0        30.00      29.94                  220.0
+
+======================================================================
+RESUMEN
+======================================================================
+[OK   ] Caso 6 — Rebote térmico en el umbral
+          ventanas=7 no_cierra_durante_rebote=True duracion_objetivo=150.0 vecinos=[150.29999999999745, 80.32000000000153] comparable_ok=True
+----------------------------------------------------------------------
+1/1 casos aprobados
+DATOS 45 C: temp_apertura=45.06 t_real_apertura=287.73s t_real_cierre=295.23s duracion_real=7.50s duracion_sim=150.0s t_ini_real_rebote=290.73s fin_rebote=293.73s cierre_despues_de_rebote=True aprobado=True
+[exit=0 t=827s]
+
+# FIN

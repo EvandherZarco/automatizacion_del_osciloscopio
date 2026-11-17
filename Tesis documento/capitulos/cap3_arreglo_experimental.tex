@@ -87,12 +87,13 @@ entrada del haz. Un volumen menor dejaría parte de la ventana en
 contacto con aire y modificaría la trayectoria óptica; uno mayor no
 aporta beneficio y aproxima la superficie libre al eje del haz.
 
-% \begin{figure}[H]
-%   \centering
-%   \includegraphics[width=0.8\textwidth]{celda_ensamble}
-%   \caption{Vista isométrica de la celda fotoacústica ensamblada.}
-%   \label{fig:celda_ensamble}
-% \end{figure}
+% FIG-RECORTE
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.8\textwidth]{celda_completa.png}
+  \caption{Vista isométrica de la celda fotoacústica ensamblada.}
+  \label{fig:celda_completa}
+\end{figure}
 
 \subsection*{Montaje del hidrófono}
 
@@ -415,7 +416,7 @@ sino un conjunto de niveles discretos de salida denominados
 \textit{Adjustment} y \textit{Max}, complementados por el retardo del
 conmutador electro-óptico (\textit{EO delay}), que admite ajuste
 numérico. La combinación de ambos parámetros determina la energía
-efectivamente emitida.
+emitida.
 
 En consecuencia, la interfaz desarrollada permite seleccionar y
 modificar el nivel de salida del láser, pero no cuantificar la
@@ -427,27 +428,41 @@ discusión de resultados del \cref{cap:resultados}.
 El haz emitido incide sobre la ventana rectangular de cuarzo de la
 celda, situada a aproximadamente \SI{27.5}{\centi\meter} de la salida
 del láser \cite{Rangel2023}, e ingresa a la muestra líquida
-atravesando el ancho interno de la cavidad. Una fracción del haz se
-deriva hacia el fotodiodo para generar la señal de disparo.
+atravesando el ancho interno de la cavidad. El fotodiodo se coloca a
+aproximadamente \SI{90}{\degree} de la trayectoria del haz y recibe una
+fracción de la luz con la que genera la señal de disparo. Como se retira
+y se reinstala entre sesiones, ese ángulo no es exacto ni se reproduce
+de una sesión a otra; la señal que recibe sirve como referencia
+temporal, no como medida de la energía del pulso.
 
 Como se indicó en la \cref{sec:celda}, la trayectoria óptica no se
 encuentra fijada de manera permanente y debe restablecerse al inicio
 de cada sesión.
 
-% \begin{figure}[H]
-%   \centering
-%   \includegraphics[width=0.9\textwidth]{esquema_optico}
-%   \caption{Esquema del arreglo óptico: láser, fotodiodo, celda
-%            fotoacústica y osciloscopio.}
-%   \label{fig:esquema_optico}
-% \end{figure}
+La \cref{fig:esquema_optico} resume el arreglo y la
+\cref{fig:arreglo_fotografia} lo muestra montado en el laboratorio.
 
-% \begin{figure}[H]
-%   \centering
-%   \includegraphics[width=0.9\textwidth]{arreglo_fotografia}
-%   \caption{Fotografía del arreglo experimental montado.}
-%   \label{fig:arreglo_fotografia}
-% \end{figure}
+\input{capitulos/fig_esquema_optico}
+
+\begin{figure}[H]
+  \centering
+  \begin{subfigure}[b]{0.6\textwidth}
+    \centering
+    \includegraphics[height=6.5cm,keepaspectratio]{arreglo_completo_general.jpeg}
+    \caption{Vista general: osciloscopio, computadora de control, láser
+      y celda.}
+    \label{fig:arreglo_general}
+  \end{subfigure}
+  \hfill
+  \begin{subfigure}[b]{0.36\textwidth}
+    \centering
+    \includegraphics[height=6.5cm,keepaspectratio]{arreglo_vista_arriba.jpeg}
+    \caption{Vista superior: celda, hidrófono y módulo de temperatura.}
+    \label{fig:arreglo_arriba}
+  \end{subfigure}
+  \caption{Arreglo experimental montado en el laboratorio.}
+  \label{fig:arreglo_fotografia}
+\end{figure}
 
 % ============================================================
 \section{Automatización del osciloscopio}
@@ -614,7 +629,7 @@ captura se conserva, pero se guarda con su bandera de error y una
 descripción del motivo. Entre las anomalías de captura figuran la
 ausencia de una adquisición nueva, un promedio incompleto, una curva cuya longitud no
 coincide con \texttt{WFMPRE:NR\_PT?} y un cambio de escala durante la
-captura, descritos a continuación. Esta distinción evita que una
+captura, descritos en la \cref{sec:verificacion_adquisicion}. Esta distinción evita que una
 captura defectuosa aislada provoque la desconexión innecesaria del
 instrumento y la interrupción de una secuencia en curso, sin que el
 defecto pase inadvertido en el registro.
@@ -628,10 +643,6 @@ que la orden surtió efecto. Al cerrar una secuencia restituye además
 el modo de adquisición y el número de promedios previos, de modo que
 el osciloscopio quede en condiciones de uso manual sin intervención
 adicional.
-
-\subsection*{Verificación de adquisición nueva}
-
-El registro que entrega \texttt{CURVE?} no es necesariamente posterior a la orden de captura: con la adquisición detenida, o poco después de un cambio de escala, el instrumento devuelve el último registro almacenado sin indicarlo. El módulo lo detecta apoyándose en el contador de adquisiciones \texttt{ACQ:NUMACQ?}, en la comparación de las escalas leídas antes y después de la transferencia y en la longitud de la curva frente a \texttt{WFMPRE:NR\_PT?}. Ninguna de estas comprobaciones descarta la captura: cada una que falla agrega su motivo a la descripción de error del registro y activa la bandera de error, de modo que la decisión de excluirla corresponde al análisis posterior. El procedimiento completo se describe en la \cref{sec:verificacion_adquisicion}.
 
 % ============================================================
 \section{Automatización del láser}
@@ -740,8 +751,8 @@ El procedimiento intenta la totalidad de los comandos con
 independencia del resultado de cada uno, en lugar de abortar ante el
 primer fallo. Esta decisión de diseño obedece a que un fallo de
 comunicación parcial no debe impedir que se ejecuten los comandos
-restantes: el objetivo es maximizar el número de acciones de
-seguridad efectivamente aplicadas. El resultado individual de cada
+restantes: el objetivo es maximizar el número de órdenes de
+seguridad que llegan a enviarse. El resultado individual de cada
 comando se reporta a la interfaz, que advierte al operador si alguno
 no pudo enviarse. Ese resultado indica que la orden salió hacia el
 láser sin error, no que el instrumento la haya aplicado: la función de
@@ -777,8 +788,10 @@ El módulo se compone de un microcontrolador ESP32 WROOM-32 y cuatro
 sensores digitales de temperatura DS18B20 en encapsulado sumergible.
 Cada sensor se conecta a un bus 1-Wire independiente, sobre las líneas
 de entrada y salida de propósito general 16, 17, 18 y 19 del
-microcontrolador, con alimentación externa explícita y una resistencia
-de polarización de \SI{4.7}{\kilo\ohm} por bus. La alternativa
+microcontrolador, con una resistencia de polarización de
+\SI{4.7}{\kilo\ohm} por bus. Los sensores se alimentan por su terminal
+VDD desde la salida de \SI{3.3}{\volt} del propio microcontrolador, y no
+en modo parásito. La alternativa
 habitual ---un único bus compartido por los cuatro sensores--- reduce
 el cableado, pero hace que el fallo de un dispositivo o de su conexión
 degrade la lectura de los cuatro. Con buses separados, la pérdida de un
@@ -786,6 +799,7 @@ sensor deja intactos a los restantes y resulta además localizable, pues
 la línea afectada identifica al dispositivo. La
 \cref{fig:modulo_temperatura} muestra esta topología.
 
+% FIG-RECORTE
 \input{capitulos/fig_modulo_temperatura}
 
 La comunicación con la computadora de control se realiza por enlace
@@ -811,7 +825,12 @@ sigan llegando datos mal formados, y queda a cargo del mecanismo de
 reconexión. Cada lectura individual se compara además con la de la
 trama válida anterior, y el registro de sesión indica en las columnas
 \texttt{s1\_repetido} a \texttt{s4\_repetido} si el valor llegó
-idéntico.
+idéntico. Esas columnas no sirven para detectar un sensor congelado: con
+una resolución de \SI{0.0625}{\celsius} y una muestra que se enfría
+lentamente, dos tramas consecutivas idénticas son lo normal en un sensor
+sano, y en las sesiones de noviembre de 2026 la marca aparece activa en
+el \SI{81}{\percent} de las lecturas. Esa función la cumple el contador
+de fallos del firmware que se describe a continuación.
 
 \subsection*{Consideraciones de firmware}
 
@@ -879,7 +898,7 @@ un tirante de \SI{28.6}{\milli\meter} y el eje del haz situado a
 aproximadamente \SI{20}{\milli\meter} del fondo, unos sensores
 próximos al fondo miden el estrato inferior del líquido, que en
 condiciones de reposo no coincide necesariamente con la temperatura
-del volumen efectivamente iluminado. La magnitud de esta diferencia
+del volumen iluminado. La magnitud de esta diferencia
 depende del gradiente vertical presente y no fue cuantificada en este
 trabajo. Se documenta aquí como fuente de incertidumbre sistemática y
 se retoma en el \cref{cap:conclusiones}.
@@ -889,12 +908,16 @@ se retoma en el \cref{cap:conclusiones}.
 Los sensores DS18B20 presentan una dispersión de fábrica entre
 unidades. Dado que el criterio de disparo de la secuencia automática
 descrito en el \cref{cap:resultados} opera sobre una banda de
-$\pm\SI{0.1}{\celsius}$ en torno a la temperatura objetivo, una
+$\pm\SI{0.02}{\celsius}$ en torno a la temperatura objetivo
+($\pm\SI{0.1}{\celsius}$ en las sesiones previas), una
 dispersión entre sensores del orden de ese margen bastaría para que
 las lecturas individuales discreparan en la misma magnitud que el
 propio criterio de decisión. Este trabajo no cuantificó la dispersión
-del conjunto empleado; se describe a continuación el procedimiento
-definido para hacerlo y corregirla.
+del conjunto en condiciones controladas, aunque en las sesiones de
+medición se observaron diferencias de hasta \SI{1.18}{\celsius} entre
+sensores en una misma captura (\cref{sec:sesiones_congeladas}); se
+describe a continuación el procedimiento definido para cuantificarla y
+corregirla.
 
 La corrección adoptada es de carácter relativo y no absoluto. El
 experimento no requiere que las lecturas coincidan con un patrón
@@ -916,7 +939,7 @@ Esta corrección no está implementada en la versión del firmware
 empleada en este trabajo: los cuatro sensores se promedian sin
 compensación entre unidades. En consecuencia, el valor de temperatura
 registrado en cada captura arrastra la dispersión de fábrica del
-conjunto, y la banda de \SI{0.1}{\celsius} que gobierna el criterio de
+conjunto, y la banda que gobierna el criterio de
 disparo opera sobre lecturas que no han sido igualadas entre sí. La
 consecuencia práctica es acotada, pues dicho criterio se evalúa sobre
 el descenso del promedio y no sobre la concordancia entre sensores,

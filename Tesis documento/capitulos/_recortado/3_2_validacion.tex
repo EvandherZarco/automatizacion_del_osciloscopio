@@ -1,0 +1,276 @@
+% Registro de lo recortado de cap3/3_2_validacion.tex (no se carga con \input).
+
+% ===================================================================
+% RECORTADO de cap3/3_2_validacion.tex: §4.2.3 Compatibilidad con registros anteriores
+% ===================================================================
+\subsection{Compatibilidad con registros anteriores}
+\label{sec:val_compatibilidad}
+
+El formato del registro de sesión descrito en la
+\cref{sec:formato_datos} no fue el primero. Las sesiones anteriores a la
+integración del módulo de temperatura se guardaron con un conjunto
+menor de columnas, y algunas de ellas conservan valor documental.
+
+La lectura de sesiones se implementó tratando el conjunto de campos
+declarado en \texttt{COLUMNAS\_REQUERIDAS} como un subconjunto del
+encabezado presente en el archivo, en lugar de exigir coincidencia
+exacta. Con ese criterio, un registro de dieciocho columnas se abre sin
+modificación y sin pérdida de los campos que sí contiene. La
+verificación se realizó sobre sesiones reales conservadas del formato
+anterior.
+
+El criterio no es una previsión abstracta: el encabezado cambió cinco
+veces a lo largo del proyecto. Las sesiones de mayo y junio de 2026
+tienen 15 columnas (una de junio, 16); las de agosto, 18; las del 8 y
+del 22 de septiembre, 21; las últimas del 22 de septiembre, 23, tras
+sustituirse el campo de pulsos estimados por las columnas de
+adquisición; y la versión congelada escribe 34, con las lecturas
+individuales de los cuatro sensores y los límites de la ventana de
+integración. Todas contienen el subconjunto declarado en
+\texttt{COLUMNAS\_REQUERIDAS}.
+
+La contraparte de esa decisión es que la ausencia de una columna deja de
+ser un error de apertura y pasa a ser una condición que debe detectarse
+más tarde, en la verificación del contenido. Ese desplazamiento es
+deliberado y se examina en la subsección siguiente.
+
+
+% ===================================================================
+% RECORTADO de cap3/3_2_validacion.tex: §4.2.5 Propagación de advertencias a la interfaz
+% ===================================================================
+\subsection{Propagación de advertencias a la interfaz}
+\label{sec:val_advertencias}
+
+El sistema no interrumpe una secuencia ante una anomalía recuperable:
+la registra y la señala. La razón es de economía experimental: un
+barrido por temperatura sobre el enfriamiento pasivo de la muestra no
+puede repetirse a voluntad, y abortarlo por una lectura perdida o un
+objetivo rebasado descartaría los puntos que todavía pueden medirse;
+la fila afectada queda marcada en el registro, como se ilustra en la
+\cref{sec:falla_temperatura}. Esa decisión hace que el indicador de
+advertencia de la interfaz sea el único aviso que recibe el operador
+mientras la sesión transcurre.
+
+La comprobación \texttt{probar\_advertencias\_gui.py} ejercita cuatro
+trayectorias de esa señalización y las cuatro resultan conformes. El
+alcance de esa cifra, sin embargo, es menor de lo que sugiere: la
+comprobación calcula su código de retorno antes de ejecutar el único
+paso que requiere confirmación visual del operador, de modo que ese
+paso no puede hacerla reprobar. Los cuatro resultados corresponden a
+las trayectorias automatizables; el paso restante queda como
+comprobación asistida, y así se reporta. El resultado, además, se
+obtuvo sobre la versión de la ventana principal anterior a la
+auditoría de la \cref{sec:val_auditoria}, que reescribió buena parte
+de ese módulo, y no consta que la comprobación se haya vuelto a correr
+con la versión congelada.
+
+
+% ===================================================================
+% RECORTADO de cap3/3_2_validacion.tex: §4.2.6 Un defecto real encontrado al reconstruir las pruebas
+% ===================================================================
+\subsubsection*{Un defecto real encontrado al reconstruir las pruebas}
+
+La reconstrucción no fue un trámite. Al correr las pruebas nuevas
+contra la versión anterior a la auditoría, una de ellas quedó detenida
+indefinidamente en un diálogo de selección de carpeta que el arnés no
+interceptaba, y el arnés se corrigió. En la misma sesión de trabajo se
+identificó un efecto de la propia auditoría que ningún commit había
+documentado. Al
+hacer que la interfaz siguiera en vivo la sesión activa del
+almacenamiento, una sesión reabierta con «Abrir CSV…» pasaba a recibir
+las capturas siguientes: un Guardar manual, o una secuencia
+automática, agregaba filas a esa sesión ---posiblemente de otro día---
+sin pasar por el diálogo de carpeta y sin aviso. La consecuencia es la
+mezcla silenciosa de mediciones de días distintos en un mismo
+registro.
+
+La corrección (\texttt{f3a8c31}) pide una confirmación antes de la
+primera escritura en una sesión reabierta, sea un Guardar o el inicio
+de una secuencia. El diálogo nombra la sesión y su fecha de creación,
+tomada de \texttt{metadatos\_sesion.txt} o, en su defecto, del prefijo
+del identificador de sesión; si ninguna está disponible, lo declara en
+lugar de inventarla. La respuesta por defecto es No, que cancela solo
+esa escritura sin dejar fila ni archivo de muestras; un Sí vale para
+el resto de esa reapertura, y reabrir cualquier registro o crear una
+sesión nueva vuelve a exigir la confirmación. Una segunda corrección
+(\texttt{c67ae06}) movió la pregunta para que aparezca después de
+aceptar el inicio de la secuencia: en la primera versión, un Sí seguido
+de la cancelación de la secuencia dejaba la reapertura confirmada y el
+siguiente Guardar escribía sin preguntar.
+
+La prueba correspondiente cuenta con doce casos y discrimina entre
+diseños: contra un diseño que preguntara en cada Guardar fallan dos de
+ellos, y el caso añadido con la segunda corrección falla contra la
+primera. Además se realizó una corrida de punta a punta fuera del
+repositorio, arrancando la aplicación como en uso normal, con clics
+reales y un osciloscopio emulado en la capa \texttt{vxi11}: sin
+reabrir ninguna sesión no aparece ninguna pregunta; tras «Abrir
+CSV…», cancelar no escribe y aceptar agrega la fila, sin nuevas
+preguntas en los Guardar siguientes; y reabrir el mismo registro
+vuelve a preguntar. El inicio de una secuencia no se recorrió de punta
+a punta, porque exige un láser conectado; lo cubre únicamente la
+prueba automatizada.
+
+
+% ===================================================================
+% RECORTADO de cap3/3_2_validacion.tex: §4.2.7 Poblado de escalas; captura manual sin módulo de temperatura; limpieza de la bandera
+% ===================================================================
+\subsubsection*{Poblado de las columnas de escala}
+
+La regresión descrita en la \cref{sec:falla_regresion} se corrigió
+restituyendo las consultas \texttt{CH1:SCALE?} y
+\texttt{HORizontal:SCAle?} dentro de la rutina de lectura del
+preámbulo. El criterio fijado excluía explícitamente el valor
+\num{0.0} como aprobación, pues es lo que escriben los manejadores de
+excepción cuando la consulta se lanza y falla: solo un número
+consistente con el panel del instrumento confirma la corrección. En la
+sesión \texttt{20260908\_184623} las catorce capturas registran
+\texttt{CH\_SCALE} $=\num{0.001}$ y \texttt{HOR\_SCALE} $=\num{1e-5}$,
+equivalentes a \SI{1}{\milli\volt} y \SI{10}{\micro\second} por
+división, en coincidencia con el panel. Conforme.
+
+\subsubsection*{Captura manual con el módulo de temperatura
+desconectado}
+
+El criterio fijado exigía tres cosas de la fila resultante:
+\texttt{error\_flag = 1}, un \texttt{error\_desc} que nombrara al
+dispositivo ausente y un campo de temperatura en cero. La primera
+ejecución cumplió únicamente la primera. Las capturas
+\texttt{m0012}--\texttt{m0014} de la sesión \texttt{20260908\_184623},
+tomadas en una secuencia por tiempo después de desconectar el módulo,
+levantaron la bandera, pero escribieron \SI{24.25}{\celsius} sin sensor
+conectado y una descripción genérica. El defecto y su corrección se
+documentan en la \cref{sec:falla_fantasma}.
+
+La corrección modificó además el propio criterio. El campo en cero se
+sustituyó por \texttt{nan}, porque \SI{0}{\celsius} es una temperatura
+físicamente válida y un análisis posterior no podría distinguirla de
+una medición; \texttt{nan} no admite esa lectura. En la sesión
+\texttt{20260908\_190614}, con el módulo desconectado, tanto la
+captura manual \texttt{m0001} como las capturas de la secuencia que la
+sigue registran \texttt{error\_flag = 1}, \texttt{temperatura = nan} y un
+\texttt{error\_desc} que nombra al ESP32 y su puerto. Conforme bajo el
+criterio corregido.
+
+\subsubsection*{Limpieza automática de la bandera del monitor}
+
+El criterio exigía que la bandera del monitor de conexión se limpiara
+por sí sola en el siguiente ciclo de consulta tras restablecerse el
+módulo. La primera ejecución tampoco lo cumplió: el registro de la
+sesión \texttt{20260908\_190614} muestra que cada recuperación
+(\texttt{m0005} y \texttt{m0013}) ocurre después de una pausa
+prolongada, la que toma accionar el botón de reconexión en la
+interfaz. No había limpieza automática porque no había reconexión
+automática: el método correspondiente se limitaba a informar el estado
+de la conexión sin intentar restablecerla.
+
+Se implementó el reintento sobre el puerto configurado y, al recibirse
+una trama válida, el reinicio del hilo de lectura. La sesión
+\texttt{20260908\_200938} lo verifica: las capturas \texttt{m0003} y
+\texttt{m0004} se registran con el módulo desconectado y
+\texttt{temperatura = nan}, y \texttt{m0005} vuelve a
+\texttt{error\_flag = 0} con lectura real, sin intervención del
+operador.
+
+La implementación reintenta únicamente sobre el puerto declarado en la
+configuración y no recorre los puertos disponibles buscando el
+dispositivo. La restricción es deliberada. Un puerto no se reasigna
+solo: cuando cambia es porque alguien manipuló la conexión física o el
+sistema operativo la renumeró tras esa manipulación, y en ambos casos
+hay una persona presente que puede corregir la configuración. Recorrer
+los puertos implicaría, en cambio, abrir puertos ajenos al módulo
+---entre ellos el del láser--- para averiguar qué hay detrás de cada
+uno, lo que introduce un riesgo mayor que el problema que resuelve.
+
+El costo de esa decisión se materializó en la misma sesión: el módulo
+apareció en \texttt{COM5} al inicio y en \texttt{COM4} al final, y esa
+transición sí requirió editar la configuración y reiniciar la
+aplicación. La reconexión automática cubre la pérdida de comunicación
+sobre un puerto estable, no la reasignación del puerto. Ese costo se
+redujo después: desde el 14 de septiembre, el diálogo «Conexión» de la
+interfaz permite elegir el puerto del módulo, el del láser y la
+dirección del osciloscopio, guarda la elección en un archivo de
+configuración del usuario y la aplica en la siguiente conexión de cada
+dispositivo, sin editar código ni reiniciar la aplicación.
+
+
+% ===================================================================
+% RECORTADO de cap3/3_2_validacion.tex: §4.2.7 Exportación a .mat; «Lo que estas cinco comprobaciones dejan ver»
+% ===================================================================
+\subsubsection*{Exportación al formato \texttt{.mat}}
+
+La quinta comprobación se ejecutó sobre los datos de esa misma sesión.
+El archivo resultante contiene el arreglo crudo, las muestras
+convertidas a volts, el eje temporal reconstruido, la frecuencia de
+muestreo, el número de puntos y los veintiún campos de metadatos del
+registro de sesión. Conforme. El exportador copia todas las columnas
+de la fila, de modo que con el formato congelado el archivo lleva las
+34; esa versión del exportador no se ha ejercitado sobre una sesión
+real, porque no existe todavía una sesión de 34 columnas.
+
+\subsubsection*{Lo que estas cinco comprobaciones dejan ver}
+
+Tres de las cinco resultaron conformes en su primera ejecución. Dos no,
+y ninguna de las dos podía haberse detectado sin el instrumento: una
+escribía un dato inexistente y la otra ofrecía una función que nunca
+llegó a implementarse. Ambas corresponden a trayectorias que la
+validación por simulación no alcanza por construcción y no por descuido
+en su diseño: \texttt{generar\_sesion\_prueba.py} fabrica el archivo
+que produce una desconexión, no la desconexión misma.
+
+El resultado respalda la separación adoptada al inicio de esta sección
+y marca al mismo tiempo su frontera. La simulación verificó
+correctamente todo lo que estaba a su alcance; lo que quedó fuera de su
+alcance falló en dos de cinco casos.
+
+
+% ===================================================================
+% RECORTADO de cap3/3_2_validacion.tex: «Familias de defectos corregidos» (pasada 2; sustituida por la tabla de clases)
+% ===================================================================
+\subsubsection*{Familias de defectos corregidos}
+
+La auditoría se organizó en cuatro grupos, uno por subsistema: la
+ventana principal (grupo~A), el osciloscopio (B), el módulo de
+temperatura (C) y el almacenamiento (D), con un commit de corrección
+por grupo. Los defectos encontrados se reparten en cinco familias.
+
+\begin{enumerate}[leftmargin=*]
+  \item \emph{Éxito anunciado por envío, no por confirmación.} El
+    stop de emergencia y la aplicación de parámetros del láser
+    informaban éxito sin consultar el resultado de cada comando; el
+    estado de emisión se fijaba en marcha o detenido por haber enviado
+    la orden; el canal del osciloscopio se daba por cambiado aunque el
+    comando hubiera fallado. Tras la corrección, el estado del láser se
+    marca como incierto hasta releer su registro de estado, y la
+    selección de canal visible vuelve al canal real si el cambio
+    falla.
+  \item \emph{Señales de error sin destinatario.} Los avisos del
+    módulo de temperatura (\texttt{TempWorker.\allowbreak error}), los fallos de
+    guardado (\texttt{Almacenamiento.\allowbreak guardado\_err}) y los errores del
+    hilo de medición (\texttt{MedicionWorker.\allowbreak error}) no estaban
+    conectados a ningún elemento de la interfaz: un fallo al guardar
+    no producía aviso visible. Se conectaron al registro de la
+    ventana, igual que las del láser y el osciloscopio.
+  \item \emph{Filas que parecen limpias sin serlo.} Un sensor
+    DS18B20 ausente no activaba \texttt{error\_flag}, aunque el propio
+    mensaje del módulo lo prometía; si la escritura del archivo
+    \texttt{.npy} fallaba, la fila se registraba con
+    \texttt{error\_flag = 0} y sin archivo de muestras; y la fila de
+    una captura manual tomaba la temperatura y los parámetros del
+    láser al pulsar Guardar, no al capturar. Las tres condiciones
+    marcan ahora la fila o registran el valor del instante de la
+    captura.
+  \item \emph{Estado obsoleto.} Al agotarse los reintentos de lectura
+    del osciloscopio, el controlador seguía apuntando al enlace caído;
+    la estimación del tiempo de captura usaba la longitud de registro
+    leída al conectar; el cierre de la ventana a mitad de secuencia
+    dejaba el osciloscopio con el número de promedios de la secuencia;
+    y el hilo de temperatura giraba indefinidamente ante una racha de
+    tramas inválidas, porque solo contaba como silencio la ausencia
+    total de líneas.
+  \item \emph{Liberación prematura de la interfaz.} El stop de
+    emergencia liberaba los controles antes de que la secuencia
+    confirmara su fin, lo que permitía arrancar una secuencia nueva con
+    la anterior todavía activa.
+\end{enumerate}
+

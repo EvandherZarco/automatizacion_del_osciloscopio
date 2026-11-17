@@ -1,0 +1,203 @@
+# Corrida del simulador con la versión congelada (commit c67ae06), 3-oct-2026
+# Entorno: contenedor Linux, QT_QPA_PLATFORM=offscreen, python-vxi11 sustituido por un módulo vacío (los niveles 2 y 3 no abren el instrumento); casos ejecutados en procesos independientes
+
+##### 1
+
+=== Caso 1 — Barrido nominal ===
+  Objetivo   T apertura   T cierre   Dur. ventana (s sim)
+---------------------------------------------------------
+      60.0        60.06      59.81                   60.0
+      55.0        55.06      54.75                   60.0
+      50.0        50.06      49.88                   80.1
+      45.0        45.06      44.81                  100.1
+      40.0        40.06      39.88                  100.1
+      35.0        34.94      34.88                  110.1
+      30.0        30.12      29.88                  210.1
+
+======================================================================
+RESUMEN
+======================================================================
+[OK   ] Caso 1 — Barrido nominal
+          ventanas=7 orden_descendente=True duraciones_ok=True abiertas_ok=True
+----------------------------------------------------------------------
+1/1 casos aprobados
+
+##### 2
+
+=== Caso 2 — Arranque con la muestra ya tibia ===
+  Objetivo   T apertura   T cierre   Dur. ventana (s sim)
+---------------------------------------------------------
+      45.0        44.56      44.25                  100.1
+      40.0        39.62      39.44                  100.1
+      35.0        34.75      34.62                  200.1
+      30.0        29.88      29.75                  100.1
+  [advertencia] La muestra está a 46.69 °C. Se omiten los objetivos por encima de esa temperatura: 60.0, 55.0, 50.0 °C.
+
+======================================================================
+RESUMEN
+======================================================================
+[OK   ] Caso 2 — Arranque con la muestra ya tibia
+          omitidos=[50.0, 55.0, 60.0] ventanas=[45.0, 40.0, 35.0, 30.0]
+----------------------------------------------------------------------
+1/1 casos aprobados
+
+##### 3
+
+=== Caso 3 — Ruido elevado ===
+  Objetivo   T apertura   T cierre   Dur. ventana (s sim)
+---------------------------------------------------------
+      60.0        59.38      59.12                   50.0
+      55.0        54.50      54.56                   50.0
+      50.0        50.38      49.56                  250.1
+      45.0        44.50      44.75                   50.0
+      40.0        39.88      39.31                  200.1
+      35.0        34.62      33.94                  150.1
+      30.0        30.56      30.00                  150.1
+
+======================================================================
+RESUMEN
+======================================================================
+[OK   ] Caso 3 — Ruido elevado
+          ventanas=7 (se esperaban 7)
+----------------------------------------------------------------------
+1/1 casos aprobados
+
+##### 4
+
+=== Caso 4 — Desconexión breve ===
+  Objetivo   T apertura   T cierre   Dur. ventana (s sim)
+---------------------------------------------------------
+      60.0        59.50      59.19                   75.1
+      55.0        54.50      54.25                   75.1
+      50.0        49.62      49.38                   75.1
+      45.0        44.69      44.44                   75.1
+      30.0        29.81      29.81                   75.1
+  [advertencia] Lectura de temperatura interrumpida. La secuencia continúa en espera.
+  [advertencia] Lectura de temperatura restablecida.
+  [advertencia] El objetivo 40.0 °C se perdió durante la interrupción de lectura: la muestra ya está a 32.88 °C, por debajo de su umbral de cierre. Nunca hubo ventana de integración para ese punto.
+  [advertencia] La muestra sigue bajando: al restablecerse la lectura ya está a 32.75 °C. Se omiten además los objetivos ya rebasados: 35.0 °C.
+
+======================================================================
+RESUMEN
+======================================================================
+[OK   ] Caso 4 — Desconexión breve
+          orden_ok=True hubo_descarte=True sin_ventanas_degeneradas=True objetivos_medidos=[60.0, 55.0, 50.0, 45.0, 30.0]
+----------------------------------------------------------------------
+1/1 casos aprobados
+
+##### 5
+
+=== Caso 5 — Desconexión permanente ===
+  [advertencia] Lectura de temperatura interrumpida. La secuencia continúa en espera.
+  [advertencia] Sin lectura de temperatura durante 6 s. Secuencia abortada.
+
+======================================================================
+RESUMEN
+======================================================================
+[OK   ] Caso 5 — Desconexión permanente
+          abortada=True advertencia_fin_emitida=True secuencia_terminada=True duracion_real=8.0s
+----------------------------------------------------------------------
+1/1 casos aprobados
+
+##### 6
+
+=== Caso 6 — Rebote térmico en el umbral ===
+  Objetivo   T apertura   T cierre   Dur. ventana (s sim)
+---------------------------------------------------------
+      60.0        60.00      59.88                   30.0
+      55.0        55.06      54.88                   70.0
+      50.0        50.06      49.81                   80.1
+      45.0        45.06      44.62                  140.1
+      40.0        40.12      39.94                   90.1
+      35.0        35.06      34.88                  150.1
+      30.0        30.12      29.94                  310.2
+
+======================================================================
+RESUMEN
+======================================================================
+[OK   ] Caso 6 — Rebote térmico en el umbral
+          ventanas=7 no_cierra_durante_rebote=True duracion_objetivo=140.09051901999555 vecinos=[90.05913934000091, 80.05617610000627] comparable_ok=True
+----------------------------------------------------------------------
+1/1 casos aprobados
+
+##### 7
+
+=== Caso 7 — Muestra por debajo de todos los objetivos ===
+  Objetivo   T apertura   T cierre   Dur. ventana (s sim)
+---------------------------------------------------------
+  (sin ventanas)
+  [advertencia] La muestra está a 25.00 °C. Se omiten los objetivos por encima de esa temperatura: 60.0, 55.0, 50.0, 45.0, 40.0, 35.0, 30.0 °C.
+  [advertencia] La muestra ya está por debajo de todos los objetivos. No hay puntos que medir.
+
+======================================================================
+RESUMEN
+======================================================================
+[OK   ] Caso 7 — Muestra por debajo de todos los objetivos
+          advertencia_ok=True ventanas=0 terminada=True
+----------------------------------------------------------------------
+1/1 casos aprobados
+
+##### 8
+
+=== Caso 8 — Objetivo perdido por reconexión durante la apertura ===
+  Objetivo   T apertura   T cierre   Dur. ventana (s sim)
+---------------------------------------------------------
+      60.0        59.50      59.19                   75.1
+      55.0        54.50      54.31                   75.0
+      50.0        49.62      49.38                   75.0
+      40.0        39.88      39.69                   75.1
+      35.0        34.88      34.62                  150.1
+      30.0        29.81      29.94                   75.0
+  [advertencia] Lectura de temperatura interrumpida. La secuencia continúa en espera.
+  [advertencia] Lectura de temperatura restablecida.
+  [advertencia] El objetivo 45.0 °C se perdió durante la interrupción de lectura: la muestra ya está a 43.44 °C, por debajo de su umbral de cierre. Nunca hubo ventana de integración para ese punto.
+
+======================================================================
+RESUMEN
+======================================================================
+[OK   ] Caso 8 — Objetivo perdido por reconexión durante la apertura
+          perdida_ok=True sin_ventana_degenerada=True resto_ok=True objetivos_medidos=[60.0, 55.0, 50.0, 40.0, 35.0, 30.0]
+----------------------------------------------------------------------
+1/1 casos aprobados
+
+##### n2
+
+=== Nivel 2 — Cadena completa (Medicion + dobles + Almacenamiento real) ===
+  filas CSV: 7, adquisicion_ok=True, temp_monotona=True, abrir_sesion_ok=True
+
+======================================================================
+RESUMEN
+======================================================================
+[OK   ] Nivel 2 — Cadena completa
+          filas=7 adquisicion_ok=True monotona_ok=True abre_ok=True
+----------------------------------------------------------------------
+1/1 casos aprobados
+
+##### n3
+
+=== Nivel 3 — Parámetros del barrido en metadatos_sesion.txt ===
+  --- metadatos_sesion.txt ---
+  session_id: 20261003_095405_nivel3
+  fecha_creacion: 2026-10-03T09:54:05
+  osciloscopio_modelo: SIMULADO
+  barrido_1_inicio: 2026-10-03T09:54:05
+  barrido_1_temperatura_inicial_c: 60.0
+  barrido_1_temperatura_final_c: 50.0
+  barrido_1_paso_c: 5.0
+  barrido_2_inicio: 2026-10-03T09:54:20
+  barrido_2_temperatura_inicial_c: 45.0
+  barrido_2_temperatura_final_c: 35.0
+  barrido_2_paso_c: 10.0
+
+======================================================================
+RESUMEN
+======================================================================
+[OK   ] Nivel 3 — Metadatos del barrido
+          manual_sin_cambios=True barrido_1_ok=True tiempo_sin_cambios=True barrido_2_ok=True cabecera_intacta=True
+----------------------------------------------------------------------
+1/1 casos aprobados
+
+##### probar_verificacion.py
+          exit=0 (esperado 0) esperadas=[] faltantes=[] inesperadas=[]
+----------------------------------------------------------------------
+11/11 casos correctos

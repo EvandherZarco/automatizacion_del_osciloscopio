@@ -9,18 +9,19 @@ fronteras de la celda. Este apéndice desarrolla el cálculo que la
 sustenta y establece el procedimiento para recalcularla cuando la
 geometría del montaje difiere de la nominal.
 
+% FIG-RECORTE
 \begin{figure}[H]
   \centering
   \begin{subfigure}[b]{0.48\textwidth}
     \centering
-    \includegraphics[width=\textwidth]{base}
+    \includegraphics[width=\linewidth]{base}
     \caption{Base (pieza 1).}
     \label{fig:plano_base}
   \end{subfigure}
   \hfill
   \begin{subfigure}[b]{0.48\textwidth}
     \centering
-    \includegraphics[width=\textwidth]{pared_laser_entrada}
+    \includegraphics[width=\linewidth]{pared_laser_entrada}
     \caption{Pared larga con la ranura de la ventana de cuarzo (pieza 2).}
     \label{fig:plano_pared_laser}
   \end{subfigure}
@@ -29,21 +30,21 @@ geometría del montaje difiere de la nominal.
 
   \begin{subfigure}[b]{0.32\textwidth}
     \centering
-    \includegraphics[width=\textwidth]{pared_hidrofono}
+    \includegraphics[width=\linewidth]{pared_hidrofono}
     \caption{Cabezal, \diameter\SI{12}{\milli\meter} (pieza 3).}
     \label{fig:plano_pared_h1}
   \end{subfigure}
   \hfill
   \begin{subfigure}[b]{0.32\textwidth}
     \centering
-    \includegraphics[width=\textwidth]{pared_hidrofono_2}
+    \includegraphics[width=\linewidth]{pared_hidrofono_2}
     \caption{Cuerpo, \diameter\SI{16}{\milli\meter} (pieza 4).}
     \label{fig:plano_pared_h2}
   \end{subfigure}
   \hfill
   \begin{subfigure}[b]{0.32\textwidth}
     \centering
-    \includegraphics[width=\textwidth]{pared_hidrofono_3}
+    \includegraphics[width=\linewidth]{pared_hidrofono_3}
     \caption{Cable, \diameter\SI{24}{\milli\meter} (pieza 5).}
     \label{fig:plano_pared_h3}
   \end{subfigure}
@@ -95,6 +96,7 @@ $v = \SI{1480}{\meter\per\second}$.
 La \cref{fig:celda_corte} reúne las cuatro hipótesis en el plano sobre
 el que se resuelve el problema.
 
+% FIG-RECORTE
 \input{capitulos/fig_celda_corte}
 
 \section*{Posición del haz dentro de la cavidad}
